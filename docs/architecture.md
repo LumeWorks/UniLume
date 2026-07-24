@@ -51,3 +51,10 @@ The original proposal and boundary rationale remain in
 the addon limitations are documented in
 [integration-testing.md](integration-testing.md) and
 [fcitx5-addon.md](fcitx5-addon.md).
+
+Mid-composition stable-prefix commit (commit immutable UTF-8 bytes while
+keeping a mutable client-preedit suffix, without SurroundingText) was researched
+under Issue #24. The legacy engine does not expose a proven monotonic mutable
+span; decision **C** (commit-only model) and counterexamples are recorded in
+[composition-span-research.md](composition-span-research.md) and
+[stable-prefix.md](stable-prefix.md).

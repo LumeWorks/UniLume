@@ -15,5 +15,7 @@ void runInputTests(EngineFixture &engine, TestContext &context);
 void runUrlAndCodeInputTests(EngineFixture &engine, TestContext &context);
 void runUnicodePassthroughTests(EngineFixture &engine, TestContext &context);
 void runUnicodeInvalidInputTests(EngineFixture &engine, TestContext &context);
+void runCompositionSpanCounterexampleTests(EngineFixture &engine,
+                                           TestContext &context);
 
 } // namespace unilume::test

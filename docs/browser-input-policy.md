@@ -133,23 +133,28 @@ expose this capability is not yet known.
 ### B. Stable prefix commit
 
 This approach commits the part of the preedit that is guaranteed not to change,
-reducing the underlined portion. For example, in "tôi" typed as "tooi", the
-first character "t" is stable after the second key produces "tô".
+reducing the underlined portion. For example, a guessed prefix of `"t"` after
+`"to"` looks stable until a later key rewrites earlier symbols.
 
-**Analysis:** UniKey's composition is not monotonic. Earlier characters can
-change based on later input due to:
-- Tone relocation: typing "nghieng" → "nghiêng" changes the "e" to "ê"
-- Vowel modification: "tooi" → "tôi" changes "oo" to "ô"
-- Backspace + recomposition
+**Analysis (Issue #24):** UniKey stores composition in `m_buffer[]` (composed
+symbols + tone) and `m_keyStrokes[]` (replay). Earlier characters change due to
+tone rewrite, roof/hook/`đ`, freeMarking, backspace tone moves, and
+`autoNonVnRestore`. Longest common prefix of successive outputs is only an
+observation, not a proof of immutability. A commit-only stable-prefix cannot
+safely recall committed bytes on backspace without SurroundingText. A
+forwarded-backspace architecture has not been evaluated.
 
-Determining a stable prefix requires deep engine introspection that the current
-`ukinterface` API does not expose. Adding a "prefix stability oracle" would
-require either extending the C API or duplicating engine logic — both outside
-scope. Without that oracle, any guessed prefix could be incorrect, violating
-the primary correctness invariants (no lost, duplicate, or reordered text).
+Full research: [composition-span-research.md](composition-span-research.md).
+Product summary: [stable-prefix.md](stable-prefix.md).
+Counterexample locks:
+`tests/engine/composition_span_counterexample_tests.cpp`.
 
-**Verdict:** Not currently implementable safely with the existing engine API.
-Deferred for engine-interface research.
+**Verdict:** **Decision C (commit-only model)** — not safely implementable as a
+mid-composition monotonic oracle for a commit-only design, without a deep
+in-engine mutability API (or a forbidden second engine). Full client preedit
+for the current word remains the safe browser path. No hybrid stable-prefix
+feature flag is enabled. A forwarded-backspace architecture is outside this
+research scope.
 
 ### C. Server-side preedit
 
@@ -171,7 +176,7 @@ been re-evaluated.
 | Approach | Safe? | No underline? | Feasible in tested matrix? |
 | --- | --- | --- | --- |
 | A. Direct replacement | Yes | Yes (works for Qt/GTK) | No for browser contexts tested |
-| B. Stable prefix | Uncertain | Partial | Deferred — needs engine API |
+| B. Stable prefix | No (decision C) | Partial only if unsafe | Rejected mid-word without engine oracle |
 | C. Server-side preedit | No (tested Firefox/X11) | Yes | Rejected for tested reproduction |
 
 **Conclusion (tested X11 matrix):** Safe zero-preedit for browser/Electron

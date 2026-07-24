@@ -72,6 +72,11 @@ Kết quả cài user-local và kiểm tra ứng dụng desktop thực tế đư
 Chính sách lựa chọn input path cho browser và phân tích zero-preedit được mô
 tả trong [docs/browser-input-policy.md](docs/browser-input-policy.md).
 
+Nghiên cứu composition span / stable-prefix (quyết định C cho mô hình
+commit-only, không bật hybrid) trong
+[docs/composition-span-research.md](docs/composition-span-research.md) và
+[docs/stable-prefix.md](docs/stable-prefix.md).
+
 Xác thực Wayland và checklist kiểm tra thủ công trong
 [docs/wayland-validation.md](docs/wayland-validation.md).
 

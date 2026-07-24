@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 add_executable(unilume_engine_tests
+  engine/composition_span_counterexample_tests.cpp
   engine/editing_tests.cpp
   engine/engine_test_main.cpp
   engine/input_tests.cpp

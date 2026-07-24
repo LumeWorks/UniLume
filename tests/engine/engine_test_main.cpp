@@ -20,6 +20,7 @@ int main()
     unilume::test::runUrlAndCodeInputTests(engine, context);
     unilume::test::runUnicodePassthroughTests(engine, context);
     unilume::test::runUnicodeInvalidInputTests(engine, context);
+    unilume::test::runCompositionSpanCounterexampleTests(engine, context);
 
     if (context.failures() != 0) {
         std::cerr << context.failures() << " test(s) failed\n";
