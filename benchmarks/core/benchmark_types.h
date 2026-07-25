@@ -43,4 +43,11 @@ struct AggregateObservation {
     std::uint64_t total_latency_ns{};
 };
 
+struct AllocationObservation {
+    std::string output;
+    std::uint64_t events{};
+    std::uint64_t allocations{};
+    std::uint64_t allocated_bytes{};
+};
+
 } // namespace unilume::benchmark

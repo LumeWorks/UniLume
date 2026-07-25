@@ -13,8 +13,38 @@ if(Git_FOUND)
   )
 endif()
 
+function(unilume_enable_allocation_wrapping target)
+  if(NOT CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    message(FATAL_ERROR
+      "UniLume allocation instrumentation requires GCC or Clang"
+    )
+  endif()
+  target_link_options(${target} PRIVATE
+    -Wl,--wrap=malloc
+    -Wl,--wrap=calloc
+    -Wl,--wrap=realloc
+    -Wl,--wrap=free
+  )
+endfunction()
+
 if(UNILUME_BUILD_BENCHMARKS)
+  add_library(unilume_allocation_instrumentation STATIC
+    core/allocation_instrumentation.cpp
+  )
+  target_include_directories(unilume_allocation_instrumentation PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/core
+  )
+  target_link_libraries(unilume_allocation_instrumentation PRIVATE
+    unilume_sanitizer_options
+  )
+  set_target_properties(unilume_allocation_instrumentation PROPERTIES
+    CXX_STANDARD 23
+    CXX_STANDARD_REQUIRED YES
+    CXX_EXTENSIONS NO
+  )
+
   add_executable(unilume_core_benchmark
+    core/allocation_benchmark.cpp
     core/benchmark_options.cpp
     core/burst_benchmark.cpp
     core/checksum.cpp
@@ -33,8 +63,10 @@ if(UNILUME_BUILD_BENCHMARKS)
 
   target_link_libraries(unilume_core_benchmark PRIVATE
     unilume_engine
+    unilume_allocation_instrumentation
     unilume_sanitizer_options
   )
+  unilume_enable_allocation_wrapping(unilume_core_benchmark)
 
   target_include_directories(unilume_core_benchmark PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/core
@@ -57,12 +89,28 @@ if(UNILUME_BUILD_BENCHMARKS)
     target_compile_options(unilume_core_benchmark PRIVATE -Wall -Wextra)
   endif()
 
+  add_executable(unilume_allocation_instrumentation_test
+    core/allocation_instrumentation_test.cpp
+  )
+  target_link_libraries(unilume_allocation_instrumentation_test PRIVATE
+    unilume_allocation_instrumentation
+    unilume_sanitizer_options
+  )
+  unilume_enable_allocation_wrapping(unilume_allocation_instrumentation_test)
+  set_target_properties(unilume_allocation_instrumentation_test PROPERTIES
+    CXX_STANDARD 23
+    CXX_STANDARD_REQUIRED YES
+    CXX_EXTENSIONS NO
+  )
+
   if(BUILD_TESTING)
-    add_test(
-      NAME benchmark-smoke
-      COMMAND unilume_core_benchmark --smoke
-    )
+    add_test(NAME benchmark-smoke COMMAND unilume_core_benchmark --smoke)
     set_tests_properties(benchmark-smoke PROPERTIES TIMEOUT 60)
+    add_test(
+      NAME allocation-instrumentation
+      COMMAND unilume_allocation_instrumentation_test
+    )
+    set_tests_properties(allocation-instrumentation PROPERTIES TIMEOUT 30)
   endif()
 endif()
 

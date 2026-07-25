@@ -34,6 +34,14 @@ struct RssMetrics {
     std::vector<RssCheckpoint> checkpoints;
 };
 
+struct AllocationMetrics {
+    std::uint64_t total_allocations{};
+    std::uint64_t allocated_bytes{};
+    double allocations_per_key{};
+    double bytes_per_key{};
+    double empty_scope_overhead_ns{};
+};
+
 struct BenchmarkResult {
     std::string name;
     std::uint64_t total_keys{};
@@ -48,6 +56,8 @@ struct BenchmarkResult {
     LatencyStatistics latency;
     bool has_rss{};
     RssMetrics rss;
+    bool has_allocations{};
+    AllocationMetrics allocations;
 };
 
 struct ReportMetadata {
@@ -56,7 +66,7 @@ struct ReportMetadata {
     std::string build_type;
     std::string cpu_model;
     std::string timestamp_utc;
-    std::string allocation_measurement{"not_measured"};
+    std::string allocation_measurement{"benchmark_scoped_c_cpp_interposition"};
 };
 
 struct BenchmarkReport {

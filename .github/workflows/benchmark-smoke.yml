@@ -14,9 +14,19 @@ permissions:
 
 jobs:
   benchmark-smoke:
-    name: benchmark-smoke
+    name: benchmark-smoke-${{ matrix.compiler }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - compiler: gcc
+            cc: gcc
+            cxx: g++
+          - compiler: clang
+            cc: clang
+            cxx: clang++
 
     steps:
       - name: Checkout repository
@@ -24,8 +34,8 @@ jobs:
 
       - name: Configure
         env:
-          CC: gcc
-          CXX: g++
+          CC: ${{ matrix.cc }}
+          CXX: ${{ matrix.cxx }}
         run: |
           cmake \
             -S . \
@@ -35,18 +45,18 @@ jobs:
             -DUNILUME_ENABLE_ASAN=ON \
             -DUNILUME_ENABLE_UBSAN=ON
 
-      - name: Build benchmark
+      - name: Build benchmark and allocation fixture
         run: |
           cmake \
             --build build/benchmark-smoke \
-            --target unilume_core_benchmark \
             --parallel 2
 
-      - name: Run benchmark smoke
+      - name: Run benchmark and allocation smoke
         env:
           ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
           UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
         run: |
-          build/benchmark-smoke/benchmarks/unilume_core_benchmark \
-            --smoke \
-            --format=json
+          ctest \
+            --test-dir build/benchmark-smoke \
+            --output-on-failure \
+            -R 'allocation-instrumentation|benchmark-smoke'

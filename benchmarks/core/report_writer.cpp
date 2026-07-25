@@ -14,23 +14,12 @@ std::string escapeJson(std::string_view text)
     std::string escaped;
     for (const char character : text) {
         switch (character) {
-        case '\\':
-            escaped += "\\\\";
-            break;
-        case '"':
-            escaped += "\\\"";
-            break;
-        case '\n':
-            escaped += "\\n";
-            break;
-        case '\r':
-            escaped += "\\r";
-            break;
-        case '\t':
-            escaped += "\\t";
-            break;
-        default:
-            escaped += character;
+        case '\\': escaped += "\\\\"; break;
+        case '"': escaped += "\\\""; break;
+        case '\n': escaped += "\\n"; break;
+        case '\r': escaped += "\\r"; break;
+        case '\t': escaped += "\\t"; break;
+        default: escaped += character;
         }
     }
     return escaped;
@@ -67,6 +56,16 @@ void writeHuman(const BenchmarkReport &report, std::ostream &output)
                    << "  latency drift: "
                    << result.latency_stability_drift_percent << "%\n";
         }
+        if (result.has_allocations) {
+            output << "  allocation calls="
+                   << result.allocations.total_allocations
+                   << " bytes=" << result.allocations.allocated_bytes
+                   << " allocations/key="
+                   << result.allocations.allocations_per_key
+                   << " bytes/key=" << result.allocations.bytes_per_key << '\n'
+                   << "  empty scope overhead ns="
+                   << result.allocations.empty_scope_overhead_ns << '\n';
+        }
         if (result.has_rss) {
             output << "  RSS KiB: initial=" << result.rss.initial_kib
                    << " warmup=" << result.rss.after_warmup_kib
@@ -74,13 +73,11 @@ void writeHuman(const BenchmarkReport &report, std::ostream &output)
                    << " maximum=" << result.rss.maximum_kib << '\n'
                    << "  RSS linear growth detected: "
                    << (result.rss.linear_growth_detected ? "yes" : "no")
-                   << ", checkpoints=" << result.rss.checkpoints.size()
-                   << '\n'
+                   << ", checkpoints=" << result.rss.checkpoints.size() << '\n'
                    << "  checkpoint latency drift: "
                    << result.latency_stability_drift_percent << "%\n"
                    << "  latency growth detected: "
-                   << (result.latency_growth_detected ? "yes" : "no")
-                   << '\n';
+                   << (result.latency_growth_detected ? "yes" : "no") << '\n';
         }
     }
 }
@@ -97,6 +94,22 @@ void writeLatencyJson(const LatencyStatistics &latency, std::ostream &output)
            << ",\"stddev_ns\":" << latency.stddev_ns << '}';
 }
 
+void writeAllocationJson(const BenchmarkResult &result, std::ostream &output)
+{
+    if (!result.has_allocations) {
+        output << "null";
+        return;
+    }
+    output << "{\"total_allocations\":"
+           << result.allocations.total_allocations
+           << ",\"allocated_bytes\":" << result.allocations.allocated_bytes
+           << ",\"allocations_per_key\":"
+           << result.allocations.allocations_per_key
+           << ",\"bytes_per_key\":" << result.allocations.bytes_per_key
+           << ",\"empty_scope_overhead_ns\":"
+           << result.allocations.empty_scope_overhead_ns << '}';
+}
+
 void writeRssJson(const BenchmarkResult &result, std::ostream &output)
 {
     if (!result.has_rss) {
@@ -110,11 +123,8 @@ void writeRssJson(const BenchmarkResult &result, std::ostream &output)
            << ",\"linear_growth_detected\":"
            << (result.rss.linear_growth_detected ? "true" : "false")
            << ",\"checkpoints\":[";
-    for (std::size_t index = 0; index < result.rss.checkpoints.size();
-         ++index) {
-        if (index != 0) {
-            output << ',';
-        }
+    for (std::size_t index = 0; index < result.rss.checkpoints.size(); ++index) {
+        if (index != 0) output << ',';
         output << "{\"keys\":" << result.rss.checkpoints[index].keys
                << ",\"current_kib\":"
                << result.rss.checkpoints[index].current_kib << '}';
@@ -137,9 +147,7 @@ void writeJson(const BenchmarkReport &report, std::ostream &output)
            << "\"},\"results\":[";
     for (std::size_t index = 0; index < report.results.size(); ++index) {
         const BenchmarkResult &result = report.results[index];
-        if (index != 0) {
-            output << ',';
-        }
+        if (index != 0) output << ',';
         output << "{\"name\":\"" << escapeJson(result.name)
                << "\",\"total_keys\":" << result.total_keys
                << ",\"iterations\":" << result.iterations
@@ -154,6 +162,8 @@ void writeJson(const BenchmarkReport &report, std::ostream &output)
                << (result.latency_growth_detected ? "true" : "false")
                << ",\"latency\":";
         writeLatencyJson(result.latency, output);
+        output << ",\"allocations\":";
+        writeAllocationJson(result, output);
         output << ",\"rss\":";
         writeRssJson(result, output);
         output << '}';
@@ -167,11 +177,8 @@ void writeReport(const BenchmarkReport &report,
                  std::string_view format,
                  std::ostream &output)
 {
-    if (format == "json") {
-        writeJson(report, output);
-    } else {
-        writeHuman(report, output);
-    }
+    if (format == "json") writeJson(report, output);
+    else writeHuman(report, output);
 }
 
 } // namespace unilume::benchmark

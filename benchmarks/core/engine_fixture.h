@@ -19,13 +19,16 @@ public:
 
     RunObservation run(const Scenario &scenario, bool measure_latency);
     AggregateObservation runAggregate(const Scenario &scenario);
+    AllocationObservation runAllocations(const Scenario &scenario);
     [[nodiscard]] const std::string &output() const;
 
 private:
     using Clock = std::chrono::steady_clock;
 
     void begin(const Scenario &scenario);
+    void callEngine(const KeyEvent &event);
     std::uint64_t process(const KeyEvent &event);
+    void applyEventOutput(const KeyEvent &event);
     void applyEngineOutput();
     void eraseUtf8Characters(int count);
 
