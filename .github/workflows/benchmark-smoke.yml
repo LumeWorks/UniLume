@@ -40,7 +40,6 @@ jobs:
 
       - name: Build with Cippie
         env:
-<<<<<<< HEAD
           CC: ${{ matrix.cc }}
           CXX: ${{ matrix.cxx }}
         run: |
