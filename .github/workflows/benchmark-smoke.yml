@@ -14,9 +14,19 @@ permissions:
 
 jobs:
   benchmark-smoke:
-    name: benchmark-smoke
+    name: benchmark-smoke-${{ matrix.compiler }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - compiler: gcc
+            cc: gcc
+            cxx: g++
+          - compiler: clang
+            cc: clang
+            cxx: clang++
 
     steps:
       - name: Checkout repository
@@ -30,12 +40,30 @@ jobs:
 
       - name: Build with Cippie
         env:
-          CC: gcc
-          CXX: g++
-        run: cippie build --debug
+<<<<<<< HEAD
+          CC: ${{ matrix.cc }}
+          CXX: ${{ matrix.cxx }}
+        run: |
+          cmake \
+            -S . \
+            -B build/benchmark-smoke \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DUNILUME_BUILD_BENCHMARKS=ON \
+            -DUNILUME_ENABLE_ASAN=ON \
+            -DUNILUME_ENABLE_UBSAN=ON
 
-      - name: Run test smoke
+      - name: Build benchmark and allocation fixture
+        run: |
+          cmake \
+            --build build/benchmark-smoke \
+            --parallel 2
+
+      - name: Run benchmark and allocation smoke
         env:
           ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
           UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
-        run: cippie test --debug
+        run: |
+          ctest \
+            --test-dir build/benchmark-smoke \
+            --output-on-failure \
+            -R 'allocation-instrumentation|benchmark-smoke'
