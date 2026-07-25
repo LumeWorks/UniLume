@@ -10,7 +10,10 @@ project(
   LANGUAGES CXX
 )
 
+include(GNUInstallDirs)
 include(CTest)
+
+include(cmake/UniLumeVersion.cmake)
 
 option(UNILUME_ENABLE_ASAN "Enable AddressSanitizer for UniLume targets" OFF)
 option(UNILUME_ENABLE_UBSAN "Enable UndefinedBehaviorSanitizer for UniLume targets" OFF)
@@ -181,3 +184,30 @@ if(UNILUME_BUILD_FCITX5_ADDON)
   endif()
   add_subdirectory(src/fcitx5)
 endif()
+
+# ---- Install docs ----
+install(
+  FILES
+    LICENSE
+    README.md
+    AUTHORS.md
+    NOTICE
+    CONTRIBUTING.md
+  DESTINATION ${CMAKE_INSTALL_DATADIR}/doc/unilume
+)
+
+# ---- Install documentation directory ----
+install(
+  DIRECTORY docs/
+  DESTINATION ${CMAKE_INSTALL_DATADIR}/doc/unilume
+  FILES_MATCHING
+    PATTERN "*.md"
+  REGEX "/legacy/" EXCLUDE
+)
+
+# ---- Install license (also in standard location) ----
+install(
+  FILES LICENSE
+  DESTINATION ${CMAKE_INSTALL_DATADIR}/licenses/unilume
+  RENAME copyright
+)

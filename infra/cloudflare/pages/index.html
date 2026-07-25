@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UniLume - Vietnamese Input Method</title>
+<style>
+body { font-family: system-ui, sans-serif; max-width: 720px; margin: 2em auto; padding: 0 1em; line-height: 1.6; }
+pre { background: #f4f4f4; padding: 1em; overflow-x: auto; border-radius: 4px; }
+code { background: #f4f4f4; padding: 0.2em 0.4em; border-radius: 2px; }
+h1, h2, h3 { margin-top: 1.5em; }
+.alert { background: #fff3cd; border: 1px solid #ffc107; padding: 1em; border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<h1>UniLume</h1>
+<p><strong>Bộ gõ tiếng Việt hiện đại, nhẹ và nhanh cho Linux.</strong></p>
+
+<div class="alert">
+<strong>Experimental:</strong> UniLume is in prerelease. See
+<a href="https://github.com/dismonjames/UniLume">GitHub</a> for source and issues.
+</div>
+
+<h2>Latest release</h2>
+<p><span id="version">Loading...</span></p>
+
+<script>
+fetch('/status.json')
+  .then(r => r.json())
+  .then(data => {
+    document.getElementById('version').textContent = data.version || 'unknown';
+  })
+  .catch(() => { document.getElementById('version').textContent = 'unavailable'; });
+</script>
+
+<h2>Supported distributions</h2>
+<ul>
+<li>Debian 13 / Ubuntu 24.04 (<code>.deb</code>)</li>
+<li>Fedora stable (<code>.rpm</code>)</li>
+<li>Arch Linux (<code>.pkg.tar.zst</code>)</li>
+<li>Any Linux (<code>.tar.zst</code>)</li>
+</ul>
+
+<h2>Installation</h2>
+
+<h3>Debian / Ubuntu</h3>
+<pre><code>curl -fsSL https://packages.dismon.me/keys/unilume-archive-keyring.gpg \
+  | sudo tee /usr/share/keyrings/unilume-archive-keyring.gpg >/dev/null
+
+echo "deb [signed-by=/usr/share/keyrings/unilume-archive-keyring.gpg] \
+https://packages.dismon.me/apt stable main" \
+  | sudo tee /etc/apt/sources.list.d/unilume.list
+
+sudo apt update
+sudo apt install unilume</code></pre>
+
+<h3>Fedora</h3>
+<pre><code>sudo dnf config-manager addrepo \
+  --from-repofile=https://packages.dismon.me/rpm/unilume.repo
+
+sudo dnf install unilume</code></pre>
+
+<h3>Arch Linux</h3>
+<pre><code># Manual download only
+# See https://packages.dismon.me/arch/stable/x86_64/</code></pre>
+
+<h3>Generic (any Linux)</h3>
+<pre><code>curl -fsSL https://packages.dismon.me/latest/stable/$(uname -m) \
+  -o unilume-latest.tar.zst
+
+tar --zstd -xf unilume-latest.tar.zst
+cd unilume-*/
+sudo ./install.sh</code></pre>
+
+<h2>After installation</h2>
+<ol>
+<li>Restart Fcitx5: <code>fcitx5 -rd</code></li>
+<li>Open <code>fcitx5-configtool</code></li>
+<li>Add <strong>UniLume</strong> as an input method</li>
+</ol>
+
+<h2>Uninstall</h2>
+<h3>Debian / Ubuntu</h3>
+<pre><code>sudo apt remove unilume</code></pre>
+
+<h3>Fedora</h3>
+<pre><code>sudo dnf remove unilume</code></pre>
+
+<h3>Generic</h3>
+<pre><code>sudo ./uninstall.sh</code></pre>
+
+<h2>Package signing</h2>
+<p>All packages and repository metadata are signed.</p>
+<pre><code>curl -fsSL https://packages.dismon.me/keys/unilume-archive-key.asc
+
+gpg --import unilume-archive-key.asc
+gpg --verify SHA256SUMS.asc SHA256SUMS
+sha256sum -c SHA256SUMS</code></pre>
+
+<p>Fingerprint: <code id="fingerprint">Loading...</code></p>
+
+<script>
+fetch('/keys/unilume-archive-key.asc')
+  .then(r => r.text())
+  .then(key => {
+    // Extract fingerprint from key
+    const match = key.match(/Fingerprint[=:]\s*([A-F0-9 ]+)/i);
+    if (match) document.getElementById('fingerprint').textContent = match[1].trim();
+  })
+  .catch(() => {});
+</script>
+
+<h2>Links</h2>
+<ul>
+<li><a href="https://github.com/dismonjames/UniLume">Source code (GitHub)</a></li>
+<li><a href="https://github.com/dismonjames/UniLume/releases">GitHub Releases</a></li>
+<li><a href="https://packages.dismon.me/status.json">Repository status</a></li>
+<li><a href="/keys/">Public signing keys</a></li>
+<li><a href="https://packages.dismon.me/docs/">Documentation</a></li>
+</ul>
+
+<hr>
+<footer>
+<p>UniLume is built on the <a href="https://unikey.org">UniKey Input Engine</a> by Pham Kim Long.</p>
+</footer>
+
+</body>
+</html>

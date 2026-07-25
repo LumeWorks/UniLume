@@ -1,0 +1,32 @@
+# Maintainer: Lê Hùng Quang Minh <dismonjames@gmail.com>
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+pkgname=unilume
+pkgver=0.1.0rc1
+pkgrel=1
+pkgdesc="Modern, lightweight Vietnamese input method for Linux"
+arch=('x86_64' 'aarch64')
+url="https://packages.dismon.me"
+license=('GPL2' 'LGPL2')
+depends=('fcitx5')
+makedepends=('cmake' 'pkg-config' 'gcc')
+source=("${pkgname}-${pkgver}.tar.zst::https://packages.dismon.me/releases/download/v${pkgver}/${pkgname}-${pkgver}-linux-x86_64.tar.zst")
+sha256sums=('SKIP')
+
+build() {
+  cmake \
+    -S "${srcdir}/${pkgname}-${pkgver}" \
+    -B build \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DUNILUME_BUILD_FCITX5_ADDON=ON
+  cmake --build build
+}
+
+check() {
+  ctest --test-dir build --output-on-failure
+}
+
+package() {
+  DESTDIR="${pkgdir}" cmake --install build
+}

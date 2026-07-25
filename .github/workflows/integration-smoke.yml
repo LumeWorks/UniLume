@@ -28,39 +28,17 @@ jobs:
           sudo apt-get update
           sudo apt-get install --yes libfcitx5core-dev pkg-config
 
-      - name: Configure integration sanitizer build
+      - name: Install Cippie
+        shell: bash
         run: |
-          cmake \
-            -S . \
-            -B build/integration-smoke \
-            -DCMAKE_BUILD_TYPE=Debug \
-            -DUNILUME_ENABLE_ASAN=ON \
-            -DUNILUME_ENABLE_UBSAN=ON \
-            -DUNILUME_BUILD_INTEGRATION_BENCHMARKS=ON \
-            -DUNILUME_BUILD_FCITX5_ADDON=ON
+          curl -fsSL https://raw.githubusercontent.com/dismonjames/cippie/main/scripts/install.sh | bash
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
-      - name: Build core, harness, benchmark, and addon
-        run: |
-          cmake \
-            --build build/integration-smoke \
-            --parallel 2
+      - name: Build with Cippie
+        run: cippie build --debug
 
-      - name: Run deterministic integration tests
+      - name: Run deterministic integration tests with Cippie
         env:
           ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
           UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
-        run: |
-          ctest \
-            --test-dir build/integration-smoke \
-            --output-on-failure
-
-      - name: Validate machine-readable integration smoke
-        env:
-          ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
-          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
-        run: |
-          build/integration-smoke/benchmarks/unilume_integration_benchmark \
-            --smoke \
-            --format=json \
-            --output=build/integration-smoke/integration-smoke.json
-          test -s build/integration-smoke/integration-smoke.json
+        run: cippie test --debug
