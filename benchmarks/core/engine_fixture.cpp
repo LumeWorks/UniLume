@@ -2,6 +2,7 @@
 
 #include "engine_fixture.h"
 
+#include "allocation_instrumentation.h"
 #include "unikey.h"
 
 #include <stdexcept>
@@ -64,6 +65,23 @@ AggregateObservation EngineFixture::runAggregate(const Scenario &scenario)
     return observation;
 }
 
+AllocationObservation EngineFixture::runAllocations(const Scenario &scenario)
+{
+    begin(scenario);
+    AllocationObservation observation;
+    observation.events = scenario.events.size();
+    for (const KeyEvent &event : scenario.events) {
+        allocation::MeasurementScope scope;
+        callEngine(event);
+        const allocation::Snapshot snapshot = scope.finish();
+        observation.allocations += snapshot.allocations;
+        observation.allocated_bytes += snapshot.allocated_bytes;
+        applyEventOutput(event);
+    }
+    observation.output = output_;
+    return observation;
+}
+
 const std::string &EngineFixture::output() const
 {
     return output_;
@@ -77,9 +95,8 @@ void EngineFixture::begin(const Scenario &scenario)
     UnikeySetCapsState(0, 0);
 }
 
-std::uint64_t EngineFixture::process(const KeyEvent &event)
+void EngineFixture::callEngine(const KeyEvent &event)
 {
-    const auto start = Clock::now();
     switch (event.type) {
     case EventType::key:
         UnikeyFilter(event.key);
@@ -91,17 +108,27 @@ std::uint64_t EngineFixture::process(const KeyEvent &event)
         UnikeyResetBuf();
         break;
     }
-    const auto end = Clock::now();
+}
 
+std::uint64_t EngineFixture::process(const KeyEvent &event)
+{
+    const auto start = Clock::now();
+    callEngine(event);
+    const auto end = Clock::now();
+    applyEventOutput(event);
+    return static_cast<std::uint64_t>(
+        std::chrono::duration_cast<std::chrono::nanoseconds>(end - start)
+            .count());
+}
+
+void EngineFixture::applyEventOutput(const KeyEvent &event)
+{
     if (event.type == EventType::key && UnikeyBackspaces == 0 &&
         UnikeyBufChars == 0) {
         output_.push_back(static_cast<char>(event.key));
     } else if (event.type != EventType::reset) {
         applyEngineOutput();
     }
-    return static_cast<std::uint64_t>(
-        std::chrono::duration_cast<std::chrono::nanoseconds>(end - start)
-            .count());
 }
 
 void EngineFixture::applyEngineOutput()

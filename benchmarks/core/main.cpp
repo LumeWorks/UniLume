@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include "allocation_benchmark.h"
 #include "benchmark_options.h"
 #include "burst_benchmark.h"
 #include "correctness.h"
@@ -34,6 +35,8 @@ int runBenchmarks(const unilume::benchmark::BenchmarkOptions &options)
         report.results.push_back(runLatencyBenchmark(engine, corpus, options));
         report.results.push_back(
             runThroughputBenchmark(engine, corpus, options));
+        report.results.push_back(
+            runAllocationBenchmark(engine, corpus, options));
     }
     for (const Corpus &burst : makeBurstCorpora()) {
         report.results.push_back(runLatencyBenchmark(engine, burst, options));

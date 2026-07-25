@@ -49,7 +49,7 @@ ReportMetadata collectReportMetadata()
         UNILUME_BENCHMARK_BUILD_TYPE,
         cpuModel(),
         timestampUtc(),
-        "not_measured",
+        "benchmark_scoped_c_cpp_interposition",
     };
 }
 
