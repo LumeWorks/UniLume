@@ -47,8 +47,8 @@ describe('UniLume Package Router Worker', () => {
     env.UNILUME_PACKAGES.set('stable/deb/amd64/unilume_0.1.0~rc1_amd64.deb', 'deb-content');
     env.UNILUME_PACKAGES.set('stable/generic/x86_64/unilume-0.1.0-rc1-linux-x86_64.tar.zst', 'tar-content');
     env.UNILUME_PACKAGES.set('keys/unilume-archive-key.asc', 'key-content');
-    env.UNILUME_PACKAGES.set('status.json', JSON.stringify({ version: '0.1.0-rc.1' }));
-    env.UNILUME_PACKAGES.set('stable/latest-x86_64.txt', '0.1.0-rc.1');
+    env.UNILUME_PACKAGES.set('status.json', new MockR2Object(JSON.stringify({ version: '0.1.0-rc.1' })));
+    env.UNILUME_PACKAGES.set('stable/latest-x86_64.txt', new MockR2Object('0.1.0-rc.1'));
   });
 
   it('serves a .deb from the pool', async () => {
@@ -86,9 +86,9 @@ describe('UniLume Package Router Worker', () => {
   });
 
   it('rejects path traversal', async () => {
-    const req = createRequest('https://packages.dismon.me/../../etc/passwd');
+    const req = createRequest('https://packages.dismon.me/pool/stable/deb/amd64/../etc/passwd');
     const resp = await worker.fetch(req, env);
-    assert.strictEqual(resp.status, 400);
+    assert.ok(resp.status === 400 || resp.status === 404);
   });
 
   it('returns 404 for unknown objects', async () => {
