@@ -1,0 +1,206 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Git tag to build from'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-deb:
+    name: Build Debian packages
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        arch: [amd64]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install build deps
+        shell: bash
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y \
+            cmake g++ pkg-config libfcitx5core-dev
+
+      - name: Get version
+        shell: bash
+        run: |
+          source cmake/UniLumeVersion.cmake
+          echo "UNILUME_VERSION=${UNILUME_VERSION}" >> "$GITHUB_ENV"
+          echo "UNILUME_DEB_VERSION=${UNILUME_VERSION/-/\~}" >> "$GITHUB_ENV"
+
+      - name: Install Cippie
+        shell: bash
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/dismonjames/cippie/main/scripts/install.sh | bash
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Build
+        shell: bash
+        run: |
+          cippie build --release
+
+      - name: Run tests
+        shell: bash
+        run: cippie test --release
+
+      - name: Package .deb
+        shell: bash
+        run: |
+          cd packaging/debian
+          mkdir -p "$GITHUB_WORKSPACE/dist/packages"
+          tar -cJf "$GITHUB_WORKSPACE/dist/packages/unilume-build.tar.xz" \
+            --transform "s|^|unilume-${UNILUME_DEB_VERSION}/|" \
+            -C "$GITHUB_WORKSPACE/staging" .
+
+      - name: Upload GitHub Release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh release upload "${GITHUB_REF_NAME}" \
+            dist/packages/*.tar.xz \
+            --clobber
+
+  build-rpm:
+    name: Build RPM packages
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        arch: [x86_64]
+    container:
+      image: fedora:latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install build deps
+        shell: bash
+        run: |
+          dnf install -y cmake gcc-c++ pkgconfig fcitx5-devel make rpm-build
+
+      - name: Get version
+        shell: bash
+        run: |
+          source cmake/UniLumeVersion.cmake
+          echo "UNILUME_VERSION=${UNILUME_VERSION}" >> "$GITHUB_ENV"
+
+      - name: Build RPM
+        shell: bash
+        run: |
+          RPM_TOPDIR="$(mktemp -d)"
+          cp packaging/rpm/unilume.spec "${RPM_TOPDIR}/"
+          tar -czf "${RPM_TOPDIR}/SOURCES/unilume-${UNILUME_VERSION}.tar.gz" \
+            --transform "s|^|unilume-${UNILUME_VERSION}/|" \
+            .
+          rpmbuild \
+            --define "_topdir ${RPM_TOPDIR}" \
+            -ba "${RPM_TOPDIR}/unilume.spec"
+          mkdir -p dist/packages
+          cp "${RPM_TOPDIR}"/RPMS/*/*.rpm dist/packages/
+
+      - name: Upload GitHub Release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh release upload "${GITHUB_REF_NAME}" \
+            dist/packages/*.rpm \
+            --clobber
+
+  build-arch:
+    name: Build Arch packages
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        arch: [x86_64]
+    container:
+      image: archlinux:latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install build deps
+        shell: bash
+        run: |
+          pacman -Syu --noconfirm cmake gcc pkg-config fcitx5 make
+
+      - name: Build Arch package
+        shell: bash
+        run: |
+          cd packaging/arch
+          # PKGBUILD expects source tarball; build from local checkout
+          ln -s "$GITHUB_WORKSPACE" "src/unilume"
+          makepkg --syncdeps --noconfirm --force
+          mkdir -p "$GITHUB_WORKSPACE/dist/packages"
+          cp *.pkg.tar.zst "$GITHUB_WORKSPACE/dist/packages/"
+
+      - name: Upload GitHub Release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh release upload "${GITHUB_REF_NAME}" \
+            dist/packages/*.pkg.tar.zst \
+            --clobber
+
+  publish:
+    name: Publish packages
+    needs: [build-deb, build-rpm, build-arch]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: release
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Setup signing
+        shell: bash
+        run: |
+          if [[ -n "${UNILUME_GPG_PRIVATE_KEY:-}" ]]; then
+            scripts/release/import-gpg-key.sh
+          fi
+
+      - name: Sign packages
+        shell: bash
+        run: |
+          if command -v gpg &>/dev/null && gpg --list-secret-keys &>/dev/null; then
+            for dir in dist/packages/*/; do
+              scripts/release/sign-all.sh "$dir"
+            done
+          fi
+
+      - name: Upload to Cloudflare R2
+        shell: bash
+        env:
+          RCLONE_CONFIG: ${{ secrets.RCLONE_CONFIG }}
+        run: |
+          if command -v rclone &>/dev/null && [[ -n "${RCLONE_CONFIG:-}" ]]; then
+            scripts/release/upload-r2.sh \
+              stable dist/packages/deb/ stable/deb/amd64/
+          fi
+
+      - name: Upload to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh release upload "${GITHUB_REF_NAME}" \
+            dist/packages/**/*.{deb,rpm,pkg.tar.zst,tar.zst,asc} \
+            --clobber

@@ -1,0 +1,23 @@
+Source: unilume
+Section: utils
+Priority: optional
+Maintainer: Lê Hùng Quang Minh <dismonjames@gmail.com>
+Build-Depends: cmake (>= 3.16),
+               debhelper-compat (= 13),
+               pkg-config,
+               libfcitx5core-dev (>= 5.0)
+Standards-Version: 4.7.0
+Homepage: https://packages.dismon.me
+
+Package: unilume
+Architecture: amd64 arm64
+Depends: ${shlibs:Depends}, ${misc:Depends},
+         fcitx5 (>= 5.0)
+Description: Modern, lightweight Vietnamese input method for Linux
+ UniLume is a Vietnamese input method built on the UniKey engine.
+ It provides Telex, VNI, and VIQR input through an Fcitx5 addon.
+ .
+ Features:
+  - Direct commit with SurroundingText support
+  - Safe client-preedit fallback for browsers
+  - Deterministic, no-sleep architecture

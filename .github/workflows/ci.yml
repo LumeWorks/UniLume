@@ -29,7 +29,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Select compiler
         shell: bash
@@ -42,26 +42,30 @@ jobs:
             echo "CXX=clang++" >> "$GITHUB_ENV"
           fi
 
-      - name: Configure
+      - name: Install Cippie
         shell: bash
         run: |
-          cmake \
-            -S . \
-            -B "build/${{ matrix.compiler }}-${{ matrix.build_type }}" \
-            -DCMAKE_BUILD_TYPE="${{ matrix.build_type }}" \
-            -DCMAKE_C_COMPILER="${CC}" \
-            -DCMAKE_CXX_COMPILER="${CXX}"
+          curl -fsSL https://raw.githubusercontent.com/dismonjames/cippie/main/scripts/install.sh | bash
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
-      - name: Build
+      - name: Build with Cippie
         shell: bash
         run: |
-          cmake \
-            --build "build/${{ matrix.compiler }}-${{ matrix.build_type }}" \
-            --parallel 2
+          BUILD_FLAG=""
+          if [[ "${{ matrix.build_type }}" == "Release" ]]; then
+            BUILD_FLAG="--release"
+          else
+            BUILD_FLAG="--debug"
+          fi
+          cippie build ${BUILD_FLAG}
 
-      - name: Test
+      - name: Test with Cippie
         shell: bash
         run: |
-          ctest \
-            --test-dir "build/${{ matrix.compiler }}-${{ matrix.build_type }}" \
-            --output-on-failure
+          BUILD_FLAG=""
+          if [[ "${{ matrix.build_type }}" == "Release" ]]; then
+            BUILD_FLAG="--release"
+          else
+            BUILD_FLAG="--debug"
+          fi
+          cippie test ${BUILD_FLAG}

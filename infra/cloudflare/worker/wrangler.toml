@@ -1,0 +1,15 @@
+name = "unilume-package-router"
+main = "src/index.mjs"
+compatibility_date = "2026-07-01"
+compatibility_flags = ["nodejs_compat"]
+
+# R2 bucket binding
+[[r2_buckets]]
+binding = "UNILUME_PACKAGES"
+bucket_name = "unilume-packages"
+
+[env.production]
+route = { pattern = "packages.dismon.me/*", zone_name = "dismon.me" }
+
+[env.staging]
+route = { pattern = "staging.packages.dismon.me/*", zone_name = "dismon.me" }

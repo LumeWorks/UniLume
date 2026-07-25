@@ -20,25 +20,22 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
-      - name: Configure
+      - name: Install Cippie
+        shell: bash
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/dismonjames/cippie/main/scripts/install.sh | bash
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Build with Cippie
         env:
           CC: gcc
           CXX: g++
-        run: |
-          cmake \
-            -S . \
-            -B build/sanitizers \
-            -DCMAKE_BUILD_TYPE=Debug \
-            -DUNILUME_ENABLE_ASAN=ON \
-            -DUNILUME_ENABLE_UBSAN=ON
+        run: cippie build --debug
 
-      - name: Build
-        run: cmake --build build/sanitizers --parallel 2
-
-      - name: Test
+      - name: Test with Cippie
         env:
           ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
           UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
-        run: ctest --test-dir build/sanitizers --output-on-failure
+        run: cippie test --debug

@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+# Cloudflare Pages redirects
+
+# /install redirects to the install section of the website
+/install    /#installation    301
+/install/   /#installation    301
+
+# /docs redirect to GitHub documentation as fallback
+/docs       https://github.com/dismonjames/UniLume/tree/main/docs    302
+/docs/*     https://github.com/dismonjames/UniLume/tree/main/docs/:splat    302
+
+# Legacy path support
+/downloads/*     /pool/:splat    301

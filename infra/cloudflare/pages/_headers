@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+# Cloudflare Pages headers
+
+# Default security headers
+/*.html
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Cache-Control: public, max-age=300, must-revalidate
+
+# Public keys: cache long
+/keys/*
+  Cache-Control: public, max-age=86400, immutable
+
+# JSON metadata: short cache
+*.json
+  Cache-Control: public, max-age=300, must-revalidate
+
+# Installation scripts
+/install/*
+  Cache-Control: public, max-age=3600
+
+# Documentation
+/docs/*
+  Cache-Control: public, max-age=3600, must-revalidate
