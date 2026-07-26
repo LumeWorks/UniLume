@@ -110,6 +110,14 @@ project("unilume") {
         compileOptions = ["-Wall", "-Wextra"];
     }
 
+    test("unilume_property_tests") {
+        entry = "fuzz/property_test_main.cpp";
+        sources = ["fuzz/support/fuzz_harness.cpp"];
+        includes = ["fuzz/support"];
+        links = ["unilume_integration_simulation", "unilume_core", "unilume_config", "unilume_context", "unilume_macro", "unilume_engine"];
+        compileOptions = ["-Wall", "-Wextra"];
+    }
+
     static_library("unilume_integration_test_support") {
         sources = [
             "tests/integration/integration_fixture.cpp",

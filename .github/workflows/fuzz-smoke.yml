@@ -1,0 +1,52 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+name: Fuzz Smoke
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure Clang fuzz targets
+        env:
+          CC: clang
+          CXX: clang++
+        run: |
+          cmake -S . -B build/fuzz \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DUNILUME_BUILD_FUZZERS=ON \
+            -DUNILUME_ENABLE_ASAN=ON \
+            -DUNILUME_ENABLE_UBSAN=ON
+
+      - name: Build fuzz targets
+        run: cmake --build build/fuzz --parallel 2
+
+      - name: Run bounded corpus and mutation smoke
+        env:
+          ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: |
+          campaign="$(mktemp -d)"
+          for target in engine parsers transaction; do
+            cp -R "fuzz/corpus/${target}" "${campaign}/${target}"
+            build/fuzz/fuzz/unilume_fuzz_${target} "${campaign}/${target}" \
+              -max_len=65536 \
+              -timeout=10 \
+              -runs=5000
+          done

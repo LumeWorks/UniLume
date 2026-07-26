@@ -1,0 +1,58 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+name: Fuzz Periodic
+
+on:
+  schedule:
+    - cron: '23 18 * * 6'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz-periodic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure Clang fuzz targets
+        env:
+          CC: clang
+          CXX: clang++
+        run: |
+          cmake -S . -B build/fuzz \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DUNILUME_BUILD_FUZZERS=ON \
+            -DUNILUME_ENABLE_ASAN=ON \
+            -DUNILUME_ENABLE_UBSAN=ON
+
+      - name: Build fuzz targets
+        run: cmake --build build/fuzz --parallel 2
+
+      - name: Run long campaigns
+        env:
+          ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: |
+          campaign="$(mktemp -d)"
+          mkdir -p fuzz/artifacts
+          for target in engine parsers transaction; do
+            cp -R "fuzz/corpus/${target}" "${campaign}/${target}"
+            build/fuzz/fuzz/unilume_fuzz_${target} "${campaign}/${target}" \
+              -artifact_prefix=fuzz/artifacts/${target}- \
+              -max_len=65536 \
+              -timeout=10 \
+              -max_total_time=480
+          done
+
+      - name: Upload crash artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-crash-artifacts
+          path: fuzz/artifacts/
+          if-no-files-found: ignore

@@ -76,6 +76,8 @@ protocol này mới có thể hỗ trợ một tuyên bố so sánh; benchmark c
 
 Cách chạy harness delayed/stale, burst, soak và benchmark integration được mô
 tả trong [docs/integration-testing.md](docs/integration-testing.md).
+Property test, corpus và libFuzzer được mô tả trong
+[docs/fuzz-testing.md](docs/fuzz-testing.md).
 Kết quả cài user-local và kiểm tra ứng dụng desktop thực tế được ghi tại
 [docs/real-application-validation.md](docs/real-application-validation.md).
 
