@@ -66,10 +66,13 @@ disposable browser profile at the probe page, and pass the exact Fcitx input
 method names. The harness temporarily switches the active input method and
 restores the previous method in a `finally` block.
 
-It sends XTEST events through `xdotool`, waits for the application to expose
-the resulting textarea value in the probe window title, and writes raw JSON.
-Timing is therefore **scenario-completion latency**, including the event path,
-Fcitx, and browser. It is not an engine-only per-key latency measurement.
+It keeps one XTEST connection for timed key injection and uses `xdotool` only
+for window discovery and focus. The probe reports its complete textarea value
+to a harness-owned loopback HTTP endpoint, avoiding browser window-title
+throttling. `completion_ns` is therefore the latency from the final XTEST key
+event until the browser-observed value reaches the harness. Raw wall time,
+input-injection time and configured inter-key delay are retained separately in
+every sample. This is not an engine-only per-key latency measurement.
 
 Required host tools are `fcitx5`, `fcitx5-remote`, `xdotool`, `pgrep`, and a
 native X11 browser. They are test-host requirements only; UniLume does not
@@ -79,6 +82,7 @@ Open the probe with a unique token (replace `TOKEN`):
 
 ```sh
 google-chrome --user-data-dir="$(mktemp -d)" --no-first-run \
+  --disable-features=LocalNetworkAccessChecks \
   "file://$PWD/tests/manual-apps/fcitx5-comparison-probe.html#TOKEN"
 ```
 
@@ -102,6 +106,17 @@ switch or keystroke injection. Use `--enforce-slo` for a qualifying run; the
 harness then exits non-zero unless correctness, p50/p95/p99, throughput, CPU,
 and RSS gates all pass. Result files are local evidence and must include the
 corresponding UniLume and Lotus commit/package versions in the issue.
+
+The probe reports only to `127.0.0.1:38491`. Pass the same non-default port to
+the page as `?reportPort=PORT` and to the harness as `--report-port=PORT` when
+the default is unavailable. Current Chromium builds require the test-only
+`LocalNetworkAccessChecks` flag above for a `file://` probe to reach loopback;
+it does not change input-method processing.
+
+The latency checks compare the candidate and reference p50, p95 and p99
+distributions directly. Per-round/per-scenario ratios remain in
+`paired_summary` to expose order effects and dispersion; percentiles of those
+ratios are not substituted for latency percentiles.
 
 Telex, VNI, and VIQR must be measured separately with matching configurations.
 The harness rejects an empty method corpus rather than silently comparing

@@ -179,8 +179,13 @@ Absolute nanosecond limits are deliberately not used on shared CI runners.
 The real X11 harness `scripts/benchmark/compare_fcitx5_desktop.py` warms each
 selected input path before measurement, supports repeated `--scenario NAME`
 filters for investigating a corpus failure, records p50, p95, p99, throughput,
-CPU and RSS, and exposes `--enforce-slo`. The enforced gate requires both
-methods to be correct before latency results can count as a fair win.
+CPU and RSS, and exposes `--enforce-slo`. Timed keys use one persistent XTEST
+connection; the browser returns its observed value through a harness-owned
+loopback endpoint so process startup and browser title throttling are excluded.
+The enforced gate requires both methods to be correct before latency results
+can count as a fair win. It compares candidate and reference latency
+percentiles directly while retaining paired ratios as separate dispersion
+evidence.
 
 ## Sanitizer smoke
 

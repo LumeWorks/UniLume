@@ -14,11 +14,19 @@
   <textarea id="probe" autofocus></textarea>
   <script>
     const token = new URL(window.location.href).hash.slice(1) || "probe";
+    const reportPort = new URL(window.location.href).searchParams.get("reportPort") || "38491";
     const probe = document.querySelector("#probe");
     const report = () => {
       // Keep the observed value in the window title so X11 automation can
-      // verify application output rather than assuming injected keys landed.
+      // identify the probe. Report through loopback because browsers throttle
+      // externally visible title updates and would hide input-method latency.
       document.title = `${token}|RESULT|${probe.value.replaceAll("\\n", "|")}`;
+      fetch(`http://127.0.0.1:${reportPort}/report`, {
+        method: "POST",
+        mode: "no-cors",
+        headers: {"Content-Type": "text/plain"},
+        body: JSON.stringify({token, value: probe.value.replaceAll("\\n", "|")}),
+      }).catch(() => {});
     };
     probe.addEventListener("input", report);
     document.title = `${token}|RESULT|`;

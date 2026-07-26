@@ -9,7 +9,10 @@ and to configure both input methods in Fcitx5 before it is run.
 from __future__ import annotations
 
 import argparse
+import ctypes
+import ctypes.util
 import hashlib
+import http.server
 import json
 import math
 import os
@@ -18,6 +21,7 @@ import shutil
 import statistics
 import subprocess
 import sys
+import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -26,6 +30,45 @@ from typing import Iterable
 
 PROBE_MARKER = "|RESULT|"
 COMMAND_TIMEOUT_SECONDS = 10.0
+CURRENT_TIME = 0
+MAX_REPORT_BYTES = 1024 * 1024
+
+ASCII_KEYSYM_NAMES = {
+    " ": "space",
+    "!": "exclam",
+    '"': "quotedbl",
+    "#": "numbersign",
+    "$": "dollar",
+    "%": "percent",
+    "&": "ampersand",
+    "'": "apostrophe",
+    "(": "parenleft",
+    ")": "parenright",
+    "*": "asterisk",
+    "+": "plus",
+    ",": "comma",
+    "-": "minus",
+    ".": "period",
+    "/": "slash",
+    ":": "colon",
+    ";": "semicolon",
+    "<": "less",
+    "=": "equal",
+    ">": "greater",
+    "?": "question",
+    "@": "at",
+    "[": "bracketleft",
+    "\\": "backslash",
+    "]": "bracketright",
+    "^": "asciicircum",
+    "_": "underscore",
+    "`": "grave",
+    "{": "braceleft",
+    "|": "bar",
+    "}": "braceright",
+    "~": "asciitilde",
+}
+SHIFTED_ASCII = frozenset('!@#$%^&*()_+{}|:"<>?~')
 
 
 class HarnessError(RuntimeError):
@@ -38,6 +81,163 @@ class Scenario:
     method: str
     encoded_input: str
     expected: str
+
+
+class ProbeReportState:
+    """Receive application-observed values without browser title throttling."""
+
+    def __init__(self) -> None:
+        self.condition = threading.Condition()
+        self.values: dict[str, str] = {}
+
+    def record(self, token: str, value: str) -> None:
+        with self.condition:
+            self.values[token] = value
+            self.condition.notify_all()
+
+    def wait_for(
+        self, token: str, expected: str, timeout_seconds: float
+    ) -> str | None:
+        deadline = time.monotonic() + timeout_seconds
+        with self.condition:
+            while self.values.get(token) != expected:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    return self.values.get(token)
+                self.condition.wait(remaining)
+            return expected
+
+
+class ProbeReportServer:
+    """Own the loopback endpoint used by the browser comparison probe."""
+
+    def __init__(self, port: int) -> None:
+        self.state = ProbeReportState()
+        state = self.state
+
+        class Handler(http.server.BaseHTTPRequestHandler):
+            protocol_version = "HTTP/1.1"
+
+            def do_POST(self) -> None:
+                try:
+                    length = int(self.headers.get("Content-Length", "0"))
+                except ValueError:
+                    length = 0
+                if self.path != "/report" or not 0 < length <= MAX_REPORT_BYTES:
+                    self.send_error(400)
+                    return
+                try:
+                    report = json.loads(self.rfile.read(length).decode("utf-8"))
+                    token = report["token"]
+                    value = report["value"]
+                    if not isinstance(token, str) or not isinstance(value, str):
+                        raise TypeError
+                except (json.JSONDecodeError, KeyError, TypeError, UnicodeDecodeError):
+                    self.send_error(400)
+                    return
+                state.record(token, value)
+                self.send_response(204)
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+
+            def log_message(self, _format: str, *_arguments: object) -> None:
+                pass
+
+        try:
+            self.server = http.server.ThreadingHTTPServer(("127.0.0.1", port), Handler)
+        except OSError as error:
+            raise HarnessError(
+                f"could not bind comparison probe report port {port}: {error}"
+            ) from error
+        self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
+
+    def __enter__(self) -> ProbeReportServer:
+        self.thread.start()
+        return self
+
+    def __exit__(self, _type: object, _value: object, _traceback: object) -> None:
+        self.server.shutdown()
+        self.server.server_close()
+        self.thread.join()
+
+
+class XTestInjector:
+    """Inject timed key events over one persistent XTEST connection."""
+
+    def __init__(self) -> None:
+        x11_path = ctypes.util.find_library("X11")
+        xtst_path = ctypes.util.find_library("Xtst")
+        if x11_path is None or xtst_path is None:
+            raise HarnessError(
+                "X11 and XTEST libraries are required by the desktop test harness"
+            )
+        self.x11 = ctypes.CDLL(x11_path)
+        self.xtst = ctypes.CDLL(xtst_path)
+        self.x11.XOpenDisplay.argtypes = [ctypes.c_char_p]
+        self.x11.XOpenDisplay.restype = ctypes.c_void_p
+        self.x11.XCloseDisplay.argtypes = [ctypes.c_void_p]
+        self.x11.XStringToKeysym.argtypes = [ctypes.c_char_p]
+        self.x11.XStringToKeysym.restype = ctypes.c_ulong
+        self.x11.XKeysymToKeycode.argtypes = [ctypes.c_void_p, ctypes.c_ulong]
+        self.x11.XKeysymToKeycode.restype = ctypes.c_ubyte
+        self.x11.XFlush.argtypes = [ctypes.c_void_p]
+        self.xtst.XTestFakeKeyEvent.argtypes = [
+            ctypes.c_void_p,
+            ctypes.c_uint,
+            ctypes.c_int,
+            ctypes.c_ulong,
+        ]
+        self.xtst.XTestFakeKeyEvent.restype = ctypes.c_int
+        self.display = self.x11.XOpenDisplay(None)
+        if not self.display:
+            raise HarnessError("could not open DISPLAY for XTEST input injection")
+        self.shift_keycode = self.keycode("Shift_L")
+
+    def close(self) -> None:
+        if self.display:
+            self.x11.XCloseDisplay(self.display)
+            self.display = None
+
+    def __enter__(self) -> XTestInjector:
+        return self
+
+    def __exit__(self, _type: object, _value: object, _traceback: object) -> None:
+        self.close()
+
+    def keycode(self, keysym_name: str) -> int:
+        keysym = self.x11.XStringToKeysym(keysym_name.encode("ascii"))
+        keycode = self.x11.XKeysymToKeycode(self.display, keysym)
+        if not keysym or not keycode:
+            raise HarnessError(f"X11 keyboard map has no key for {keysym_name!r}")
+        return int(keycode)
+
+    def key(self, keysym_name: str, *, shifted: bool = False) -> None:
+        keycode = self.keycode(keysym_name)
+        if shifted:
+            self.fake_key(self.shift_keycode, True)
+        self.fake_key(keycode, True)
+        self.fake_key(keycode, False)
+        if shifted:
+            self.fake_key(self.shift_keycode, False)
+        self.x11.XFlush(self.display)
+
+    def fake_key(self, keycode: int, pressed: bool) -> None:
+        if not self.xtst.XTestFakeKeyEvent(
+            self.display, keycode, int(pressed), CURRENT_TIME
+        ):
+            raise HarnessError("XTEST rejected a synthetic key event")
+
+    def ascii(self, character: str) -> None:
+        if len(character) != 1 or not character.isascii():
+            raise HarnessError(
+                f"comparison corpus contains non-ASCII input: {character!r}"
+            )
+        keysym_name = ASCII_KEYSYM_NAMES.get(character, character)
+        self.key(
+            keysym_name,
+            shifted=character.isupper() or character in SHIFTED_ASCII,
+        )
 
 
 def run(command: list[str], *, check: bool = True) -> subprocess.CompletedProcess[str]:
@@ -120,15 +320,14 @@ def window_title(window_id: str) -> str:
     return command_text(["xdotool", "getwindowname", window_id])
 
 
-def wait_for_title(window_id: str, expected: str, timeout_seconds: float) -> str:
-    deadline = time.monotonic() + timeout_seconds
-    observed = ""
-    while time.monotonic() < deadline:
-        observed = window_title(window_id)
-        if observed == expected:
-            return observed
-        time.sleep(0.01)
-    return observed
+def probe_window_suffix(title: str, token: str) -> str:
+    """Capture browser chrome appended to the initially empty probe title."""
+    probe_prefix = f"{token}{PROBE_MARKER}"
+    if not title.startswith(probe_prefix):
+        raise HarnessError(
+            f"probe title must start with token and marker {probe_prefix!r}: {title!r}"
+        )
+    return title[len(probe_prefix):]
 
 
 def xdotool(*arguments: str) -> None:
@@ -137,32 +336,31 @@ def xdotool(*arguments: str) -> None:
         raise HarnessError(f"xdotool failed: {completed.stderr.strip()}")
 
 
-def emit_input(window_id: str, encoded: str, delay_milliseconds: int) -> int:
+def emit_input(
+    injector: XTestInjector, encoded: str, delay_milliseconds: int
+) -> tuple[int, int]:
     """Send ASCII key events and explicit Backspace through the real X11 path."""
-    event_count = 0
+    events: list[tuple[str, str]] = []
     cursor = 0
     while cursor < len(encoded):
         marker = encoded.find("<BS>", cursor)
         if marker == -1:
             marker = len(encoded)
         text = encoded[cursor:marker]
-        if text:
-            xdotool(
-                "type",
-                "--window",
-                window_id,
-                "--clearmodifiers",
-                "--delay",
-                str(delay_milliseconds),
-                text,
-            )
-            event_count += len(text)
+        for character in text:
+            events.append(("ascii", character))
         if marker == len(encoded):
             break
-        xdotool("key", "--window", window_id, "--clearmodifiers", "BackSpace")
-        event_count += 1
+        events.append(("key", "BackSpace"))
         cursor = marker + len("<BS>")
-    return event_count
+    for index, (event_type, value) in enumerate(events):
+        if event_type == "ascii":
+            injector.ascii(value)
+        else:
+            injector.key(value)
+        if delay_milliseconds and index + 1 < len(events):
+            time.sleep(delay_milliseconds / 1000.0)
+    return len(events), time.monotonic_ns()
 
 
 def warm_input_path(
@@ -171,21 +369,22 @@ def warm_input_path(
     delay_milliseconds: int,
     reset_settle_milliseconds: int,
     timeout_seconds: float,
+    injector: XTestInjector,
+    reports: ProbeReportState,
 ) -> None:
     """Prime the selected frontend/server before collecting timed samples."""
     xdotool("windowactivate", "--sync", window_id)
-    xdotool("key", "--window", window_id, "--clearmodifiers", "Escape")
+    xdotool("key", "--clearmodifiers", "Escape")
     time.sleep(reset_settle_milliseconds / 1000.0)
-    xdotool("key", "--window", window_id, "--clearmodifiers", "ctrl+a")
-    xdotool("key", "--window", window_id, "--clearmodifiers", "BackSpace")
-    emit_input(window_id, "a ", delay_milliseconds)
-    xdotool("key", "--window", window_id, "--clearmodifiers", "Escape")
+    xdotool("key", "--clearmodifiers", "ctrl+a")
+    xdotool("key", "--clearmodifiers", "BackSpace")
+    emit_input(injector, "a ", delay_milliseconds)
+    xdotool("key", "--clearmodifiers", "Escape")
     time.sleep(reset_settle_milliseconds / 1000.0)
-    xdotool("key", "--window", window_id, "--clearmodifiers", "ctrl+a")
-    xdotool("key", "--window", window_id, "--clearmodifiers", "BackSpace")
-    cleared_title = f"{token}{PROBE_MARKER}"
-    observed = wait_for_title(window_id, cleared_title, timeout_seconds)
-    if observed != cleared_title:
+    xdotool("key", "--clearmodifiers", "ctrl+a")
+    xdotool("key", "--clearmodifiers", "BackSpace")
+    observed = reports.wait_for(token, "", timeout_seconds)
+    if observed != "":
         raise HarnessError(
             f"input path did not settle after warm-up: {observed!r}"
         )
@@ -313,10 +512,7 @@ def preflight(arguments: argparse.Namespace) -> dict[str, object]:
         arguments.corpus, arguments.method, frozenset(arguments.scenario)
     )
     title = window_title(arguments.window_id)
-    if arguments.token not in title:
-        raise HarnessError(
-            f"window {arguments.window_id} does not contain probe token {arguments.token!r}: {title!r}"
-        )
+    title_suffix = probe_window_suffix(title, arguments.token)
     window_pid = command_text(["xdotool", "getwindowpid", arguments.window_id])
     window_executable = Path(f"/proc/{window_pid}/exe")
     root = Path(__file__).resolve().parents[2]
@@ -336,6 +532,8 @@ def preflight(arguments: argparse.Namespace) -> dict[str, object]:
         "window_pid": window_pid,
         "window_executable": str(window_executable.resolve()) if window_executable.exists() else "unknown",
         "probe_token": arguments.token,
+        "window_title_suffix": title_suffix,
+        "probe_report_port": arguments.report_port,
         "unilume_commit": git_commit(root),
         "os_release": read_os_release(),
         "cpu_model": cpu_model(),
@@ -358,60 +556,85 @@ def compare(arguments: argparse.Namespace) -> dict[str, object]:
 
     samples: list[dict[str, object]] = []
     try:
-        for round_index, label, input_method in schedule:
-            xdotool("windowactivate", "--sync", arguments.window_id)
-            switch_input_method(input_method, arguments.timeout_seconds)
-            time.sleep(arguments.switch_settle_milliseconds / 1000.0)
-            warm_input_path(
-                arguments.window_id,
-                arguments.token,
-                arguments.delay_milliseconds,
-                arguments.reset_settle_milliseconds,
-                arguments.timeout_seconds,
-            )
-            for scenario in scenarios:
+        with (
+            ProbeReportServer(arguments.report_port) as report_server,
+            XTestInjector() as injector,
+        ):
+            for round_index, label, input_method in schedule:
                 xdotool("windowactivate", "--sync", arguments.window_id)
-                # Reset the input-method composition before clearing the
-                # document. Ctrl+A/Backspace alone only changes application
-                # text and can leak a reference engine's previous token into
-                # the next scenario.
-                xdotool(
-                    "key",
-                    "--window",
+                switch_input_method(input_method, arguments.timeout_seconds)
+                time.sleep(arguments.switch_settle_milliseconds / 1000.0)
+                warm_input_path(
                     arguments.window_id,
-                    "--clearmodifiers",
-                    "Escape",
+                    arguments.token,
+                    arguments.delay_milliseconds,
+                    arguments.reset_settle_milliseconds,
+                    arguments.timeout_seconds,
+                    injector,
+                    report_server.state,
                 )
-                time.sleep(arguments.reset_settle_milliseconds / 1000.0)
-                xdotool("key", "--window", arguments.window_id, "--clearmodifiers", "ctrl+a")
-                xdotool("key", "--window", arguments.window_id, "--clearmodifiers", "BackSpace")
-                cleared_title = f"{arguments.token}{PROBE_MARKER}"
-                cleared = wait_for_title(arguments.window_id, cleared_title, arguments.timeout_seconds)
-                if cleared != cleared_title:
-                    raise HarnessError(f"probe did not clear before {scenario.name}: {cleared!r}")
-                ticks_before, rss_before = process_snapshot(pid)
-                started = time.monotonic_ns()
-                key_events = emit_input(arguments.window_id, scenario.encoded_input, arguments.delay_milliseconds)
-                expected_title = f"{arguments.token}{PROBE_MARKER}{scenario.expected}"
-                observed = wait_for_title(arguments.window_id, expected_title, arguments.timeout_seconds)
-                completed = time.monotonic_ns()
-                ticks_after, rss_after = process_snapshot(pid)
-                ticks_per_second = os.sysconf(os.sysconf_names["SC_CLK_TCK"])
-                samples.append({
-                    "round": round_index,
-                    "side": label,
-                    "input_method": input_method,
-                    "scenario": scenario.name,
-                    "method": scenario.method,
-                    "key_events": key_events,
-                    "completion_ns": completed - started,
-                    "fcitx_cpu_seconds": (ticks_after - ticks_before) / ticks_per_second,
-                    "fcitx_rss_before_kib": rss_before,
-                    "fcitx_rss_after_kib": rss_after,
-                    "expected": scenario.expected,
-                    "observed": observed.removeprefix(f"{arguments.token}{PROBE_MARKER}"),
-                    "correct": observed == expected_title,
-                })
+                for scenario in scenarios:
+                    xdotool("windowactivate", "--sync", arguments.window_id)
+                    # Reset the input-method composition before clearing the
+                    # document. Ctrl+A/Backspace alone only changes
+                    # application text and can leak a reference engine's
+                    # previous token into the next scenario.
+                    xdotool(
+                        "key",
+                        "--clearmodifiers",
+                        "Escape",
+                    )
+                    time.sleep(arguments.reset_settle_milliseconds / 1000.0)
+                    xdotool("key", "--clearmodifiers", "ctrl+a")
+                    xdotool("key", "--clearmodifiers", "BackSpace")
+                    cleared = report_server.state.wait_for(
+                        arguments.token, "", arguments.timeout_seconds
+                    )
+                    if cleared != "":
+                        raise HarnessError(
+                            f"probe did not clear before {scenario.name}: {cleared!r}"
+                        )
+                    ticks_before, rss_before = process_snapshot(pid)
+                    started = time.monotonic_ns()
+                    key_events, last_input_event_ns = emit_input(
+                        injector,
+                        scenario.encoded_input,
+                        arguments.delay_milliseconds,
+                    )
+                    observed = report_server.state.wait_for(
+                        arguments.token,
+                        scenario.expected,
+                        arguments.timeout_seconds,
+                    )
+                    completed = time.monotonic_ns()
+                    wall_completion_ns = completed - started
+                    scheduled_input_delay_ns = (
+                        max(key_events - 1, 0)
+                        * arguments.delay_milliseconds
+                        * 1_000_000
+                    )
+                    ticks_after, rss_after = process_snapshot(pid)
+                    ticks_per_second = os.sysconf(os.sysconf_names["SC_CLK_TCK"])
+                    samples.append({
+                        "round": round_index,
+                        "side": label,
+                        "input_method": input_method,
+                        "scenario": scenario.name,
+                        "method": scenario.method,
+                        "key_events": key_events,
+                        "completion_ns":
+                            max(completed - last_input_event_ns, 1),
+                        "wall_completion_ns": wall_completion_ns,
+                        "input_injection_ns": last_input_event_ns - started,
+                        "scheduled_input_delay_ns": scheduled_input_delay_ns,
+                        "fcitx_cpu_seconds":
+                            (ticks_after - ticks_before) / ticks_per_second,
+                        "fcitx_rss_before_kib": rss_before,
+                        "fcitx_rss_after_kib": rss_after,
+                        "expected": scenario.expected,
+                        "observed": observed if observed is not None else "",
+                        "correct": observed == scenario.expected,
+                    })
     finally:
         if original_input_method:
             restore = run(["fcitx5-remote", "-s", original_input_method], check=False)
@@ -424,7 +647,7 @@ def compare(arguments: argparse.Namespace) -> dict[str, object]:
     candidate = [sample for sample in samples if sample["side"] == "candidate"]
     reference = [sample for sample in samples if sample["side"] == "reference"]
     result = {
-        "schema_version": 1,
+        "schema_version": 2,
         "harness": "compare_fcitx5_desktop.py",
         "environment": environment,
         "seed": arguments.seed,
@@ -453,18 +676,17 @@ def evaluate_slo(
 ) -> dict[str, object]:
     candidate = result["candidate"]["summary"]  # type: ignore[index]
     reference = result["reference"]["summary"]  # type: ignore[index]
-    paired_ratios = result["paired_summary"][  # type: ignore[index]
-        "candidate_over_reference_completion_ratio"
-    ]
+    candidate_latency = candidate["completion_ns"]  # type: ignore[index]
+    reference_latency = reference["completion_ns"]  # type: ignore[index]
     checks = {
         "candidate_correct": candidate["errors"] == 0,  # type: ignore[index]
         "reference_correct": reference["errors"] == 0,  # type: ignore[index]
         "p50_at_least_5_percent_lower":
-            paired_ratios["p50"] <= 0.95,
+            candidate_latency["p50"] <= reference_latency["p50"] * 0.95,
         "p95_at_least_5_percent_lower":
-            paired_ratios["p95"] <= 0.95,
+            candidate_latency["p95"] <= reference_latency["p95"] * 0.95,
         "p99_at_least_5_percent_lower":
-            paired_ratios["p99"] <= 0.95,
+            candidate_latency["p99"] <= reference_latency["p99"] * 0.95,
         "throughput_at_least_5_percent_higher":
             candidate["keys_per_second"] >= reference["keys_per_second"] * 1.05,  # type: ignore[index]
         "cpu_within_noise":
@@ -517,6 +739,12 @@ def parser() -> argparse.ArgumentParser:
         help="settling interval after resetting an input-method composition",
     )
     argument_parser.add_argument("--timeout-seconds", type=float, default=5.0)
+    argument_parser.add_argument(
+        "--report-port",
+        type=int,
+        default=38491,
+        help="loopback port used by the browser probe to report observed text",
+    )
     argument_parser.add_argument("--cpu-noise-seconds", type=float, default=0.05)
     argument_parser.add_argument("--rss-noise-kib", type=int, default=64)
     argument_parser.add_argument("--output", type=Path, help="write raw JSON result")
@@ -538,6 +766,7 @@ def main() -> int:
         or arguments.switch_settle_milliseconds < 0
         or arguments.reset_settle_milliseconds < 0
         or arguments.timeout_seconds <= 0
+        or not 1 <= arguments.report_port <= 65535
         or arguments.cpu_noise_seconds < 0
         or arguments.rss_noise_kib < 0
     ):
