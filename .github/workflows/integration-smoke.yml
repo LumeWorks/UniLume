@@ -30,6 +30,7 @@ jobs:
             appstream \
             desktop-file-utils \
             gettext \
+            fcitx5 \
             fcitx5-modules-dev \
             libfcitx5config-dev \
             libfcitx5core-dev \
