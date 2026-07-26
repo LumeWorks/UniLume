@@ -31,20 +31,20 @@ coi là sẵn sàng để sử dụng hằng ngày.
 
 ## Build và test
 
-Yêu cầu: CMake 3.16 trở lên, compiler C++ hỗ trợ GNU C++98 và công cụ build
-chuẩn trên Linux. Build mặc định không tải dependency từ Internet.
+Luồng phát triển core dùng Cippie (đã kiểm tra với 0.1.6) và compiler C++23
+trên Linux. Cippie không cần CMake để build hoặc chạy test core, và build mặc
+định không tải dependency từ Internet.
 
 ```sh
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
-cmake --build build
-ctest --test-dir build --output-on-failure
+cippie build --offline
+cippie test --offline
 ```
 
-Build mặc định tạo thư viện lõi và các executable test. Addon Fcitx5 chỉ được
-bật khi cấu hình `UNILUME_BUILD_FCITX5_ADDON=ON`; xem
-[docs/fcitx5-addon.md](docs/fcitx5-addon.md).
+Lệnh trên tạo thư viện core; `cippie test` cũng build và chạy engine lẫn
+integration test. CMake 3.16 trở lên vẫn được giữ cho các luồng chưa do Cippie
+quản lý: sanitizer, benchmark, addon Fcitx5 và install/package.
 
-Để chạy ASan và UBSan cục bộ:
+Để chạy ASan và UBSan cục bộ qua CMake:
 
 ```sh
 cmake -S . -B build/sanitizers \
@@ -58,6 +58,10 @@ ctest --test-dir build/sanitizers --output-on-failure
 ```
 
 Các option sanitizer mặc định tắt và không thay thế test build thông thường.
+
+Addon Fcitx5 vẫn chỉ được bật với
+`-DUNILUME_BUILD_FCITX5_ADDON=ON`; xem
+[docs/fcitx5-addon.md](docs/fcitx5-addon.md).
 
 Benchmark core được tắt mặc định. Cách build Release, chạy corpus, xuất JSON
 và chạy soak được mô tả trong
