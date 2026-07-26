@@ -63,6 +63,11 @@ mapping documented in [unikey-options.md](unikey-options.md). Each option
 snapshot belongs to one engine context; the legacy global option API is not
 used by the Fcitx path.
 
+Personal dictionary policy is a boundary-stage consumer of the real engine
+result, not a replacement spelling algorithm. Its immutable snapshot,
+precedence and resource bounds are frozen in
+[ADR 0002](adr/0002-personal-dictionary-policy.md).
+
 Mid-composition stable-prefix commit (commit immutable UTF-8 bytes while
 keeping a mutable client-preedit suffix, without SurroundingText) was researched
 under Issue #24. The legacy engine does not expose a proven monotonic mutable

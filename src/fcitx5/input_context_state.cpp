@@ -157,6 +157,24 @@ void InputContextState::setKeymap(const keymap::Snapshot &snapshot,
     keymap_generation_ = generation;
 }
 
+void InputContextState::setDictionary(
+    const dictionary::Snapshot &snapshot,
+    std::uint64_t generation)
+{
+    if (generation == dictionary_generation_) {
+        return;
+    }
+    if (mode_policy_.path() == platform::InputPath::preedit) {
+        commitPendingPreedit();
+    }
+    direct_controller_.setDictionary(snapshot);
+    preedit_controller_.setDictionary(snapshot);
+    backend_.reset();
+    clearPreedit();
+    mode_policy_.resetForCompositionEnd();
+    dictionary_generation_ = generation;
+}
+
 void InputContextState::synchronizeMode()
 {
     const platform::InputPath previous = mode_policy_.path();

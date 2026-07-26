@@ -134,6 +134,20 @@ add_library(unilume_keymap STATIC
   src/keymap/keymap_contract.cpp
 )
 
+add_library(unilume_dictionary STATIC
+  src/dictionary/dictionary_contract.cpp
+  src/dictionary/dictionary_store.cpp
+)
+
+target_link_libraries(unilume_dictionary PRIVATE unilume_sanitizer_options)
+target_include_directories(unilume_dictionary PUBLIC src/dictionary)
+set_target_properties(unilume_dictionary PROPERTIES
+  CXX_STANDARD 23
+  CXX_STANDARD_REQUIRED YES
+  CXX_EXTENSIONS NO
+  POSITION_INDEPENDENT_CODE ON
+)
+
 target_link_libraries(unilume_keymap PRIVATE unilume_sanitizer_options)
 target_include_directories(unilume_keymap PUBLIC src/keymap)
 set_target_properties(unilume_keymap PROPERTIES
@@ -184,6 +198,7 @@ add_library(unilume_core STATIC
 target_link_libraries(unilume_core PUBLIC
   unilume_config
   unilume_context
+  unilume_dictionary
   unilume_keymap
   unilume_macro
   unilume_sanitizer_options

@@ -80,6 +80,8 @@ Property test, corpus và libFuzzer được mô tả trong
 [docs/fuzz-testing.md](docs/fuzz-testing.md).
 Contract custom keymap và quy tắc activate/rollback được mô tả trong
 [docs/keymap-support.md](docs/keymap-support.md).
+Personal dictionary và policy keep/restore được mô tả trong
+[docs/dictionary-support.md](docs/dictionary-support.md).
 Kết quả cài user-local và kiểm tra ứng dụng desktop thực tế được ghi tại
 [docs/real-application-validation.md](docs/real-application-validation.md).
 

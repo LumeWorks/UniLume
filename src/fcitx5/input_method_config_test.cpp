@@ -36,6 +36,8 @@ int main()
     raw["MacroFile"] = "/tmp/unilume-macros";
     raw["KeymapEnabled"] = "True";
     raw["KeymapFile"] = "/tmp/unilume-keymap";
+    raw["DictionaryEnabled"] = "True";
+    raw["DictionaryFile"] = "/tmp/unilume-dictionary";
     ok &= expect(loadInputMethodConfig(input_method_config, raw),
                  "valid Fcitx configuration must load");
     ok &= expect(*input_method_config.input_method == ConfigInputMethod::VNI,
@@ -91,6 +93,16 @@ int main()
                      *input_method_config.keymap_file ==
                          "/tmp/unilume-keymap",
                  "invalid keymap update must preserve active configuration");
+
+    fcitx::RawConfig invalid_dictionary_path;
+    invalid_dictionary_path["DictionaryFile"] = "bad\npath";
+    ok &= expect(
+        !loadInputMethodConfig(input_method_config, invalid_dictionary_path),
+        "invalid dictionary path must be rejected");
+    ok &= expect(*input_method_config.dictionary_enabled &&
+                     *input_method_config.dictionary_file ==
+                         "/tmp/unilume-dictionary",
+                 "invalid dictionary update must preserve configuration");
 
     fcitx::RawConfig description;
     input_method_config.dumpDescription(description);

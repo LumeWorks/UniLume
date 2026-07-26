@@ -101,5 +101,8 @@ The addon exposes Telex, VNI, and VIQR plus the four verified behavior options
 documented in [unikey-options.md](unikey-options.md). UTF-8 remains the only
 output charset. Production macros use `MacroEnabled` and `MacroFile`; tables
 are validated outside the key path and installed per context as documented in
-[macro-support.md](macro-support.md). Legacy charset output, uinput, distro
-packages, and system-wide Wayland protocol integration are not provided yet.
+[macro-support.md](macro-support.md). Personal dictionaries use
+`DictionaryEnabled` and `DictionaryFile` with the same atomic per-context
+lifecycle described in [dictionary-support.md](dictionary-support.md). Legacy
+charset output, uinput, distro packages, and system-wide Wayland protocol
+integration are not provided yet.

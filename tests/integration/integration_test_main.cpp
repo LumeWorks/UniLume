@@ -22,6 +22,7 @@ int main(int argc, char **argv)
         runInputModePolicyTests(assertions);
         runOptionsTests(assertions);
         runMacroTests(assertions);
+        runDictionaryTests(assertions);
         runBurstTests(assertions);
         runSoakSmokeTests(assertions);
         runZeroPreeditArchitectureTests(assertions);
@@ -48,6 +49,8 @@ int main(int argc, char **argv)
             runOptionsTests(assertions);
         } else if (suite == "macro") {
             runMacroTests(assertions);
+        } else if (suite == "dictionary") {
+            runDictionaryTests(assertions);
         } else if (suite == "burst") {
             runBurstTests(assertions);
         } else if (suite == "soak-smoke") {

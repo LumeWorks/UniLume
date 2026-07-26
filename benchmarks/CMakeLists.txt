@@ -109,6 +109,24 @@ if(UNILUME_BUILD_BENCHMARKS)
     -fno-builtin-realloc
   )
 
+  add_executable(unilume_dictionary_benchmark
+    dictionary/dictionary_benchmark.cpp
+  )
+  target_link_libraries(unilume_dictionary_benchmark PRIVATE
+    unilume_dictionary
+    unilume_allocation_instrumentation
+    unilume_sanitizer_options
+  )
+  target_include_directories(unilume_dictionary_benchmark PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/core
+  )
+  unilume_enable_allocation_wrapping(unilume_dictionary_benchmark)
+  set_target_properties(unilume_dictionary_benchmark PROPERTIES
+    CXX_STANDARD 23
+    CXX_STANDARD_REQUIRED YES
+    CXX_EXTENSIONS NO
+  )
+
   if(BUILD_TESTING)
     add_test(NAME benchmark-smoke COMMAND unilume_core_benchmark --smoke)
     set_tests_properties(benchmark-smoke PROPERTIES TIMEOUT 60)
@@ -117,6 +135,11 @@ if(UNILUME_BUILD_BENCHMARKS)
       COMMAND unilume_allocation_instrumentation_test
     )
     set_tests_properties(allocation-instrumentation PROPERTIES TIMEOUT 30)
+    add_test(
+      NAME dictionary-benchmark
+      COMMAND unilume_dictionary_benchmark
+    )
+    set_tests_properties(dictionary-benchmark PROPERTIES TIMEOUT 30)
   endif()
 endif()
 

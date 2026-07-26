@@ -4,6 +4,7 @@
 
 #include "diagnostic_trace.h"
 #include "direct_commit_controller.h"
+#include "dictionary_contract.h"
 #include "fcitx_replacement_backend.h"
 #include "input_mode_policy.h"
 #include "preedit_fallback_controller.h"
@@ -30,6 +31,8 @@ public:
                    std::uint64_t generation);
     void setKeymap(const keymap::Snapshot &snapshot,
                    std::uint64_t generation);
+    void setDictionary(const dictionary::Snapshot &snapshot,
+                       std::uint64_t generation);
 
 private:
     void synchronizeMode();
@@ -50,6 +53,7 @@ private:
     UlEngineOptions options_{1, 1, 0, 1};
     std::uint64_t macro_generation_{};
     std::uint64_t keymap_generation_{};
+    std::uint64_t dictionary_generation_{};
 };
 
 } // namespace unilume::fcitx5

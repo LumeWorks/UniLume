@@ -95,6 +95,13 @@ void DirectCommitController::setKeymap(const keymap::Snapshot &snapshot)
     engine_.setKeymap(snapshot);
 }
 
+void DirectCommitController::setDictionary(
+    const dictionary::Snapshot &snapshot)
+{
+    resetForFocus();
+    engine_.setDictionary(snapshot);
+}
+
 const TransactionMetrics &DirectCommitController::metrics() const
 {
     return metrics_;

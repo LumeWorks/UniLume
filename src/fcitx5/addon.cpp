@@ -2,6 +2,7 @@
 
 #include "addon.h"
 
+#include "dictionary_store.h"
 #include "engine_options.h"
 #include "macro_store.h"
 #include "keymap_contract.h"
@@ -29,12 +30,14 @@ void UniLumeAddon::keyEvent(const fcitx::InputMethodEntry &entry,
                             fcitx::KeyEvent &event)
 {
     auto *state = event.inputContext()->propertyFor(&state_factory_);
-    const MacroRuntime &macros = macroFor(entry);
-    const config::Snapshot &snapshot = macros.configuration;
+    const RuntimeResources &resources = resourcesFor(entry);
+    const config::Snapshot &snapshot = resources.configuration;
     state->setInputMethod(toUlInputMethod(snapshot.input_method));
     state->setOptions(core::engineOptionsFromSnapshot(snapshot));
-    state->setMacros(macros.snapshot, macros.generation);
-    state->setKeymap(macros.keymap_snapshot, macros.keymap_generation);
+    state->setMacros(resources.snapshot, resources.generation);
+    state->setKeymap(resources.keymap_snapshot, resources.keymap_generation);
+    state->setDictionary(resources.dictionary_snapshot,
+                         resources.dictionary_generation);
     state->keyEvent(event);
 }
 
@@ -42,12 +45,14 @@ void UniLumeAddon::reset(const fcitx::InputMethodEntry &entry,
                          fcitx::InputContextEvent &event)
 {
     auto *state = event.inputContext()->propertyFor(&state_factory_);
-    const MacroRuntime &macros = macroFor(entry);
-    const config::Snapshot &snapshot = macros.configuration;
+    const RuntimeResources &resources = resourcesFor(entry);
+    const config::Snapshot &snapshot = resources.configuration;
     state->setInputMethod(toUlInputMethod(snapshot.input_method));
     state->setOptions(core::engineOptionsFromSnapshot(snapshot));
-    state->setMacros(macros.snapshot, macros.generation);
-    state->setKeymap(macros.keymap_snapshot, macros.keymap_generation);
+    state->setMacros(resources.snapshot, resources.generation);
+    state->setKeymap(resources.keymap_snapshot, resources.keymap_generation);
+    state->setDictionary(resources.dictionary_snapshot,
+                         resources.dictionary_generation);
     state->reset();
 }
 
@@ -61,21 +66,22 @@ void UniLumeAddon::setConfigForInputMethod(
     const fcitx::InputMethodEntry &entry,
     const fcitx::RawConfig &config)
 {
-    MacroRuntime prepared = macroFor(entry);
+    RuntimeResources prepared = resourcesFor(entry);
     if (!validateInputMethodConfig(config) ||
         !prepareMacroUpdate(entry, config, prepared) ||
         !prepareKeymapUpdate(entry, config, prepared) ||
+        !prepareDictionaryUpdate(entry, config, prepared) ||
         !loadInputMethodConfig(configFor(entry), config)) {
         return;
     }
     prepared.configuration = snapshotFromConfig(configFor(entry));
-    macroFor(entry) = std::move(prepared);
+    resourcesFor(entry) = std::move(prepared);
 }
 
 bool UniLumeAddon::prepareKeymapUpdate(
     const fcitx::InputMethodEntry &entry,
     const fcitx::RawConfig &source,
-    MacroRuntime &runtime) const
+    RuntimeResources &runtime) const
 {
     const InputMethodConfig &current = configFor(entry);
     const std::string *enabled_value = source.valueByPath("KeymapEnabled");
@@ -124,16 +130,16 @@ bool UniLumeAddon::prepareKeymapUpdate(
     return true;
 }
 
-UniLumeAddon::MacroRuntime &UniLumeAddon::macroFor(
+UniLumeAddon::RuntimeResources &UniLumeAddon::resourcesFor(
     const fcitx::InputMethodEntry &entry) const
 {
-    return macro_runtimes_.try_emplace(entry.uniqueName()).first->second;
+    return runtime_resources_.try_emplace(entry.uniqueName()).first->second;
 }
 
 bool UniLumeAddon::prepareMacroUpdate(
     const fcitx::InputMethodEntry &entry,
     const fcitx::RawConfig &source,
-    MacroRuntime &runtime) const
+    RuntimeResources &runtime) const
 {
     const InputMethodConfig &current = configFor(entry);
     const std::string *enabled_value = source.valueByPath("MacroEnabled");
@@ -171,6 +177,45 @@ bool UniLumeAddon::prepareMacroUpdate(
     ++runtime.generation;
     if (runtime.generation == 0) {
         ++runtime.generation;
+    }
+    return true;
+}
+
+bool UniLumeAddon::prepareDictionaryUpdate(
+    const fcitx::InputMethodEntry &entry,
+    const fcitx::RawConfig &source,
+    RuntimeResources &runtime) const
+{
+    const InputMethodConfig &current = configFor(entry);
+    const std::string *enabled_value =
+        source.valueByPath("DictionaryEnabled");
+    const std::string *path_value = source.valueByPath("DictionaryFile");
+    if (!enabled_value && !path_value) {
+        return true;
+    }
+    const bool enabled = enabled_value
+                             ? *enabled_value == "True"
+                             : *current.dictionary_enabled;
+    const std::string path =
+        path_value ? *path_value : *current.dictionary_file;
+    dictionary::Snapshot snapshot;
+    if (enabled) {
+        if (path.empty()) {
+            return false;
+        }
+        dictionary::Store store(path);
+        const dictionary::LoadResult loaded = store.load();
+        if (!loaded.ok() ||
+            loaded.disposition == dictionary::LoadDisposition::missing) {
+            return false;
+        }
+        snapshot = loaded.snapshot;
+        snapshot.enabled = true;
+    }
+    runtime.dictionary_snapshot = std::move(snapshot);
+    ++runtime.dictionary_generation;
+    if (runtime.dictionary_generation == 0) {
+        ++runtime.dictionary_generation;
     }
     return true;
 }

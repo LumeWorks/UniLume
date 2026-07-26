@@ -14,6 +14,7 @@ void runPreeditFallbackTests(Assertions &assertions);
 void runInputModePolicyTests(Assertions &assertions);
 void runOptionsTests(Assertions &assertions);
 void runMacroTests(Assertions &assertions);
+void runDictionaryTests(Assertions &assertions);
 void runBrowserCapabilityTests(Assertions &assertions);
 void runBrowserInputSessionTests(Assertions &assertions);
 void runBurstTests(Assertions &assertions);
