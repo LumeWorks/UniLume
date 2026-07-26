@@ -58,6 +58,7 @@ FcitxReplacementBackend::requestReplacement(
     std::int32_t delete_before_cursor,
     std::string_view commit_text)
 {
+    observation_.sequence_id = sequence_id;
     observation_.commit_bytes = commit_text.size();
     if (sequence_id <= last_sequence_id_ ||
         delete_before_cursor < 0 ||
@@ -85,6 +86,7 @@ FcitxReplacementBackend::requestFallbackCommit(
     std::uint64_t sequence_id,
     std::string_view commit_text)
 {
+    observation_.sequence_id = sequence_id;
     observation_.delete_before_cursor = 0;
     observation_.commit_bytes = commit_text.size();
     observation_.generation = generation_;

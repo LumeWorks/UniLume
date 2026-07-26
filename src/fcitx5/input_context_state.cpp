@@ -342,7 +342,8 @@ void InputContextState::synchronizeMode()
     clearPreedit();
     if (current != platform::InputPath::off) {
         diagnostics_.recordModeChange(
-            current == platform::InputPath::preedit);
+            current == platform::InputPath::preedit,
+            backend_.supportsDirectReplacement());
     }
 }
 
