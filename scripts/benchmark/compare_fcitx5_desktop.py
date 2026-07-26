@@ -116,6 +116,8 @@ class ProbeReportServer:
         state = self.state
 
         class Handler(http.server.BaseHTTPRequestHandler):
+            protocol_version = "HTTP/1.1"
+
             def do_POST(self) -> None:
                 try:
                     length = int(self.headers.get("Content-Length", "0"))
@@ -136,6 +138,7 @@ class ProbeReportServer:
                 state.record(token, value)
                 self.send_response(204)
                 self.send_header("Access-Control-Allow-Origin", "*")
+                self.send_header("Content-Length", "0")
                 self.end_headers()
 
             def log_message(self, _format: str, *_arguments: object) -> None:
