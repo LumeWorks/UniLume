@@ -99,5 +99,7 @@ validation checklist and environment-check script.
 
 The addon exposes Telex, VNI, and VIQR plus the four verified behavior options
 documented in [unikey-options.md](unikey-options.md). UTF-8 remains the only
-output charset. Macro data/configuration, legacy charset output, uinput, distro
+output charset. Production macros use `MacroEnabled` and `MacroFile`; tables
+are validated outside the key path and installed per context as documented in
+[macro-support.md](macro-support.md). Legacy charset output, uinput, distro
 packages, and system-wide Wayland protocol integration are not provided yet.

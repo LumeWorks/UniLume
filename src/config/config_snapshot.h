@@ -8,7 +8,7 @@
 
 namespace unilume::config {
 
-inline constexpr std::uint32_t schema_version = 1;
+inline constexpr std::uint32_t schema_version = 2;
 
 enum class InputMethod { telex, vni, viqr };
 enum class OutputCharset { utf8 };
@@ -22,6 +22,7 @@ struct Snapshot {
     bool modern_tone{false};
     bool auto_restore{true};
     bool macro_enabled{false};
+    std::string macro_file;
 
     friend bool operator==(const Snapshot &, const Snapshot &) = default;
 };

@@ -6,7 +6,10 @@
 #include "vnconv.h"
 
 #include <climits>
+#include <cstring>
 #include <new>
+#include <set>
+#include <string>
 
 struct UlEngineContext {
     UkSharedMem control;
@@ -51,6 +54,52 @@ void setDefaultOptions(UnikeyOptions &options)
 bool isBoolean(int value)
 {
     return value == 0 || value == 1;
+}
+
+bool isValidUtf8(const char *text, size_t size, size_t &characters)
+{
+    characters = 0;
+    for (size_t offset = 0; offset < size;) {
+        const unsigned char lead = static_cast<unsigned char>(text[offset]);
+        size_t width = 0;
+        uint32_t scalar = 0;
+        if (lead <= 0x7f) {
+            width = 1;
+            scalar = lead;
+        } else if (lead >= 0xc2 && lead <= 0xdf) {
+            width = 2;
+            scalar = lead & 0x1f;
+        } else if (lead >= 0xe0 && lead <= 0xef) {
+            width = 3;
+            scalar = lead & 0x0f;
+        } else if (lead >= 0xf0 && lead <= 0xf4) {
+            width = 4;
+            scalar = lead & 0x07;
+        } else {
+            return false;
+        }
+        if (offset + width > size) {
+            return false;
+        }
+        for (size_t index = 1; index < width; ++index) {
+            const unsigned char continuation =
+                static_cast<unsigned char>(text[offset + index]);
+            if ((continuation & 0xc0) != 0x80) {
+                return false;
+            }
+            scalar = (scalar << 6) | (continuation & 0x3f);
+        }
+        if ((width == 3 && scalar < 0x800) ||
+            (width == 4 && scalar < 0x10000) ||
+            scalar > 0x10ffff ||
+            (scalar >= 0xd800 && scalar <= 0xdfff) ||
+            scalar == 0) {
+            return false;
+        }
+        ++characters;
+        offset += width;
+    }
+    return true;
 }
 
 bool isValidOptions(const UlEngineOptions &options)
@@ -238,6 +287,60 @@ UlStatus ul_engine_set_options(UlEngineContext *context,
     }
     applyOptions(context->control.options, *options);
     context->engine.reset();
+    return UL_STATUS_OK;
+}
+
+UlStatus ul_engine_set_macros(UlEngineContext *context,
+                              const UlMacroEntry *entries,
+                              size_t entry_count,
+                              const UlMacroOptions *options)
+{
+    if (context == 0 || options == 0 || !isBoolean(options->enabled) ||
+        options->trigger != UL_MACRO_TRIGGER_WORD_BOUNDARY ||
+        options->capitalization != UL_MACRO_CAPITALIZATION_EXACT ||
+        entry_count > MAX_MACRO_ITEMS ||
+        (entry_count != 0 && entries == 0)) {
+        return UL_STATUS_INVALID_ARGUMENT;
+    }
+
+    CMacroTable replacement;
+    replacement.init();
+    std::set<std::string> keys;
+    for (size_t index = 0; index < entry_count; ++index) {
+        const UlMacroEntry &entry = entries[index];
+        if (entry.key == 0 || entry.text == 0 ||
+            entry.key_size == 0 || entry.text_size == 0 ||
+            std::memchr(entry.key, '\0', entry.key_size) != 0 ||
+            std::memchr(entry.text, '\0', entry.text_size) != 0) {
+            return UL_STATUS_INVALID_ARGUMENT;
+        }
+        size_t key_characters = 0;
+        size_t text_characters = 0;
+        if (!isValidUtf8(entry.key, entry.key_size, key_characters) ||
+            !isValidUtf8(entry.text, entry.text_size, text_characters)) {
+            return UL_STATUS_INVALID_UTF8;
+        }
+        if (key_characters >= MAX_MACRO_KEY_LEN ||
+            text_characters >= MAX_MACRO_TEXT_LEN) {
+            return UL_STATUS_LIMIT_EXCEEDED;
+        }
+        const std::string key(entry.key, entry.key_size);
+        if (!keys.insert(key).second) {
+            return UL_STATUS_DUPLICATE;
+        }
+        const std::string text(entry.text, entry.text_size);
+        if (replacement.addItem(
+                key.c_str(), text.c_str(), CONV_CHARSET_UNIUTF8) < 0) {
+            return UL_STATUS_LIMIT_EXCEEDED;
+        }
+    }
+    replacement.sortItems();
+
+    context->engine.reset();
+    context->control.macStore = replacement;
+    context->control.options.macroEnabled =
+        options->enabled && entry_count != 0;
+    context->control.options.alwaysMacro = 0;
     return UL_STATUS_OK;
 }
 

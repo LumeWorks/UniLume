@@ -14,6 +14,8 @@ coi là sẵn sàng để sử dụng hằng ngày.
 - Lõi UniKey/x-unikey 1.0.4 cho Telex, VNI và VIQR.
 - Xuất UTF-8 và các bộ chuyển đổi bảng mã kế thừa.
 - API xử lý phím, backspace, macro và keymap của x-unikey.
+- Macro UTF-8 production có validation, import VIQR, persistence nguyên tử và
+  isolation theo input context.
 - Build CMake cho thư viện lõi, regression test và integration test trên Linux.
 - Harness mô phỏng surrounding text trễ/lỗi và benchmark backlog/RSS tùy chọn.
 - Addon Fcitx5 Telex/UTF-8 thử nghiệm với direct-commit khi surrounding text

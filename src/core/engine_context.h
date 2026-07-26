@@ -4,6 +4,7 @@
 
 #include "key_input.h"
 #include "key_result.h"
+#include "macro_contract.h"
 #include "unilume_context.h"
 
 #include <array>
@@ -24,6 +25,7 @@ public:
     void reset();
     void setInputMethod(UlInputMethod method);
     void setOptions(const UlEngineOptions &options);
+    void setMacros(const macro::Snapshot &snapshot);
 
 private:
     KeyResult processText(const KeyInput &input, std::uint64_t sequence);
@@ -42,7 +44,7 @@ private:
     static bool shouldStartLineLiteral(std::string_view token);
     static std::size_t utf8Characters(std::string_view text);
 
-    static constexpr std::size_t output_capacity = 1024;
+    static constexpr std::size_t output_capacity = 4096;
     UlEngineContext *context_{};
     std::array<char, output_capacity> output_{};
     std::uint64_t next_sequence_{1};

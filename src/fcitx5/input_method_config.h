@@ -26,12 +26,19 @@ FCITX_CONFIGURATION(
     fcitx::Option<bool> spell_check{this, "SpellCheck", "Spell check", true};
     fcitx::Option<bool> free_marking{this, "FreeMarking", "Free marking", true};
     fcitx::Option<bool> modern_tone{this, "ModernTone", "Modern tone placement", false};
-    fcitx::Option<bool> auto_restore{this, "AutoRestore", "Restore non-Vietnamese words", true};)
+    fcitx::Option<bool> auto_restore{this, "AutoRestore", "Restore non-Vietnamese words", true};
+    fcitx::Option<bool> macro_enabled{
+        this, "MacroEnabled", "Enable word-boundary macros", false};
+    fcitx::Option<std::string> macro_file{
+        this, "MacroFile", "Validated UTF-8 macro table", ""};)
 
 [[nodiscard]] UlInputMethod toUlInputMethod(ConfigInputMethod method);
+[[nodiscard]] UlInputMethod toUlInputMethod(config::InputMethod method);
 [[nodiscard]] config::Snapshot snapshotFromConfig(
     const InputMethodConfig &config);
 [[nodiscard]] bool loadInputMethodConfig(InputMethodConfig &destination,
                                          const fcitx::RawConfig &source);
+[[nodiscard]] bool validateInputMethodConfig(
+    const fcitx::RawConfig &source);
 
 } // namespace unilume::fcitx5

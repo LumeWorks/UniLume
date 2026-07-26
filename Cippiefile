@@ -41,6 +41,17 @@ project("unilume") {
         compileOptions = ["-Wall", "-Wextra"];
     }
 
+    static_library("unilume_macro") {
+        sources = [
+            "src/macro/macro_contract.cpp",
+            "src/macro/macro_store.cpp"
+        ];
+        includes = ["src/byteio", "src/vnconv", "src/ukengine", "src/macro"];
+        public_includes = ["src/macro"];
+        links = ["unilume_engine"];
+        compileOptions = ["-Wall", "-Wextra"];
+    }
+
     static_library("unilume_core") {
         sources = [
             "src/core/direct_commit_controller.cpp",
@@ -53,7 +64,7 @@ project("unilume") {
         ];
         includes = ["src/core", "src/platform"];
         public_includes = ["src/core", "src/platform"];
-        links = ["unilume_config", "unilume_context", "unilume_engine"];
+        links = ["unilume_config", "unilume_context", "unilume_engine", "unilume_macro"];
         compileOptions = ["-Wall", "-Wextra"];
     }
 
@@ -87,6 +98,18 @@ project("unilume") {
         compileOptions = ["-Wall", "-Wextra"];
     }
 
+    test("unilume_macro_tests") {
+        entry = "tests/macro/macro_tests.cpp";
+        links = ["unilume_macro", "unilume_context", "unilume_engine"];
+        compileOptions = ["-Wall", "-Wextra"];
+    }
+
+    test("unilume_config_tests") {
+        entry = "tests/config/config_tests.cpp";
+        links = ["unilume_config"];
+        compileOptions = ["-Wall", "-Wextra"];
+    }
+
     static_library("unilume_integration_test_support") {
         sources = [
             "tests/integration/integration_fixture.cpp",
@@ -108,6 +131,7 @@ project("unilume") {
             "tests/integration/duplicate_text_tests.cpp",
             "tests/integration/immediate_tests.cpp",
             "tests/integration/input_mode_policy_tests.cpp",
+            "tests/integration/macro_tests.cpp",
             "tests/integration/options_tests.cpp",
             "tests/integration/preedit_fallback_tests.cpp",
             "tests/integration/transaction_tests.cpp"

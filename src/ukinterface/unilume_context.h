@@ -17,7 +17,10 @@ typedef enum UlStatus {
     UL_STATUS_INVALID_ARGUMENT = 1,
     UL_STATUS_OUT_OF_MEMORY = 2,
     UL_STATUS_OUTPUT_TOO_SMALL = 3,
-    UL_STATUS_INTERNAL_ERROR = 4
+    UL_STATUS_INTERNAL_ERROR = 4,
+    UL_STATUS_INVALID_UTF8 = 5,
+    UL_STATUS_DUPLICATE = 6,
+    UL_STATUS_LIMIT_EXCEEDED = 7
 } UlStatus;
 
 typedef enum UlInputMethod {
@@ -38,6 +41,27 @@ typedef struct UlEngineEdit {
     int32_t delete_before_cursor;
     size_t output_size;
 } UlEngineEdit;
+
+typedef struct UlMacroEntry {
+    const char *key;
+    size_t key_size;
+    const char *text;
+    size_t text_size;
+} UlMacroEntry;
+
+typedef enum UlMacroTrigger {
+    UL_MACRO_TRIGGER_WORD_BOUNDARY = 0
+} UlMacroTrigger;
+
+typedef enum UlMacroCapitalization {
+    UL_MACRO_CAPITALIZATION_EXACT = 0
+} UlMacroCapitalization;
+
+typedef struct UlMacroOptions {
+    int enabled;
+    UlMacroTrigger trigger;
+    UlMacroCapitalization capitalization;
+} UlMacroOptions;
 
 UlStatus ul_engine_create(UlInputMethod method, UlEngineContext **out_context);
 void ul_engine_destroy(UlEngineContext *context);
@@ -61,6 +85,10 @@ UlStatus ul_engine_get_options(const UlEngineContext *context,
                                UlEngineOptions *out_options);
 UlStatus ul_engine_set_options(UlEngineContext *context,
                                const UlEngineOptions *options);
+UlStatus ul_engine_set_macros(UlEngineContext *context,
+                              const UlMacroEntry *entries,
+                              size_t entry_count,
+                              const UlMacroOptions *options);
 void ul_engine_reset(UlEngineContext *context);
 
 #ifdef __cplusplus

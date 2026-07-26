@@ -72,6 +72,28 @@ void EngineContext::setOptions(const UlEngineOptions &options)
     }
 }
 
+void EngineContext::setMacros(const macro::Snapshot &snapshot)
+{
+    std::vector<UlMacroEntry> entries;
+    entries.reserve(snapshot.entries.size());
+    for (const macro::Entry &entry : snapshot.entries) {
+        entries.push_back(
+            {entry.key.data(), entry.key.size(),
+             entry.text.data(), entry.text.size()});
+    }
+    const UlMacroOptions options{
+        snapshot.enabled ? 1 : 0,
+        UL_MACRO_TRIGGER_WORD_BOUNDARY,
+        UL_MACRO_CAPITALIZATION_EXACT,
+    };
+    const UlStatus status = ul_engine_set_macros(
+        context_, entries.data(), entries.size(), &options);
+    if (status != UL_STATUS_OK) {
+        throw std::invalid_argument("invalid UniLume macro snapshot");
+    }
+    reset();
+}
+
 KeyResult EngineContext::processText(const KeyInput &input,
                                      std::uint64_t sequence)
 {

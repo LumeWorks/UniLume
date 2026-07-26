@@ -4,6 +4,7 @@
 
 #include "input_context_state.h"
 #include "input_method_config.h"
+#include "macro_contract.h"
 
 #include <fcitx/addonfactory.h>
 #include <fcitx/inputcontextproperty.h>
@@ -11,6 +12,7 @@
 #include <fcitx/instance.h>
 
 #include <map>
+#include <cstdint>
 #include <string>
 
 namespace unilume::fcitx5 {
@@ -29,11 +31,22 @@ public:
                                  const fcitx::RawConfig &config) override;
 
 private:
+    struct MacroRuntime {
+        config::Snapshot configuration{config::defaults()};
+        macro::Snapshot snapshot;
+        std::uint64_t generation{};
+    };
+
     InputMethodConfig &configFor(const fcitx::InputMethodEntry &entry) const;
+    MacroRuntime &macroFor(const fcitx::InputMethodEntry &entry) const;
+    bool prepareMacroUpdate(const fcitx::InputMethodEntry &entry,
+                            const fcitx::RawConfig &source,
+                            MacroRuntime &runtime) const;
 
     fcitx::Instance &instance_;
     fcitx::FactoryFor<InputContextState> state_factory_;
     mutable std::map<std::string, InputMethodConfig> input_method_configs_;
+    mutable std::map<std::string, MacroRuntime> macro_runtimes_;
 };
 
 class UniLumeFactory final : public fcitx::AddonFactory {

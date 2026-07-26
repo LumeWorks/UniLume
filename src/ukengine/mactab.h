@@ -63,6 +63,7 @@ public:
     void resetContent();
     int addItem(const char *item, int charset);
     int addItem(const void *key, const void *text, int charset);
+    void sortItems();
 
 protected:
     bool readHeader(FILE *f, int & version);
@@ -73,6 +74,9 @@ protected:
 
     int m_count;
     int m_memSize, m_occupied;
+
+    int compareKeys(const MacroDef &left, const MacroDef &right) const;
+    int compareKey(const StdVnChar *key, const MacroDef &entry) const;
 };
 
 #endif

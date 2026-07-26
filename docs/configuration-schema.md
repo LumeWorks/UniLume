@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: GPL-2.0-or-later -->
 
-# Configuration schema v1
+# Configuration schema v2
 
 Issue #40 establishes the only persistent configuration boundary for UniLume.
 The config library owns parsing, validation, migration and persistence. Engine,
@@ -17,19 +17,19 @@ active composition: the integration owner must commit or reset that
 composition, install the new snapshot, then create/apply the next context
 state. File I/O and parsing are forbidden per key.
 
-On a missing config the Store uses v1 defaults. On a malformed, duplicate,
+On a missing config the Store uses v2 defaults. On a malformed, duplicate,
 unknown or future-version config it returns a diagnostic and preserves the last
 known-good in-memory snapshot. It never silently overwrites a corrupt file.
 
-## Canonical v1 format
+## Canonical v2 format
 
-The format is strict UTF-8-compatible ASCII `key=value` lines. No quoting,
+The format is strict UTF-8 `key=value` lines with ASCII keys. No quoting,
 comments after values, duplicate keys, unknown keys or implicit coercions are
 accepted. Every listed key is required; a partial file is rejected. The
 serializer always writes this order:
 
 ```ini
-schema_version=1
+schema_version=2
 input_method=telex
 output_charset=utf8
 spell_check=true
@@ -37,17 +37,20 @@ free_marking=true
 modern_tone=false
 auto_restore=true
 macro_enabled=false
+macro_file=
 ```
 
 Stable identifiers are lowercase ASCII: input methods `telex`, `vni`, `viqr`;
 the only currently exposed output charset is `utf8`. Future fields for hotkeys,
-application rules, dictionaries and macros require a schema-versioned Issue;
+application rules and dictionaries require a schema-versioned Issue;
 they must not be invented by individual adapters.
 
 ## Migration and persistence
 
-Version 0 is the same set of v1 fields without `schema_version`; loading it
-produces a v1 snapshot marked as migrated. Any other version is rejected.
+Version 0 is the v1 scalar set without `schema_version`; version 1 is that
+same set with its explicit version. Loading either produces a v2 snapshot
+with an empty `macro_file`, marked as migrated. Any unsupported version is
+rejected.
 The v0, v1 and corrupt-file fixtures are regression inputs under
 `tests/config/fixtures/`.
 
@@ -59,8 +62,8 @@ files are ignored on load.
 
 ## Scope boundary
 
-v1 deliberately does not expose GUI widgets, Fcitx actions, custom keymaps,
-macro tables, dictionary paths, legacy charsets, hotkeys or app policy. Those
+v2 deliberately does not expose GUI widgets, Fcitx actions, custom keymaps,
+dictionary paths, legacy charsets, hotkeys or app policy. Those
 features are consumers of this contract in their own Issues. The schema does
 not change the UniKey algorithm or its defaults.
 
@@ -81,10 +84,9 @@ preedit commits, both controllers reset, and then the full immutable snapshot
 is installed. Invalid option values are rejected without replacing the active
 context snapshot.
 
-`macro_enabled` remains persisted for schema compatibility but is not exposed
-by the addon until a macro table lifecycle exists. Enabling the legacy flag
-without a table would be a no-op and is therefore intentionally not presented
-as a production option.
+`macro_enabled` and `macro_file` map to the validated lifecycle documented in
+[macro-support.md](macro-support.md). Enabling macros with an empty, missing
+or invalid table is rejected while preserving the active snapshot.
 
 The complete mapping, defaults, golden behavior, and deliberately deferred
 legacy fields are recorded in [unikey-options.md](unikey-options.md).
