@@ -24,6 +24,8 @@ int main(int argc, char **argv)
         runMacroTests(assertions);
         runBurstTests(assertions);
         runSoakSmokeTests(assertions);
+        runZeroPreeditArchitectureTests(assertions);
+        runZeroPreeditSoakTests(assertions);
     } else {
         const std::string_view suite{argv[1]};
         if (suite == "immediate") {
@@ -50,6 +52,10 @@ int main(int argc, char **argv)
             runBurstTests(assertions);
         } else if (suite == "soak-smoke") {
             runSoakSmokeTests(assertions);
+        } else if (suite == "zero-preedit-architecture") {
+            runZeroPreeditArchitectureTests(assertions);
+        } else if (suite == "zero-preedit-soak") {
+            runZeroPreeditSoakTests(assertions);
         } else {
             std::cerr << "unknown integration suite: " << suite << '\n';
             return 2;

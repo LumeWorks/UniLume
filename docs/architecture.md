@@ -46,6 +46,12 @@ after capability loss, but a preedit context is never promoted in place. This
 prevents asynchronous frontend updates from overlapping the first direct
 replacement.
 
+The production ownership decision is frozen in
+[ADR 0001](adr/0001-composition-ownership.md): `InputContextState` is the sole
+composition owner, a path transition crosses a reset barrier, and no
+server-preedit, second Wayland input-method object, or uinput helper may edit
+the same composition.
+
 The original proposal and boundary rationale remain in
 [linux-adapter-design.md](linux-adapter-design.md). Current test semantics and
 the addon limitations are documented in

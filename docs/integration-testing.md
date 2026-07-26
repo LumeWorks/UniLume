@@ -23,7 +23,9 @@ CTest separates engine regression from these integration suites:
 - `integration-preedit-fallback`;
 - `integration-mode-policy`;
 - `integration-burst`;
-- `integration-soak-smoke`.
+- `integration-soak-smoke`;
+- `integration-zero-preedit-architecture`;
+- `integration-zero-preedit-soak`.
 
 The harness covers immediate replacement, 1/2/5/10/50-event delay, missing or
 stale surrounding text, invalid surrounding UTF-8, cursor mismatch,
@@ -32,6 +34,25 @@ focus reset, safe preedit fallback, path selection, and bounded burst input.
 The fallback suite repeats the Firefox/Chrome corpus to detect duplicated,
 lost, or reordered prefixes. Delay is virtual; fault injection is
 deterministic and repeatable.
+
+The zero-preedit architecture suite locks the one-owner decision and contains
+executable cursor/focus/selection and dropped/reordered-update
+counterexamples. Its 1/2/5 ms profiles cover 1,000 and 10,000 events. To pace
+those intervals against the monotonic wall clock, run:
+
+```sh
+UNILUME_PROTOTYPE_WALL_BURST=1 \
+  build/integration/tests/unilume_integration_tests \
+  zero-preedit-architecture
+```
+
+The default soak is a short CI smoke. The acceptance soak stays in one process
+for 30 minutes and samples RSS:
+
+```sh
+UNILUME_PROTOTYPE_SOAK_SECONDS=1800 \
+  build/integration/tests/unilume_integration_tests zero-preedit-soak
+```
 
 Every suite checks final output, valid UTF-8, bounded/final queue depth, and
 the absence of a pending transaction. Duplicate and reordered callbacks must

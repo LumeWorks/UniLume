@@ -7,12 +7,15 @@ addon and provides a checklist for manual testing on native Wayland sessions.
 
 ## Current status
 
-**Not tested.** The primary development environment (Debian 13.6, KDE Plasma,
-X11) does not have a usable Wayland session.
+**Capability trace complete; interactive matrix pending.** Issue #47 ran real
+Firefox, Chrome, and VS Code/Electron Wayland clients inside an isolated KWin
+6.3.6 virtual compositor with Fcitx 5.1.12. All three advertised
+`SurroundingText`; see `zero-preedit-evidence.md`. The primary desktop remains
+X11, so the full interactive checklist below is not yet claimed.
 
-All Wayland-related compile paths (Fcitx5 addon, input-method protocol headers)
-are verified through the CI matrix, but no runtime tests have been executed on
-a native Wayland compositor.
+All Wayland-related compile paths are verified through the CI matrix. The
+runtime evidence currently covers native browser capability negotiation in an
+isolated compositor, not the complete key/output checklist.
 
 ## Environment check script
 
@@ -169,8 +172,8 @@ If the tester encounters any of the following, record the environment and skip
 the affected test case:
 
 1. `CapabilityFlag::SurroundingText` behavior differs from X11
-2. `deleteSurroundingText()` not supported by the compositor's text-input
-   protocol (zwp_text_input_v3 lacks delete support; v4 may have it)
+2. `deleteSurroundingText()` transport or surrounding-state behavior differs
+   across the compositor/application protocol combination
 3. Client preedit not supported (application does not call
    `input_method_request` or `set_surrounding_text`)
 4. Server preedit not supported by compositor

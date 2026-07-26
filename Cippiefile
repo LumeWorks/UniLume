@@ -134,7 +134,8 @@ project("unilume") {
             "tests/integration/macro_tests.cpp",
             "tests/integration/options_tests.cpp",
             "tests/integration/preedit_fallback_tests.cpp",
-            "tests/integration/transaction_tests.cpp"
+            "tests/integration/transaction_tests.cpp",
+            "tests/integration/zero_preedit_architecture_tests.cpp"
         ];
         includes = ["tests/integration"];
         links = ["unilume_integration_test_support", "unilume_core", "unilume_config", "unilume_integration_simulation", "unilume_context", "unilume_engine"];

@@ -87,9 +87,9 @@ on other configurations.
 **Key finding (Debian 13.6 / KDE Plasma / X11 matrix):** Firefox, Chrome, and
 Electron/VS Code did not advertise `CapabilityFlag::SurroundingText` on any
 context type observed in this environment. Those contexts remained on
-client-preedit fallback for the duration of the test session. Other frontend
-versions, desktop environments, or Wayland sessions may differ and remain
-unverified.
+client-preedit fallback for the duration of the test session. Native Wayland
+capability observations are recorded separately below; other versions and
+desktop environments may differ.
 
 ## Why browsers stay on client preedit
 
@@ -100,8 +100,8 @@ Browser engines:
 - **Firefox:** Uses Gecko's own IM handling. In the tested X11 matrix, Firefox
   did not advertise `SurroundingText`. The GTK IM module used by Firefox on X11
   (`gtk-im-context`) can provide surrounding text only if the widget requests
-  it; Firefox's input fields did not do so in this environment. Wayland may
-  differ.
+  it; Firefox's input fields did not do so in this X11 environment. The tested
+  native Wayland path did advertise the capability.
 - **Chrome:** Uses Aura (Linux) or Ozone (Wayland). On the tested X11 via GTK,
   Chrome's renderer process handled IME independently of the browser window's
   GTK IM context, and `SurroundingText` was not advertised in this environment.
@@ -110,8 +110,8 @@ Browser engines:
 
 This is not a UniLume limitation in the tested environment; the observed
 behavior reflects the frontend API contract as exercised by these applications
-on X11. Wayland, different browser versions, or alternative desktop
-environments may produce different capability signals and would need separate
+on X11. The isolated native Wayland trace did produce different capability
+signals. Different versions and desktop environments still require separate
 validation.
 
 ## Zero-preedit research
@@ -127,8 +127,8 @@ the cursor.
 
 **Browser applicability in tested X11 matrix:** In the environments tested,
 browsers did not advertise `CapabilityFlag::SurroundingText`, so
-`canReplace()` returned `false`. Whether Wayland or future browser versions
-expose this capability is not yet known.
+`canReplace()` returned `false`. The tested native Wayland clients did expose
+it, but direct replacement remains gated on validation of the live state.
 
 ### B. Stable prefix commit
 
@@ -183,8 +183,9 @@ been re-evaluated.
 frontends is not currently achievable with the frontend capabilities observed
 in the tested environment and the current UniKey engine interface. The
 client-preedit fallback with underline is retained as the safe default for
-all browser/Electron contexts in this matrix. Wayland and other environments
-require separate evaluation.
+all browser/Electron contexts in this matrix. The native Wayland capability
+trace makes those contexts eligible for verified direct replacement; complete
+interactive output validation is tracked separately.
 
 ## Deterministic test profiles
 
@@ -193,11 +194,11 @@ The integration harness models the following browser profiles:
 | Profile | SurroundingText (observed) | Behavior |
 | --- | --- | --- |
 | `firefox-x11` | Not advertised in test matrix | Client-preedit fallback, burst-safe |
-| `firefox-wayland` | Pending | Wayland session required |
+| `firefox-wayland` | Advertised in KWin trace | Direct when the live state validates |
 | `chromium-x11` | Not advertised in test matrix | Client-preedit fallback, burst-safe |
-| `chromium-wayland` | Pending | Wayland session required |
+| `chromium-wayland` | Advertised in KWin trace | Direct when the live state validates |
 | `electron-x11` | Not advertised in test matrix | Client-preedit fallback, burst-safe |
-| `electron-wayland` | Pending | Wayland session required |
+| `electron-wayland` | Advertised in KWin trace | Direct when the live state validates |
 
 Browser profiles are tested via `PreeditFallbackController` with the full
 corpus (Telex composition, URL, email, C++/C# code, punctuation, backspace).
@@ -209,7 +210,8 @@ See `tests/integration/browser_capability_tests.cpp` and
 - Browser/Electron capability observations are documented for Debian 13.6 / KDE
   Plasma X11 only. Other distributions, desktop environments, compositors, or
   Wayland sessions may differ and remain unverified.
-- Wayland browser profiles are marked `pending`; see
-  `docs/wayland-validation.md`.
+- Native Wayland browser capability traces are recorded in
+  `docs/zero-preedit-evidence.md`. Full interactive output validation remains
+  separate from capability observation.
 - The policy never hardcodes process names to force a specific path.
 - No claims are made about production readiness.
