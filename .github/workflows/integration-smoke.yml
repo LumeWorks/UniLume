@@ -30,9 +30,12 @@ jobs:
             appstream \
             desktop-file-utils \
             gettext \
+            fcitx5 \
             fcitx5-modules-dev \
             libfcitx5config-dev \
             libfcitx5core-dev \
+            libfcitx5-qt6-dev \
+            qt6-base-dev \
             pkg-config
 
       - name: Install Cippie
@@ -59,9 +62,14 @@ jobs:
         run: |
           cmake -S . -B build/fcitx5 -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
-            -DUNILUME_BUILD_FCITX5_ADDON=ON
+            -DUNILUME_BUILD_FCITX5_ADDON=ON \
+            -DUNILUME_BUILD_CONFIG_GUI=ON
           cmake --build build/fcitx5 --parallel 2
           ctest --test-dir build/fcitx5 --output-on-failure
+          cmake --install build/fcitx5 \
+            --prefix "$RUNNER_TEMP/unilume-config-smoke"
+          scripts/test/config_gui_dbus_smoke.sh \
+            "$RUNNER_TEMP/unilume-config-smoke"
 
       - name: Validate desktop metadata
         run: |
@@ -69,3 +77,5 @@ jobs:
             build/fcitx5/src/fcitx5/org.fcitx.Fcitx5.Addon.UniLume.metainfo.xml
           desktop-file-validate \
             data/org.fcitx.Fcitx5.Addon.UniLume.desktop
+          desktop-file-validate \
+            data/org.unilume.UniLume.Configuration.desktop

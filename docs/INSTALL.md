@@ -95,6 +95,12 @@ sudo ./install.sh --prefix=/usr
 
 3. Add **UniLume** as an input method in the *Add Input Method* dialog.
 
+4. If the package includes the optional configuration application, open it
+   from the UniLume entry in Fcitx configuration or run:
+   ```sh
+   unilume-config
+   ```
+
 ## Verification
 
 Verify package integrity and authenticity:

@@ -8,6 +8,7 @@
 
 #include <fcitx-config/configuration.h>
 #include <fcitx-config/enum.h>
+#include <fcitx-config/option.h>
 #include <fcitx-utils/i18n.h>
 
 namespace unilume::fcitx5 {
@@ -93,7 +94,13 @@ FCITX_CONFIGURATION(
         this, "EmojiEnabled", _("Enable the optional emoji picker"), false};
     fcitx::Option<std::string> emoji_hotkey{
         this, "EmojiHotkey", _("Open the emoji picker"),
-        "Control+Alt+period"};)
+        "Control+Alt+period"};
+#ifdef UNILUME_HAS_CONFIG_GUI
+    fcitx::ExternalOption configuration_gui{
+        this, "ConfigurationGUI", _("Open the complete UniLume configuration"),
+        "unilume-config"};
+#endif
+)
 
 [[nodiscard]] UlInputMethod toUlInputMethod(ConfigInputMethod method);
 [[nodiscard]] UlInputMethod toUlInputMethod(config::InputMethod method);

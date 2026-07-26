@@ -15,6 +15,12 @@ On Debian-family systems the Fcitx dependency is:
 sudo apt-get install gettext libfcitx5core-dev libfcitx5config-dev pkg-config
 ```
 
+Để build thêm GUI cấu hình, cài Qt6 Widgets và Fcitx Qt D-Bus:
+
+```sh
+sudo apt-get install libfcitx5-qt6-dev qt6-base-dev
+```
+
 Build and install into a disposable prefix:
 
 ```sh
@@ -23,6 +29,7 @@ PREFIX="$(mktemp -d)"
 cmake -S . -B build/fcitx5 \
   -DCMAKE_BUILD_TYPE=Release \
   -DUNILUME_BUILD_FCITX5_ADDON=ON \
+  -DUNILUME_BUILD_CONFIG_GUI=ON \
   -DCMAKE_INSTALL_PREFIX="$PREFIX"
 cmake --build build/fcitx5 --parallel 2
 cmake --install build/fcitx5
@@ -32,9 +39,11 @@ The prefix contains:
 
 ```text
 lib/fcitx5/unilume.so
+bin/unilume-config
 share/fcitx5/addon/unilume.conf
 share/fcitx5/inputmethod/unilume.conf
 share/applications/org.fcitx.Fcitx5.Addon.UniLume.desktop
+share/applications/org.unilume.UniLume.Configuration.desktop
 share/icons/hicolor/scalable/apps/unilume.svg
 share/icons/hicolor/scalable/apps/unilume-off.svg
 share/icons/hicolor/scalable/apps/unilume-fallback.svg
@@ -44,6 +53,9 @@ share/metainfo/org.fcitx.Fcitx5.Addon.UniLume.metainfo.xml
 
 With the option left `OFF`, normal core builds do not require Fcitx5. With the
 option `ON`, configure fails clearly if the development package is missing.
+`UNILUME_BUILD_CONFIG_GUI` also defaults to `OFF`, requires the addon option,
+and does not add Qt work to the per-key path. The complete GUI contract is in
+[configuration-gui.md](configuration-gui.md).
 
 For a user installation, choose a prefix recognized by that Fcitx5 package,
 reload/restart Fcitx5, and add UniLume through `fcitx5-configtool`. Distribution
