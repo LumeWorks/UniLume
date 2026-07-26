@@ -1,0 +1,15 @@
+[Groups/0]
+Name="UniLume configuration smoke"
+Default Layout=us
+DefaultIM=unilume
+
+[Groups/0/Items/0]
+Name=keyboard-us
+Layout=
+
+[Groups/0/Items/1]
+Name=unilume
+Layout=
+
+[GroupOrder]
+0="UniLume configuration smoke"

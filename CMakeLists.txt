@@ -22,6 +22,8 @@ option(UNILUME_BUILD_BENCHMARKS "Build UniLume core benchmarks" OFF)
 option(UNILUME_BUILD_INTEGRATION_BENCHMARKS
   "Build UniLume adapter integration benchmarks" OFF)
 option(UNILUME_BUILD_FCITX5_ADDON "Build the experimental Fcitx5 addon" OFF)
+option(UNILUME_BUILD_CONFIG_GUI
+  "Build the Qt6 production configuration GUI" OFF)
 option(UNILUME_BUILD_FUZZERS "Build Clang libFuzzer targets" OFF)
 
 add_library(unilume_sanitizer_options INTERFACE)
@@ -298,11 +300,14 @@ if(UNILUME_BUILD_BENCHMARKS OR UNILUME_BUILD_INTEGRATION_BENCHMARKS)
   add_subdirectory(benchmarks)
 endif()
 
-if(UNILUME_BUILD_FCITX5_ADDON)
+if(UNILUME_BUILD_FCITX5_ADDON OR UNILUME_BUILD_CONFIG_GUI)
   find_package(PkgConfig REQUIRED)
   find_package(Gettext REQUIRED)
   pkg_check_modules(FCITX5_CORE QUIET IMPORTED_TARGET "Fcitx5Core>=5.0")
   pkg_check_modules(FCITX5_CONFIG QUIET IMPORTED_TARGET "Fcitx5Config>=5.0")
+endif()
+
+if(UNILUME_BUILD_FCITX5_ADDON)
   pkg_check_modules(FCITX5_MODULE QUIET IMPORTED_TARGET "Fcitx5Module>=5.0")
   if(NOT FCITX5_CORE_FOUND OR NOT FCITX5_CONFIG_FOUND OR
      NOT FCITX5_MODULE_FOUND)
@@ -311,6 +316,20 @@ if(UNILUME_BUILD_FCITX5_ADDON)
     )
   endif()
   add_subdirectory(src/fcitx5)
+endif()
+
+if(UNILUME_BUILD_CONFIG_GUI)
+  if(NOT UNILUME_BUILD_FCITX5_ADDON)
+    message(FATAL_ERROR
+      "UNILUME_BUILD_CONFIG_GUI=ON requires UNILUME_BUILD_FCITX5_ADDON=ON"
+    )
+  endif()
+  find_package(Qt6 6.4 REQUIRED COMPONENTS Core DBus Widgets)
+  find_package(Fcitx5Qt6DBusAddons 5.0 REQUIRED)
+  target_compile_definitions(unilume_fcitx5 PRIVATE
+    UNILUME_HAS_CONFIG_GUI=1
+  )
+  add_subdirectory(src/config_gui)
 endif()
 
 # ---- Install docs ----

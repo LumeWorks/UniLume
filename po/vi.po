@@ -11,6 +11,294 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
+msgid "UniLume Configuration"
+msgstr "Cấu hình UniLume"
+
+msgid "Configure the UniLume Fcitx5 input method."
+msgstr "Cấu hình bộ gõ UniLume cho Fcitx5."
+
+msgid "Round-trip the live Fcitx configuration and exit."
+msgstr "Kiểm tra vòng đọc-ghi cấu hình Fcitx đang chạy rồi thoát."
+
+msgid ""
+"Preview: %1 options, %2 macro lines, %3 dictionary lines, %4 keymap lines "
+"and %5 application-policy lines.%6"
+msgstr ""
+"Xem trước: %1 tùy chọn, %2 dòng macro, %3 dòng từ điển, %4 dòng ánh xạ phím "
+"và %5 dòng chính sách ứng dụng.%6"
+
+msgid " Older backup values were migrated to current defaults."
+msgstr " Các giá trị từ bản sao lưu cũ đã được chuyển sang mặc định hiện tại."
+
+msgid "Apply"
+msgstr "Áp dụng"
+
+msgid "Reset"
+msgstr "Đặt lại"
+
+msgid "Cancel"
+msgstr "Hủy"
+
+msgid "Apply configuration"
+msgstr "Áp dụng cấu hình"
+
+msgid "Reset to defaults"
+msgstr "Đặt lại về mặc định"
+
+msgid "Cancel without applying"
+msgstr "Hủy mà không áp dụng"
+
+msgid "Cannot load UniLume configuration"
+msgstr "Không thể tải cấu hình UniLume"
+
+msgid "Invalid configuration"
+msgstr "Cấu hình không hợp lệ"
+
+msgid "Cannot stage configuration"
+msgstr "Không thể chuẩn bị cấu hình"
+
+msgid "Cannot apply configuration"
+msgstr "Không thể áp dụng cấu hình"
+
+msgid "Configuration applied."
+msgstr "Đã áp dụng cấu hình."
+
+msgid "Import UniLume backup"
+msgstr "Nhập bản sao lưu UniLume"
+
+msgid "UniLume backups (*.ulbackup);;All files (*)"
+msgstr "Bản sao lưu UniLume (*.ulbackup);;Mọi tệp (*)"
+
+msgid "Cannot import backup"
+msgstr "Không thể nhập bản sao lưu"
+
+msgid "Preview imported backup"
+msgstr "Xem trước bản sao lưu đã nhập"
+
+msgid ""
+"Stage these values? Runtime configuration will not change until Apply is "
+"pressed."
+msgstr ""
+"Chuẩn bị các giá trị này? Cấu hình đang chạy sẽ không đổi cho đến khi nhấn "
+"Áp dụng."
+
+msgid "Cannot export backup"
+msgstr "Không thể xuất bản sao lưu"
+
+msgid "Export UniLume backup"
+msgstr "Xuất bản sao lưu UniLume"
+
+msgid "UniLume backups (*.ulbackup)"
+msgstr "Bản sao lưu UniLume (*.ulbackup)"
+
+msgid "Discard unapplied changes?"
+msgstr "Bỏ các thay đổi chưa áp dụng?"
+
+msgid ""
+"Cancel closes the window without changing the running or persisted Fcitx "
+"configuration."
+msgstr ""
+"Hủy sẽ đóng cửa sổ mà không thay đổi cấu hình Fcitx đang chạy hoặc đã lưu."
+
+msgid "UniLume configuration"
+msgstr "Cấu hình UniLume"
+
+msgid "Validation status"
+msgstr "Trạng thái kiểm tra"
+
+msgid "General"
+msgstr "Chung"
+
+msgid "Typing"
+msgstr "Nhập liệu"
+
+msgid "Application rules editor"
+msgstr "Trình sửa quy tắc ứng dụng"
+
+msgid ""
+"One default and optional exact or trailing-* rules. Validation uses the "
+"production application-policy parser."
+msgstr ""
+"Một quy tắc mặc định cùng các quy tắc chính xác hoặc kết thúc bằng * tùy "
+"chọn. Việc kiểm tra dùng bộ phân tích chính sách ứng dụng của bản chạy thật."
+
+msgid "Applications"
+msgstr "Ứng dụng"
+
+msgid "Macro editor"
+msgstr "Trình sửa macro"
+
+msgid ""
+"Canonical rows contain a key, a tab, and replacement text. Legacy imports "
+"are previewed and canonicalized on Apply."
+msgstr ""
+"Mỗi dòng chuẩn gồm khóa, một dấu tab và văn bản thay thế. Dữ liệu cũ được "
+"xem trước và chuẩn hóa khi nhấn Áp dụng."
+
+msgid "Macros"
+msgstr "Macro"
+
+msgid "Personal dictionary editor"
+msgstr "Trình sửa từ điển cá nhân"
+
+msgid ""
+"Use keep or restore, a tab, and one word per row. Line and field errors come "
+"from the production parser."
+msgstr ""
+"Dùng keep hoặc restore, một dấu tab và một từ trên mỗi dòng. Lỗi dòng và "
+"trường do bộ phân tích của bản chạy thật cung cấp."
+
+msgid "Dictionary"
+msgstr "Từ điển"
+
+msgid "Custom keymap editor"
+msgstr "Trình sửa ánh xạ phím tùy chỉnh"
+
+msgid ""
+"Use one printable key, '=', and a supported UniKey action. The historical "
+"runtime loader is never called."
+msgstr ""
+"Dùng một phím in được, dấu '=' và một thao tác UniKey được hỗ trợ. Bộ nạp "
+"lịch sử của bản chạy không bao giờ được gọi."
+
+msgid "Keymap"
+msgstr "Ánh xạ phím"
+
+msgid "Shortcuts"
+msgstr "Phím tắt"
+
+msgid "Appearance"
+msgstr "Giao diện"
+
+msgid "Backup"
+msgstr "Sao lưu"
+
+msgid "UniLume follows the desktop palette, font scale and device pixel ratio."
+msgstr ""
+"UniLume dùng bảng màu, cỡ chữ và tỉ lệ điểm ảnh thiết bị của môi trường "
+"desktop."
+
+msgid "Vietnamese processing"
+msgstr "Xử lý tiếng Việt"
+
+msgid "Processing off"
+msgstr "Tắt xử lý"
+
+msgid "Safe preedit fallback"
+msgstr "Dự phòng preedit an toàn"
+
+msgid ""
+"There are no private color or scale settings: system-managed appearance "
+"avoids stale theme state and preserves accessibility."
+msgstr ""
+"Không có thiết lập màu hoặc tỉ lệ riêng: giao diện do hệ thống quản lý tránh "
+"trạng thái giao diện lỗi thời và giữ khả năng tiếp cận."
+
+msgid ""
+"Export or import one versioned backup containing every production option and "
+"the four managed resource documents. Import only stages a preview; Apply "
+"performs the atomic switch."
+msgstr ""
+"Xuất hoặc nhập một bản sao lưu có phiên bản chứa mọi tùy chọn của bản chạy "
+"và bốn tài liệu tài nguyên được quản lý. Nhập chỉ chuẩn bị bản xem trước; Áp "
+"dụng mới thực hiện chuyển đổi nguyên tử."
+
+msgid "Import..."
+msgstr "Nhập..."
+
+msgid "Export..."
+msgstr "Xuất..."
+
+msgid "No backup has been previewed."
+msgstr "Chưa xem trước bản sao lưu nào."
+
+msgid "Backup preview"
+msgstr "Xem trước bản sao lưu"
+
+msgid "All fields are valid."
+msgstr "Mọi trường đều hợp lệ."
+
+msgid "Vietnamese input method"
+msgstr "Kiểu gõ tiếng Việt"
+
+msgid "Output charset"
+msgstr "Bảng mã đầu ra"
+
+msgid "Verified direct replacement"
+msgstr "Thay thế trực tiếp đã kiểm chứng"
+
+msgid "Spell check"
+msgstr "Kiểm tra chính tả"
+
+msgid "Free marking"
+msgstr "Bỏ dấu tự do"
+
+msgid "Modern tone placement"
+msgstr "Đặt dấu thanh kiểu mới"
+
+msgid "Restore non-Vietnamese words"
+msgstr "Khôi phục từ không phải tiếng Việt"
+
+msgid "Capitalize after sentence punctuation or Enter"
+msgstr "Viết hoa sau dấu kết câu hoặc Enter"
+
+msgid "Replace word-ending double space with period"
+msgstr "Đổi hai dấu cách cuối từ thành dấu chấm"
+
+msgid "Replace prose double hyphen with em dash"
+msgstr "Đổi hai dấu gạch nối trong văn bản thành gạch ngang dài"
+
+msgid "Standalone w shortcut scope"
+msgstr "Phạm vi phím tắt w riêng lẻ"
+
+msgid "Bracket shortcut scope"
+msgstr "Phạm vi phím tắt ngoặc"
+
+msgid "Enable per-application policy"
+msgstr "Bật chính sách theo ứng dụng"
+
+msgid "Managed application policy"
+msgstr "Chính sách ứng dụng được quản lý"
+
+msgid "Enable word-boundary macros"
+msgstr "Bật macro tại ranh giới từ"
+
+msgid "Managed macro table"
+msgstr "Bảng macro được quản lý"
+
+msgid "Enable personal dictionary"
+msgstr "Bật từ điển cá nhân"
+
+msgid "Managed personal dictionary"
+msgstr "Từ điển cá nhân được quản lý"
+
+msgid "Enable custom keymap"
+msgstr "Bật ánh xạ phím tùy chỉnh"
+
+msgid "Managed custom keymap"
+msgstr "Ánh xạ phím tùy chỉnh được quản lý"
+
+msgid "Cycle application input mode"
+msgstr "Chuyển tuần tự chế độ nhập theo ứng dụng"
+
+msgid "Select automatic mode"
+msgstr "Chọn chế độ tự động"
+
+msgid "Select direct mode"
+msgstr "Chọn chế độ trực tiếp"
+
+msgid "Select safe preedit mode"
+msgstr "Chọn chế độ preedit an toàn"
+
+msgid "Turn processing off for this context"
+msgstr "Tắt xử lý cho ngữ cảnh này"
+
+msgid "Enable the optional emoji picker"
+msgstr "Bật bộ chọn emoji tùy chọn"
+
+msgid "Open the emoji picker"
+msgstr "Mở bộ chọn emoji"
+
 msgid "Clear emoji history"
 msgstr "Xóa lịch sử emoji"
 
@@ -92,41 +380,14 @@ msgstr "Không ở đầu từ"
 msgid "Everywhere"
 msgstr "Mọi nơi"
 
-msgid "Vietnamese input method"
-msgstr "Kiểu gõ tiếng Việt"
-
 msgid "Output charset (lossless only)"
 msgstr "Bảng mã đầu ra (chỉ dạng không mất dữ liệu)"
-
-msgid "Spell check"
-msgstr "Kiểm tra chính tả"
-
-msgid "Free marking"
-msgstr "Bỏ dấu tự do"
-
-msgid "Modern tone placement"
-msgstr "Đặt dấu thanh kiểu mới"
-
-msgid "Restore non-Vietnamese words"
-msgstr "Khôi phục từ không phải tiếng Việt"
-
-msgid "Capitalize after sentence punctuation or Enter"
-msgstr "Viết hoa sau dấu kết câu hoặc Enter"
-
-msgid "Replace word-ending double space with period"
-msgstr "Đổi hai dấu cách cuối từ thành dấu chấm"
-
-msgid "Replace prose double hyphen with em dash"
-msgstr "Đổi hai dấu gạch nối trong văn bản thành gạch ngang dài"
 
 msgid "Standalone w to u-horn shortcut scope"
 msgstr "Phạm vi phím tắt w riêng lẻ thành ư"
 
 msgid "Bracket to horn-vowel shortcut scope"
 msgstr "Phạm vi phím tắt ngoặc thành nguyên âm có dấu móc"
-
-msgid "Enable word-boundary macros"
-msgstr "Bật macro tại ranh giới từ"
 
 msgid "Validated UTF-8 macro table"
 msgstr "Bảng macro UTF-8 đã kiểm tra"
@@ -152,26 +413,8 @@ msgstr "Bật chính sách nhập theo ứng dụng"
 msgid "Validated per-application input policy"
 msgstr "Chính sách nhập theo ứng dụng đã kiểm tra"
 
-msgid "Cycle application input mode"
-msgstr "Chuyển tuần tự chế độ nhập theo ứng dụng"
-
-msgid "Select automatic mode"
-msgstr "Chọn chế độ tự động"
-
-msgid "Select direct mode"
-msgstr "Chọn chế độ trực tiếp"
-
-msgid "Select safe preedit mode"
-msgstr "Chọn chế độ preedit an toàn"
-
-msgid "Turn processing off for this context"
-msgstr "Tắt xử lý cho ngữ cảnh này"
-
-msgid "Enable the optional emoji picker"
-msgstr "Bật bộ chọn emoji tùy chọn"
-
-msgid "Open the emoji picker"
-msgstr "Mở bộ chọn emoji"
+msgid "Open the complete UniLume configuration"
+msgstr "Mở toàn bộ cấu hình UniLume"
 
 msgid "Input method: Telex"
 msgstr "Kiểu gõ: Telex"
@@ -184,9 +427,6 @@ msgstr "Kiểu gõ: VIQR"
 
 msgid "Output charset: UTF-8"
 msgstr "Bảng mã đầu ra: UTF-8"
-
-msgid "Macros"
-msgstr "Macro"
 
 msgid "Personal dictionary"
 msgstr "Từ điển cá nhân"

@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+[Desktop Entry]
+Type=Application
+Name=UniLume Configuration
+Name[vi]=Cấu hình UniLume
+Comment=Configure the UniLume Vietnamese input method
+Comment[vi]=Cấu hình bộ gõ tiếng Việt UniLume
+Exec=unilume-config
+Icon=unilume
+Terminal=false
+Categories=Settings;HardwareSettings;
+Keywords=Vietnamese;Input Method;Fcitx;Keyboard;
+Keywords[vi]=Tiếng Việt;Bộ gõ;Fcitx;Bàn phím;
+StartupNotify=true

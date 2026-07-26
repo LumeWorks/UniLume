@@ -20,12 +20,14 @@ coi là sẵn sàng để sử dụng hằng ngày.
 - Harness mô phỏng surrounding text trễ/lỗi và benchmark backlog/RSS tùy chọn.
 - Addon Fcitx5 Telex/UTF-8 thử nghiệm với direct-commit khi surrounding text
   đáng tin và fallback an toàn cho frontend bất đồng bộ, mặc định không build.
+- GUI cấu hình Qt6 tùy chọn cho toàn bộ option production, editor tài nguyên,
+  validation, backup/restore có phiên bản và apply nguyên tử qua Fcitx D-Bus.
 - Mã adapter XIM/GTK2 lịch sử trong `src/platform/legacy/` để tham khảo; các
   adapter này chưa nằm trong build mặc định.
 
 ## Chưa có
 
-- GUI cấu hình, gói distro hoặc uinput fallback.
+- Gói distro hoặc uinput fallback.
 - Xác minh trên Wayland và ma trận ứng dụng/phân phối rộng hơn môi trường
   KDE/X11 đã kiểm tra.
 - Backend IBus hoặc tích hợp Wayland cấp hệ thống độc lập.
@@ -74,6 +76,8 @@ ctest --test-dir build/tsan --output-on-failure
 Addon Fcitx5 vẫn chỉ được bật với
 `-DUNILUME_BUILD_FCITX5_ADDON=ON`; xem
 [docs/fcitx5-addon.md](docs/fcitx5-addon.md).
+GUI cấu hình được bật thêm với `-DUNILUME_BUILD_CONFIG_GUI=ON`; xem
+[docs/configuration-gui.md](docs/configuration-gui.md).
 
 Benchmark core được tắt mặc định. Cách build Release, chạy corpus, xuất JSON
 và chạy soak được mô tả trong

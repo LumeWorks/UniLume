@@ -1,3 +1,271 @@
+msgid "UniLume Configuration"
+msgstr ""
+
+msgid "Configure the UniLume Fcitx5 input method."
+msgstr ""
+
+msgid "Round-trip the live Fcitx configuration and exit."
+msgstr ""
+
+msgid ""
+"Preview: %1 options, %2 macro lines, %3 dictionary lines, %4 keymap lines "
+"and %5 application-policy lines.%6"
+msgstr ""
+
+msgid " Older backup values were migrated to current defaults."
+msgstr ""
+
+msgid "Apply"
+msgstr ""
+
+msgid "Reset"
+msgstr ""
+
+msgid "Cancel"
+msgstr ""
+
+msgid "Apply configuration"
+msgstr ""
+
+msgid "Reset to defaults"
+msgstr ""
+
+msgid "Cancel without applying"
+msgstr ""
+
+msgid "Cannot load UniLume configuration"
+msgstr ""
+
+msgid "Invalid configuration"
+msgstr ""
+
+msgid "Cannot stage configuration"
+msgstr ""
+
+msgid "Cannot apply configuration"
+msgstr ""
+
+msgid "Configuration applied."
+msgstr ""
+
+msgid "Import UniLume backup"
+msgstr ""
+
+msgid "UniLume backups (*.ulbackup);;All files (*)"
+msgstr ""
+
+msgid "Cannot import backup"
+msgstr ""
+
+msgid "Preview imported backup"
+msgstr ""
+
+msgid ""
+"Stage these values? Runtime configuration will not change until Apply is "
+"pressed."
+msgstr ""
+
+msgid "Cannot export backup"
+msgstr ""
+
+msgid "Export UniLume backup"
+msgstr ""
+
+msgid "UniLume backups (*.ulbackup)"
+msgstr ""
+
+msgid "Discard unapplied changes?"
+msgstr ""
+
+msgid ""
+"Cancel closes the window without changing the running or persisted Fcitx "
+"configuration."
+msgstr ""
+
+msgid "UniLume configuration"
+msgstr ""
+
+msgid "Validation status"
+msgstr ""
+
+msgid "General"
+msgstr ""
+
+msgid "Typing"
+msgstr ""
+
+msgid "Application rules editor"
+msgstr ""
+
+msgid ""
+"One default and optional exact or trailing-* rules. Validation uses the "
+"production application-policy parser."
+msgstr ""
+
+msgid "Applications"
+msgstr ""
+
+msgid "Macro editor"
+msgstr ""
+
+msgid ""
+"Canonical rows contain a key, a tab, and replacement text. Legacy imports "
+"are previewed and canonicalized on Apply."
+msgstr ""
+
+msgid "Macros"
+msgstr ""
+
+msgid "Personal dictionary editor"
+msgstr ""
+
+msgid ""
+"Use keep or restore, a tab, and one word per row. Line and field errors come "
+"from the production parser."
+msgstr ""
+
+msgid "Dictionary"
+msgstr ""
+
+msgid "Custom keymap editor"
+msgstr ""
+
+msgid ""
+"Use one printable key, '=', and a supported UniKey action. The historical "
+"runtime loader is never called."
+msgstr ""
+
+msgid "Keymap"
+msgstr ""
+
+msgid "Shortcuts"
+msgstr ""
+
+msgid "Appearance"
+msgstr ""
+
+msgid "Backup"
+msgstr ""
+
+msgid "UniLume follows the desktop palette, font scale and device pixel ratio."
+msgstr ""
+
+msgid "Vietnamese processing"
+msgstr ""
+
+msgid "Processing off"
+msgstr ""
+
+msgid "Safe preedit fallback"
+msgstr ""
+
+msgid ""
+"There are no private color or scale settings: system-managed appearance "
+"avoids stale theme state and preserves accessibility."
+msgstr ""
+
+msgid ""
+"Export or import one versioned backup containing every production option and "
+"the four managed resource documents. Import only stages a preview; Apply "
+"performs the atomic switch."
+msgstr ""
+
+msgid "Import..."
+msgstr ""
+
+msgid "Export..."
+msgstr ""
+
+msgid "No backup has been previewed."
+msgstr ""
+
+msgid "Backup preview"
+msgstr ""
+
+msgid "All fields are valid."
+msgstr ""
+
+msgid "Vietnamese input method"
+msgstr ""
+
+msgid "Output charset"
+msgstr ""
+
+msgid "Verified direct replacement"
+msgstr ""
+
+msgid "Spell check"
+msgstr ""
+
+msgid "Free marking"
+msgstr ""
+
+msgid "Modern tone placement"
+msgstr ""
+
+msgid "Restore non-Vietnamese words"
+msgstr ""
+
+msgid "Capitalize after sentence punctuation or Enter"
+msgstr ""
+
+msgid "Replace word-ending double space with period"
+msgstr ""
+
+msgid "Replace prose double hyphen with em dash"
+msgstr ""
+
+msgid "Standalone w shortcut scope"
+msgstr ""
+
+msgid "Bracket shortcut scope"
+msgstr ""
+
+msgid "Enable per-application policy"
+msgstr ""
+
+msgid "Managed application policy"
+msgstr ""
+
+msgid "Enable word-boundary macros"
+msgstr ""
+
+msgid "Managed macro table"
+msgstr ""
+
+msgid "Enable personal dictionary"
+msgstr ""
+
+msgid "Managed personal dictionary"
+msgstr ""
+
+msgid "Enable custom keymap"
+msgstr ""
+
+msgid "Managed custom keymap"
+msgstr ""
+
+msgid "Cycle application input mode"
+msgstr ""
+
+msgid "Select automatic mode"
+msgstr ""
+
+msgid "Select direct mode"
+msgstr ""
+
+msgid "Select safe preedit mode"
+msgstr ""
+
+msgid "Turn processing off for this context"
+msgstr ""
+
+msgid "Enable the optional emoji picker"
+msgstr ""
+
+msgid "Open the emoji picker"
+msgstr ""
+
 msgid "Clear emoji history"
 msgstr ""
 
@@ -79,40 +347,13 @@ msgstr ""
 msgid "Everywhere"
 msgstr ""
 
-msgid "Vietnamese input method"
-msgstr ""
-
 msgid "Output charset (lossless only)"
-msgstr ""
-
-msgid "Spell check"
-msgstr ""
-
-msgid "Free marking"
-msgstr ""
-
-msgid "Modern tone placement"
-msgstr ""
-
-msgid "Restore non-Vietnamese words"
-msgstr ""
-
-msgid "Capitalize after sentence punctuation or Enter"
-msgstr ""
-
-msgid "Replace word-ending double space with period"
-msgstr ""
-
-msgid "Replace prose double hyphen with em dash"
 msgstr ""
 
 msgid "Standalone w to u-horn shortcut scope"
 msgstr ""
 
 msgid "Bracket to horn-vowel shortcut scope"
-msgstr ""
-
-msgid "Enable word-boundary macros"
 msgstr ""
 
 msgid "Validated UTF-8 macro table"
@@ -139,25 +380,7 @@ msgstr ""
 msgid "Validated per-application input policy"
 msgstr ""
 
-msgid "Cycle application input mode"
-msgstr ""
-
-msgid "Select automatic mode"
-msgstr ""
-
-msgid "Select direct mode"
-msgstr ""
-
-msgid "Select safe preedit mode"
-msgstr ""
-
-msgid "Turn processing off for this context"
-msgstr ""
-
-msgid "Enable the optional emoji picker"
-msgstr ""
-
-msgid "Open the emoji picker"
+msgid "Open the complete UniLume configuration"
 msgstr ""
 
 msgid "Input method: Telex"
@@ -170,9 +393,6 @@ msgid "Input method: VIQR"
 msgstr ""
 
 msgid "Output charset: UTF-8"
-msgstr ""
-
-msgid "Macros"
 msgstr ""
 
 msgid "Personal dictionary"
