@@ -31,7 +31,7 @@ coi là sẵn sàng để sử dụng hằng ngày.
 
 ## Build và test
 
-Luồng phát triển core dùng Cippie (đã kiểm tra với 0.1.6) và compiler C++23
+Luồng phát triển core dùng [Cippie](https://github.com/dismonjames/cippie) (đã kiểm tra với 0.1.6) và compiler C++23
 trên Linux. Cippie không cần CMake để build hoặc chạy test core, và build mặc
 định không tải dependency từ Internet.
 
