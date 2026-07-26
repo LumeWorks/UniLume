@@ -65,9 +65,14 @@ that scope.
 
 The report contains allocation calls, requested bytes, allocations/key,
 bytes/key, and the mean cost of an empty measurement scope. A zero is reported
-only after `allocation-instrumentation` verifies a known mixed fixture covering
-`malloc`, `calloc`, `realloc`, scalar `new`, and array `new[]`. Calls outside an
-active scope must remain invisible.
+only after `allocation-instrumentation` verifies each of `malloc`, `calloc`,
+`realloc`, scalar `new`, and array `new[]` in an isolated measured scope. The
+fixture records the concrete primitive as well as its aggregate count and
+bytes; it observes each returned allocation through a separate instrumentation
+translation unit. Its target disables compiler builtins for the wrapped C
+functions and interprocedural optimization, so Release validation cannot pass
+because a fixture allocation was elided or rewritten. Calls outside an active
+scope must remain invisible.
 
 `realloc` is call-based: a successful non-zero request counts as one allocation
 operation and records the requested new size, whether or not the allocator
