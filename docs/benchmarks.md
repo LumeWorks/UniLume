@@ -183,7 +183,9 @@ CPU and RSS, and exposes `--enforce-slo`. Timed keys use one persistent XTEST
 connection; the browser returns its observed value through a harness-owned
 loopback endpoint so process startup and browser title throttling are excluded.
 The enforced gate requires both methods to be correct before latency results
-can count as a fair win.
+can count as a fair win. It compares candidate and reference latency
+percentiles directly while retaining paired ratios as separate dispersion
+evidence.
 
 ## Sanitizer smoke
 

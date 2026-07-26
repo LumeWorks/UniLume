@@ -83,5 +83,39 @@ class InputInjectionTest(unittest.TestCase):
         )
 
 
+class SloEvaluationTest(unittest.TestCase):
+    def test_latency_gate_compares_candidate_and_reference_percentiles(self) -> None:
+        summary = {
+            "errors": 0,
+            "completion_ns": {"p50": 90, "p95": 90, "p99": 90},
+            "keys_per_second": 110,
+            "fcitx_cpu_seconds": 1.0,
+            "fcitx_rss_delta_kib": {"max": 0},
+        }
+        result = {
+            "candidate": {"summary": summary},
+            "reference": {
+                "summary": {
+                    **summary,
+                    "completion_ns": {"p50": 100, "p95": 100, "p99": 100},
+                    "keys_per_second": 100,
+                }
+            },
+            # Pair ratios remain useful dispersion evidence, but their own
+            # percentiles are not latency distribution percentiles.
+            "paired_summary": {
+                "candidate_over_reference_completion_ratio": {
+                    "p50": 2.0,
+                    "p95": 3.0,
+                    "p99": 4.0,
+                }
+            },
+        }
+        gate = HARNESS.evaluate_slo(
+            result, cpu_noise_seconds=0.05, rss_noise_kib=64
+        )
+        self.assertTrue(gate["overall_pass"])
+
+
 if __name__ == "__main__":
     unittest.main()

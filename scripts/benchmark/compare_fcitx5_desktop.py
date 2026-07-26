@@ -673,18 +673,17 @@ def evaluate_slo(
 ) -> dict[str, object]:
     candidate = result["candidate"]["summary"]  # type: ignore[index]
     reference = result["reference"]["summary"]  # type: ignore[index]
-    paired_ratios = result["paired_summary"][  # type: ignore[index]
-        "candidate_over_reference_completion_ratio"
-    ]
+    candidate_latency = candidate["completion_ns"]  # type: ignore[index]
+    reference_latency = reference["completion_ns"]  # type: ignore[index]
     checks = {
         "candidate_correct": candidate["errors"] == 0,  # type: ignore[index]
         "reference_correct": reference["errors"] == 0,  # type: ignore[index]
         "p50_at_least_5_percent_lower":
-            paired_ratios["p50"] <= 0.95,
+            candidate_latency["p50"] <= reference_latency["p50"] * 0.95,
         "p95_at_least_5_percent_lower":
-            paired_ratios["p95"] <= 0.95,
+            candidate_latency["p95"] <= reference_latency["p95"] * 0.95,
         "p99_at_least_5_percent_lower":
-            paired_ratios["p99"] <= 0.95,
+            candidate_latency["p99"] <= reference_latency["p99"] * 0.95,
         "throughput_at_least_5_percent_higher":
             candidate["keys_per_second"] >= reference["keys_per_second"] * 1.05,  # type: ignore[index]
         "cpu_within_noise":

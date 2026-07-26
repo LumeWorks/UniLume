@@ -113,6 +113,11 @@ the default is unavailable. Current Chromium builds require the test-only
 `LocalNetworkAccessChecks` flag above for a `file://` probe to reach loopback;
 it does not change input-method processing.
 
+The latency checks compare the candidate and reference p50, p95 and p99
+distributions directly. Per-round/per-scenario ratios remain in
+`paired_summary` to expose order effects and dispersion; percentiles of those
+ratios are not substituted for latency percentiles.
+
 Telex, VNI, and VIQR must be measured separately with matching configurations.
 The harness rejects an empty method corpus rather than silently comparing
 different modes.
