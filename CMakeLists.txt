@@ -119,6 +119,22 @@ set_target_properties(unilume_context PROPERTIES
   POSITION_INDEPENDENT_CODE ON
 )
 
+add_library(unilume_config STATIC
+  src/config/config_snapshot.cpp
+  src/config/config_store.cpp
+)
+
+target_link_libraries(unilume_config PRIVATE unilume_sanitizer_options)
+
+target_include_directories(unilume_config PUBLIC src/config)
+
+set_target_properties(unilume_config PROPERTIES
+  CXX_STANDARD 23
+  CXX_STANDARD_REQUIRED YES
+  CXX_EXTENSIONS NO
+  POSITION_INDEPENDENT_CODE ON
+)
+
 add_library(unilume_core STATIC
   src/core/direct_commit_controller.cpp
   src/core/engine_context.cpp
