@@ -193,9 +193,10 @@ endif()
 if(UNILUME_BUILD_FCITX5_ADDON)
   find_package(PkgConfig REQUIRED)
   pkg_check_modules(FCITX5_CORE QUIET IMPORTED_TARGET "Fcitx5Core>=5.0")
-  if(NOT FCITX5_CORE_FOUND)
+  pkg_check_modules(FCITX5_CONFIG QUIET IMPORTED_TARGET "Fcitx5Config>=5.0")
+  if(NOT FCITX5_CORE_FOUND OR NOT FCITX5_CONFIG_FOUND)
     message(FATAL_ERROR
-      "UNILUME_BUILD_FCITX5_ADDON=ON requires Fcitx5Core development files"
+      "UNILUME_BUILD_FCITX5_ADDON=ON requires Fcitx5Core and Fcitx5Config development files"
     )
   endif()
   add_subdirectory(src/fcitx5)

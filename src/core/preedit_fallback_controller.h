@@ -23,6 +23,7 @@ public:
 
     PreeditAction submit(const KeyInput &input);
     void reset();
+    void setInputMethod(UlInputMethod method);
 
     [[nodiscard]] std::string_view preedit() const;
 

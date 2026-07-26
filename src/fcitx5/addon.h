@@ -3,11 +3,15 @@
 #pragma once
 
 #include "input_context_state.h"
+#include "input_method_config.h"
 
 #include <fcitx/addonfactory.h>
 #include <fcitx/inputcontextproperty.h>
 #include <fcitx/inputmethodengine.h>
 #include <fcitx/instance.h>
+
+#include <map>
+#include <string>
 
 namespace unilume::fcitx5 {
 
@@ -19,10 +23,17 @@ public:
                   fcitx::KeyEvent &event) override;
     void reset(const fcitx::InputMethodEntry &entry,
                fcitx::InputContextEvent &event) override;
+    const fcitx::Configuration *getConfigForInputMethod(
+        const fcitx::InputMethodEntry &entry) const override;
+    void setConfigForInputMethod(const fcitx::InputMethodEntry &entry,
+                                 const fcitx::RawConfig &config) override;
 
 private:
+    InputMethodConfig &configFor(const fcitx::InputMethodEntry &entry) const;
+
     fcitx::Instance &instance_;
     fcitx::FactoryFor<InputContextState> state_factory_;
+    mutable std::map<std::string, InputMethodConfig> input_method_configs_;
 };
 
 class UniLumeFactory final : public fcitx::AddonFactory {

@@ -12,10 +12,13 @@
 
 namespace unilume::fcitx5 {
 
-InputContextState::InputContextState(fcitx::InputContext &input_context)
+InputContextState::InputContextState(fcitx::InputContext &input_context,
+                                     UlInputMethod method)
     : input_context_(input_context),
       backend_(input_context),
-      direct_controller_(backend_)
+      direct_controller_(backend_, method),
+      preedit_controller_(method),
+      input_method_(method)
 {
 }
 
@@ -80,6 +83,25 @@ void InputContextState::reset()
     backend_.reset();
     clearPreedit();
     mode_policy_.reset();
+}
+
+void InputContextState::setInputMethod(UlInputMethod method)
+{
+    if (method == input_method_) {
+        return;
+    }
+
+    // A mode change is a composition boundary. Commit preedit before replacing
+    // either engine so that a configuration reload never drops user text.
+    if (mode_policy_.path() == platform::InputPath::preedit) {
+        commitPendingPreedit();
+    }
+    direct_controller_.setInputMethod(method);
+    preedit_controller_.setInputMethod(method);
+    backend_.reset();
+    clearPreedit();
+    mode_policy_.resetForCompositionEnd();
+    input_method_ = method;
 }
 
 void InputContextState::synchronizeMode()
