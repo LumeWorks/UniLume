@@ -64,6 +64,10 @@ và chạy soak được mô tả trong
 [docs/benchmarks.md](docs/benchmarks.md). Các số core-only không phải phép so
 sánh với Lotus, fcitx5-unikey hoặc một integration desktop hoàn chỉnh.
 
+Protocol và harness X11 để so sánh công bằng với Fcitx5 Lotus được mô tả trong
+[docs/lotus-comparison.md](docs/lotus-comparison.md). Chỉ kết quả chạy theo
+protocol này mới có thể hỗ trợ một tuyên bố so sánh; benchmark core không đủ.
+
 Cách chạy harness delayed/stale, burst, soak và benchmark integration được mô
 tả trong [docs/integration-testing.md](docs/integration-testing.md).
 Kết quả cài user-local và kiểm tra ứng dụng desktop thực tế được ghi tại

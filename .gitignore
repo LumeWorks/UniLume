@@ -53,6 +53,7 @@ stamp-h1
 *.profraw
 benchmark-results*.json
 benchmark-results*.csv
+lotus-comparison-*.json
 integration-benchmark-results*.json
 integration-benchmark-results*.csv
 /core
