@@ -26,6 +26,13 @@ typedef enum UlInputMethod {
     UL_INPUT_METHOD_VIQR = 2
 } UlInputMethod;
 
+typedef struct UlEngineOptions {
+    int spell_check;
+    int free_marking;
+    int modern_tone;
+    int auto_restore;
+} UlEngineOptions;
+
 typedef struct UlEngineEdit {
     int handled;
     int32_t delete_before_cursor;
@@ -50,6 +57,10 @@ UlStatus ul_engine_backspace(UlEngineContext *context,
 
 UlStatus ul_engine_set_input_method(UlEngineContext *context,
                                     UlInputMethod method);
+UlStatus ul_engine_get_options(const UlEngineContext *context,
+                               UlEngineOptions *out_options);
+UlStatus ul_engine_set_options(UlEngineContext *context,
+                               const UlEngineOptions *options);
 void ul_engine_reset(UlEngineContext *context);
 
 #ifdef __cplusplus

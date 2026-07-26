@@ -76,6 +76,12 @@ void DirectCommitController::setInputMethod(UlInputMethod method)
     engine_.setInputMethod(method);
 }
 
+void DirectCommitController::setOptions(const UlEngineOptions &options)
+{
+    resetForFocus();
+    engine_.setOptions(options);
+}
+
 const TransactionMetrics &DirectCommitController::metrics() const
 {
     return metrics_;

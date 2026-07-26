@@ -104,6 +104,25 @@ void InputContextState::setInputMethod(UlInputMethod method)
     input_method_ = method;
 }
 
+void InputContextState::setOptions(const UlEngineOptions &options)
+{
+    if (options.spell_check == options_.spell_check &&
+        options.free_marking == options_.free_marking &&
+        options.modern_tone == options_.modern_tone &&
+        options.auto_restore == options_.auto_restore) {
+        return;
+    }
+    if (mode_policy_.path() == platform::InputPath::preedit) {
+        commitPendingPreedit();
+    }
+    direct_controller_.setOptions(options);
+    preedit_controller_.setOptions(options);
+    backend_.reset();
+    clearPreedit();
+    mode_policy_.resetForCompositionEnd();
+    options_ = options;
+}
+
 void InputContextState::synchronizeMode()
 {
     const platform::InputPath previous = mode_policy_.path();

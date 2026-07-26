@@ -73,3 +73,18 @@ boundary, commits pending preedit text, and resets both controllers before the
 new method is used. The only exposed output charset is `UTF8`. Legacy encodings
 are deliberately rejected until their complete conversion and Fcitx commit
 round-trip have been demonstrated.
+
+`spell_check`, `free_marking`, `modern_tone`, and `auto_restore` map one-for-one
+to existing UniKey option fields. A reload is
+applied per input context at the next event as a composition boundary: pending
+preedit commits, both controllers reset, and then the full immutable snapshot
+is installed. Invalid option values are rejected without replacing the active
+context snapshot.
+
+`macro_enabled` remains persisted for schema compatibility but is not exposed
+by the addon until a macro table lifecycle exists. Enabling the legacy flag
+without a table would be a no-op and is therefore intentionally not presented
+as a production option.
+
+The complete mapping, defaults, golden behavior, and deliberately deferred
+legacy fields are recorded in [unikey-options.md](unikey-options.md).

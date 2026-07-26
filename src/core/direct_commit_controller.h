@@ -33,6 +33,7 @@ public:
     void timeout(std::uint64_t sequence_id);
     void resetForFocus();
     void setInputMethod(UlInputMethod method);
+    void setOptions(const UlEngineOptions &options);
 
     [[nodiscard]] const TransactionMetrics &metrics() const;
     [[nodiscard]] TransactionState transactionState() const;

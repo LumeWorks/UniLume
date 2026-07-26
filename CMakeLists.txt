@@ -138,6 +138,7 @@ set_target_properties(unilume_config PROPERTIES
 add_library(unilume_core STATIC
   src/core/direct_commit_controller.cpp
   src/core/engine_context.cpp
+  src/core/engine_options.cpp
   src/core/preedit_fallback_controller.cpp
   src/core/replacement_transaction.cpp
   src/core/utf8_validation.cpp
@@ -145,6 +146,7 @@ add_library(unilume_core STATIC
 )
 
 target_link_libraries(unilume_core PUBLIC
+  unilume_config
   unilume_context
   unilume_sanitizer_options
 )

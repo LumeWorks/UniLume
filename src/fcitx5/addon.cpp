@@ -2,6 +2,8 @@
 
 #include "addon.h"
 
+#include "engine_options.h"
+
 #include <fcitx/addoninstance.h>
 #include <fcitx/addonmanager.h>
 #include <fcitx/inputcontextmanager.h>
@@ -22,7 +24,9 @@ void UniLumeAddon::keyEvent(const fcitx::InputMethodEntry &entry,
                             fcitx::KeyEvent &event)
 {
     auto *state = event.inputContext()->propertyFor(&state_factory_);
+    const config::Snapshot snapshot = snapshotFromConfig(configFor(entry));
     state->setInputMethod(toUlInputMethod(*configFor(entry).input_method));
+    state->setOptions(core::engineOptionsFromSnapshot(snapshot));
     state->keyEvent(event);
 }
 
@@ -30,7 +34,9 @@ void UniLumeAddon::reset(const fcitx::InputMethodEntry &entry,
                          fcitx::InputContextEvent &event)
 {
     auto *state = event.inputContext()->propertyFor(&state_factory_);
+    const config::Snapshot snapshot = snapshotFromConfig(configFor(entry));
     state->setInputMethod(toUlInputMethod(*configFor(entry).input_method));
+    state->setOptions(core::engineOptionsFromSnapshot(snapshot));
     state->reset();
 }
 

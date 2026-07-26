@@ -52,6 +52,11 @@ the addon limitations are documented in
 [integration-testing.md](integration-testing.md) and
 [fcitx5-addon.md](fcitx5-addon.md).
 
+Production behavior options cross the adapter boundary only through the typed
+mapping documented in [unikey-options.md](unikey-options.md). Each option
+snapshot belongs to one engine context; the legacy global option API is not
+used by the Fcitx path.
+
 Mid-composition stable-prefix commit (commit immutable UTF-8 bytes while
 keeping a mutable client-preedit suffix, without SurroundingText) was researched
 under Issue #24. The legacy engine does not expose a proven monotonic mutable

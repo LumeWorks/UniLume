@@ -133,6 +133,17 @@ void runPreeditFallbackTests(Assertions &assertions)
     submitText(switching, "a^", committed = {});
     assertions.equal("switch selects VIQR per context", switching.preedit(), "â");
     assertions.truth("switched output remains UTF-8", isValidUtf8(switching.preedit()));
+
+    core::PreeditFallbackController option_reload;
+    submitText(option_reload, "hoas", committed = {});
+    assertions.equal("option reload setup has legacy preedit",
+                     option_reload.preedit(), "hóa");
+    option_reload.setOptions({1, 1, 1, 1});
+    assertions.equal("option reload clears old composition",
+                     option_reload.preedit(), "");
+    submitText(option_reload, "hoas", committed = {});
+    assertions.equal("option reload applies modern tone",
+                     option_reload.preedit(), "hoá");
 }
 
 } // namespace unilume::integration::test

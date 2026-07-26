@@ -11,7 +11,7 @@ Install CMake, pkg-config, a C++23 compiler, and Fcitx5 core development files.
 On Debian-family systems the Fcitx dependency is:
 
 ```sh
-sudo apt-get install libfcitx5core-dev pkg-config
+sudo apt-get install libfcitx5core-dev libfcitx5config-dev pkg-config
 ```
 
 Build and install into a disposable prefix:
@@ -97,6 +97,7 @@ verified.
 Wayland has not been tested. See `docs/wayland-validation.md` for the manual
 validation checklist and environment-check script.
 
-No GUI configuration, VNI/VIQR selection, macros, legacy charset output,
-uinput, distro package, or system-wide Wayland protocol integration is
-provided yet. Telex/UTF-8 is the only exposed addon mode.
+The addon exposes Telex, VNI, and VIQR plus the four verified behavior options
+documented in [unikey-options.md](unikey-options.md). UTF-8 remains the only
+output charset. Macro data/configuration, legacy charset output, uinput, distro
+packages, and system-wide Wayland protocol integration are not provided yet.
