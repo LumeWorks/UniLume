@@ -15,6 +15,8 @@ struct KeyResult {
     std::string_view preedit_text;
     bool reset_context{};
     bool require_fallback{};
+    bool commit_preedit_before{};
+    bool defer_preedit_commit{};
 };
 
 } // namespace unilume::core

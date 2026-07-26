@@ -75,6 +75,12 @@ result, not a replacement spelling algorithm. Its immutable snapshot,
 precedence and resource bounds are frozen in
 [ADR 0002](adr/0002-personal-dictionary-policy.md).
 
+Optional typing conveniences share one ordered per-context boundary around the
+real engine. Their stage order, reset semantics, safe-preedit holdback and
+literal-context policy are frozen in
+[ADR 0003](adr/0003-typing-convenience-pipeline.md). No convenience state
+lives in the Fcitx callback or inherited UniKey algorithm.
+
 Mid-composition stable-prefix commit (commit immutable UTF-8 bytes while
 keeping a mutable client-preedit suffix, without SurroundingText) was researched
 under Issue #24. The legacy engine does not expose a proven monotonic mutable

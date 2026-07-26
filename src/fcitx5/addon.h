@@ -54,6 +54,7 @@ private:
 
     struct RuntimeResources {
         config::Snapshot configuration{config::defaults()};
+        core::TypingConvenienceOptions typing_options;
         macro::Snapshot snapshot;
         std::uint64_t generation{};
         keymap::Snapshot keymap_snapshot;

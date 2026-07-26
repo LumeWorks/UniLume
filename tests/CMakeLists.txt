@@ -186,6 +186,7 @@ add_executable(unilume_integration_tests
   integration/integration_test_main.cpp
   integration/preedit_fallback_tests.cpp
   integration/transaction_tests.cpp
+  integration/typing_pipeline_tests.cpp
   integration/zero_preedit_architecture_tests.cpp
 )
 
@@ -205,6 +206,7 @@ foreach(suite IN ITEMS
     delayed
     duplicate
     transaction
+    typing-pipeline
     preedit-fallback
     browser-capability
     browser-input-session

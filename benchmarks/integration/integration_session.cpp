@@ -7,9 +7,11 @@
 namespace unilume::integration_benchmark {
 
 IntegrationSession::IntegrationSession(
-    integration::test::BackendProfile profile)
+    integration::test::BackendProfile profile,
+    const core::TypingConvenienceOptions &typing_options)
     : backend_(profile), controller_(backend_)
 {
+    controller_.setTypingOptions(typing_options);
 }
 
 void IntegrationSession::submit(std::string_view key_text)

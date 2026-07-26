@@ -31,6 +31,10 @@ bool hasOnlyKnownOptions(const fcitx::RawConfig &source)
         if (name != "InputMethod" && name != "OutputCharset" &&
             name != "SpellCheck" && name != "FreeMarking" &&
             name != "ModernTone" && name != "AutoRestore" &&
+            name != "AutoCapitalize" &&
+            name != "DoubleSpaceToPeriod" &&
+            name != "DoubleHyphenToEmDash" &&
+            name != "WShortcut" && name != "BracketShortcut" &&
             name != "MacroEnabled" && name != "MacroFile" &&
             name != "KeymapEnabled" && name != "KeymapFile" &&
             name != "DictionaryEnabled" && name != "DictionaryFile" &&
@@ -128,6 +132,31 @@ config::Snapshot snapshotFromConfig(const InputMethodConfig &config)
     return snapshot;
 }
 
+core::TypingConvenienceOptions typingOptionsFromConfig(
+    const InputMethodConfig &config)
+{
+    const auto scope = [](ConfigShortcutScope value) {
+        switch (value) {
+        case ConfigShortcutScope::Inherited:
+            return core::ShortcutScope::inherited;
+        case ConfigShortcutScope::Disabled:
+            return core::ShortcutScope::disabled;
+        case ConfigShortcutScope::NonStart:
+            return core::ShortcutScope::non_start;
+        case ConfigShortcutScope::Everywhere:
+            return core::ShortcutScope::everywhere;
+        }
+        return core::ShortcutScope::inherited;
+    };
+    return {
+        *config.auto_capitalize,
+        *config.double_space_to_period,
+        *config.double_hyphen_to_em_dash,
+        scope(*config.w_shortcut),
+        scope(*config.bracket_shortcut),
+    };
+}
+
 bool loadInputMethodConfig(InputMethodConfig &destination,
                            const fcitx::RawConfig &source)
 {
@@ -149,6 +178,13 @@ bool validateInputMethodConfig(const fcitx::RawConfig &source)
         !isOneOf(source, "FreeMarking", {"True", "False"}) ||
         !isOneOf(source, "ModernTone", {"True", "False"}) ||
         !isOneOf(source, "AutoRestore", {"True", "False"}) ||
+        !isOneOf(source, "AutoCapitalize", {"True", "False"}) ||
+        !isOneOf(source, "DoubleSpaceToPeriod", {"True", "False"}) ||
+        !isOneOf(source, "DoubleHyphenToEmDash", {"True", "False"}) ||
+        !isOneOf(source, "WShortcut",
+                 {"Inherited", "Disabled", "NonStart", "Everywhere"}) ||
+        !isOneOf(source, "BracketShortcut",
+                 {"Inherited", "Disabled", "NonStart", "Everywhere"}) ||
         !isOneOf(source, "MacroEnabled", {"True", "False"}) ||
         !isOneOf(source, "KeymapEnabled", {"True", "False"}) ||
         !isOneOf(source, "DictionaryEnabled", {"True", "False"}) ||

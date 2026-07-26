@@ -194,7 +194,12 @@ KeyResult EngineContext::processText(const KeyInput &input,
         output_[0] = static_cast<char>(first);
         edit.output_size = 1;
     }
-    const bool reset_context = isCompositionBoundary(first);
+    // VIQR uses punctuation as real engine modifiers. A handled punctuation
+    // key remains inside the composition; ordinary punctuation and whitespace
+    // still form boundaries.
+    const bool reset_context =
+        isCompositionBoundary(first) &&
+        (std::isspace(first) != 0 || !edit.handled);
     if (reset_context) {
         ul_engine_reset(context_);
     }

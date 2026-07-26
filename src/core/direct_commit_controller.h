@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "engine_context.h"
 #include "replacement_backend.h"
 #include "replacement_transaction.h"
+#include "typing_pipeline.h"
 #include "transaction_metrics.h"
 
 #include <array>
@@ -32,8 +32,10 @@ public:
     void complete(std::uint64_t sequence_id, bool success);
     void timeout(std::uint64_t sequence_id);
     void resetForFocus();
+    void lineBreak();
     void setInputMethod(UlInputMethod method);
     void setOptions(const UlEngineOptions &options);
+    void setTypingOptions(const TypingConvenienceOptions &options);
     void setMacros(const macro::Snapshot &snapshot);
     void setKeymap(const keymap::Snapshot &snapshot);
     void setDictionary(const dictionary::Snapshot &snapshot);
@@ -67,7 +69,7 @@ private:
     void updateQueueMetrics();
 
     platform::ReplacementBackend &backend_;
-    EngineContext engine_;
+    TypingPipeline engine_;
     ReplacementTransaction transaction_;
     TransactionMetrics metrics_;
     std::array<QueuedInput, queue_capacity> queue_{};

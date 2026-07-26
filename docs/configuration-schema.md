@@ -84,6 +84,14 @@ adapter configuration and do not extend the v2 engine snapshot.
 [verified-direct-backend.md](verified-direct-backend.md). It defaults off and
 is intentionally not persisted in the v2 engine snapshot.
 
+The Fcitx adapter also exposes `AutoCapitalize`, `DoubleSpaceToPeriod`,
+`DoubleHyphenToEmDash`, `WShortcut`, and `BracketShortcut`. The boolean prose
+transforms default off. Shortcut scope is one of `Inherited`, `Disabled`,
+`NonStart`, or `Everywhere` and defaults to `Inherited`, preserving the
+selected UniKey method exactly. These remain adapter fields until the
+versioned GUI/backup migration in Issue #50. Their runtime contract is
+[ADR 0003](adr/0003-typing-convenience-pipeline.md).
+
 ## Fcitx5 input-method configuration
 
 The Fcitx5 addon exposes the same method choice per Fcitx input-method entry:

@@ -130,6 +130,29 @@ The URL and code corpora freeze current Telex core output, including
 composition inside some strings. They are not claims that UniLume implements a
 URL mode or code mode.
 
+## Typing-pipeline A/B benchmark
+
+The integration harness measures the complete controller and deterministic
+replacement backend. Build it in Release and run the same profile once with
+typing conveniences disabled and once with every convenience enabled:
+
+```sh
+cmake -S . -B build/integration-benchmarks \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DUNILUME_BUILD_INTEGRATION_BENCHMARKS=ON
+cmake --build build/integration-benchmarks --parallel 2
+build/integration-benchmarks/benchmarks/unilume_integration_benchmark \
+  --profile=immediate --keys=1000000 --typing=disabled --format=json
+build/integration-benchmarks/benchmarks/unilume_integration_benchmark \
+  --profile=immediate --keys=1000000 --typing=enabled --format=json
+```
+
+The enabled case turns on capitalization, double-space, double-hyphen, and
+both shortcut scopes. Result names include the selected mode so stored reports
+cannot silently mix the fast path and convenience path. Compare only repeated
+runs on the same machine; scheduler noise makes a single run unsuitable for a
+hard performance claim.
+
 ## Sanitizer smoke
 
 The `Benchmark Smoke` workflow builds the harness in Debug with ASan and UBSan

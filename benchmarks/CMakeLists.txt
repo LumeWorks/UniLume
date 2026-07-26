@@ -187,6 +187,14 @@ if(UNILUME_BUILD_INTEGRATION_BENCHMARKS)
       NAME integration-benchmark-smoke
       COMMAND unilume_integration_benchmark --smoke
     )
-    set_tests_properties(integration-benchmark-smoke PROPERTIES TIMEOUT 60)
+    add_test(
+      NAME integration-benchmark-typing-smoke
+      COMMAND unilume_integration_benchmark --smoke --typing=enabled
+    )
+    set_tests_properties(
+      integration-benchmark-smoke
+      integration-benchmark-typing-smoke
+      PROPERTIES TIMEOUT 60
+    )
   endif()
 endif()

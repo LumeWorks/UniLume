@@ -6,10 +6,10 @@
 #include "config_snapshot.h"
 #include "direct_commit_controller.h"
 #include "dictionary_contract.h"
-#include "engine_context.h"
 #include "keymap_contract.h"
 #include "macro_contract.h"
 #include "deterministic_backend.h"
+#include "typing_pipeline.h"
 #include "utf8_validation.h"
 
 #include <algorithm>
@@ -73,13 +73,24 @@ core::KeyInput keyInput(std::uint8_t value)
 Outcome runEngine(std::span<const std::uint8_t> input)
 {
     const auto data = bounded(input);
-    core::EngineContext engine;
+    core::TypingPipeline engine;
     std::ostringstream trace;
     bool valid = true;
     const std::size_t steps = std::min(data.size(), max_operations);
     for (std::size_t index = 0; index < steps; ++index) {
         const std::uint8_t operation = data[index];
-        if (operation % 19 == 0) {
+        if (operation % 23 == 0) {
+            engine.setTypingOptions({
+                .auto_capitalize = (operation & 1) != 0,
+                .double_space_to_period = (operation & 2) != 0,
+                .double_hyphen_to_em_dash = (operation & 4) != 0,
+                .w_shortcut = static_cast<core::ShortcutScope>(
+                    (operation >> 3) % 4),
+                .bracket_shortcut = static_cast<core::ShortcutScope>(
+                    (operation >> 5) % 4),
+            });
+            trace << 'P';
+        } else if (operation % 19 == 0) {
             engine.reset();
             trace << 'R';
         } else if (operation % 17 == 0) {

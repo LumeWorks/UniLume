@@ -39,6 +39,16 @@ BenchmarkOptions parseOptions(int argc, char **argv)
         } else if (const auto item = value(argument, "--output");
                    !item.empty()) {
             options.output = item;
+        } else if (const auto item = value(argument, "--typing");
+                   !item.empty()) {
+            if (item == "enabled") {
+                options.typing_conveniences = true;
+            } else if (item == "disabled") {
+                options.typing_conveniences = false;
+            } else {
+                throw std::invalid_argument(
+                    "--typing must be disabled or enabled");
+            }
         } else {
             throw std::invalid_argument(
                 "unknown integration benchmark option: " +

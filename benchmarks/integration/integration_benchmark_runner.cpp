@@ -70,17 +70,6 @@ integration::test::BackendProfile profileFor(
     return profile;
 }
 
-std::string referenceOutput(std::string_view name, std::size_t keys)
-{
-    IntegrationSession session{profileFor(name, keys)};
-    CorpusCursor cursor;
-    for (std::size_t index = 0; index < keys; ++index) {
-        session.submit(cursor.next());
-    }
-    session.drain();
-    return session.output();
-}
-
 bool linearRssGrowth(const std::vector<benchmark::RssCheckpoint> &points)
 {
     if (points.size() < 3 ||
@@ -95,11 +84,46 @@ bool linearRssGrowth(const std::vector<benchmark::RssCheckpoint> &points)
     return increases * 5 >= (points.size() - 1) * 4;
 }
 
-IntegrationResult runProfile(std::string_view name, std::size_t keys)
+core::TypingConvenienceOptions typingOptions(bool enabled)
 {
-    const std::string expected = referenceOutput(name, keys);
+    if (!enabled) {
+        return {};
+    }
+    return {
+        true,
+        true,
+        true,
+        core::ShortcutScope::everywhere,
+        core::ShortcutScope::everywhere,
+    };
+}
 
-    IntegrationSession warmup{profileFor(name, 1000)};
+std::string referenceOutput(
+    std::string_view name,
+    std::size_t keys,
+    const core::TypingConvenienceOptions &typing_options)
+{
+    IntegrationSession session{profileFor(name, keys), typing_options};
+    CorpusCursor cursor;
+    for (std::size_t index = 0; index < keys; ++index) {
+        session.submit(cursor.next());
+    }
+    session.drain();
+    return session.output();
+}
+
+IntegrationResult runProfile(
+    std::string_view name,
+    std::size_t keys,
+    bool typing_conveniences)
+{
+    const core::TypingConvenienceOptions typing_options =
+        typingOptions(typing_conveniences);
+    const std::string expected =
+        referenceOutput(name, keys, typing_options);
+
+    IntegrationSession warmup{
+        profileFor(name, 1000), typing_options};
     CorpusCursor warmup_cursor;
     for (std::size_t index = 0; index < std::min(keys, std::size_t{1000});
          ++index) {
@@ -113,9 +137,12 @@ IntegrationResult runProfile(std::string_view name, std::size_t keys)
     std::vector<double> checkpoint_means;
     checkpoint_means.reserve(10);
 
-    IntegrationSession session{profileFor(name, keys)};
+    IntegrationSession session{profileFor(name, keys), typing_options};
     IntegrationResult result;
-    result.name = std::string(name);
+    result.name = std::string(name) +
+                  (typing_conveniences
+                       ? "-typing-enabled"
+                       : "-typing-disabled");
     result.total_keys = keys;
     result.rss.initial_kib = benchmark::currentRssKiB();
     result.rss.after_warmup_kib = result.rss.initial_kib;
@@ -218,7 +245,8 @@ IntegrationReport runBenchmarks(const BenchmarkOptions &options)
         "immediate", "delayed", "stale"};
     for (const std::string_view profile : profiles) {
         if (options.profile == "all" || options.profile == profile) {
-            report.results.push_back(runProfile(profile, options.keys));
+            report.results.push_back(runProfile(
+                profile, options.keys, options.typing_conveniences));
         }
     }
     return report;

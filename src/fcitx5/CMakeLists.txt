@@ -59,11 +59,7 @@ if(BUILD_TESTING)
   )
   target_link_libraries(unilume_fcitx5_config_tests PRIVATE
     PkgConfig::FCITX5_CONFIG
-    unilume_config
-    unilume_context
-    unilume_dictionary
-    unilume_keymap
-    unilume_macro
+    unilume_core
     unilume_sanitizer_options
   )
   target_include_directories(unilume_fcitx5_config_tests PRIVATE

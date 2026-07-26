@@ -32,6 +32,11 @@ int main()
     raw["FreeMarking"] = "False";
     raw["ModernTone"] = "True";
     raw["AutoRestore"] = "False";
+    raw["AutoCapitalize"] = "True";
+    raw["DoubleSpaceToPeriod"] = "True";
+    raw["DoubleHyphenToEmDash"] = "True";
+    raw["WShortcut"] = "NonStart";
+    raw["BracketShortcut"] = "Everywhere";
     raw["MacroEnabled"] = "False";
     raw["MacroFile"] = "/tmp/unilume-macros";
     raw["KeymapEnabled"] = "True";
@@ -53,6 +58,16 @@ int main()
                  "application policy configuration must load");
     ok &= expect(*input_method_config.verified_direct_enabled,
                  "verified direct feature flag must load");
+    const unilume::core::TypingConvenienceOptions typing =
+        typingOptionsFromConfig(input_method_config);
+    ok &= expect(
+        typing.auto_capitalize && typing.double_space_to_period &&
+            typing.double_hyphen_to_em_dash &&
+            typing.w_shortcut ==
+                unilume::core::ShortcutScope::non_start &&
+            typing.bracket_shortcut ==
+                unilume::core::ShortcutScope::everywhere,
+        "typing pipeline configuration must map every option");
     ok &= expect(*input_method_config.output_charset == ConfigOutputCharset::UTF8,
                  "Fcitx config must retain UTF8");
     ok &= expect(toUlInputMethod(*input_method_config.input_method) == UL_INPUT_METHOD_VNI,
@@ -83,6 +98,12 @@ int main()
                  "unknown input method must be rejected");
     ok &= expect(*input_method_config.input_method == ConfigInputMethod::VNI,
                  "unknown input method must not replace active configuration");
+
+    fcitx::RawConfig invalid_scope;
+    invalid_scope["WShortcut"] = "Sometimes";
+    ok &= expect(
+        !loadInputMethodConfig(input_method_config, invalid_scope),
+        "unknown shortcut scope must be rejected");
 
     fcitx::RawConfig invalid_charset;
     invalid_charset["OutputCharset"] = "TCVN3";

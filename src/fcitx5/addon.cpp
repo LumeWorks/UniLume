@@ -201,6 +201,8 @@ void UniLumeAddon::setConfigForInputMethod(
         return;
     }
     prepared.configuration = snapshotFromConfig(configFor(entry));
+    prepared.typing_options =
+        typingOptionsFromConfig(configFor(entry));
     prepared.verified_direct_enabled =
         *configFor(entry).verified_direct_enabled;
     resourcesFor(entry) = std::move(prepared);
@@ -215,6 +217,7 @@ void UniLumeAddon::synchronizeState(
     const config::Snapshot &snapshot = resources.configuration;
     state.setInputMethod(toUlInputMethod(snapshot.input_method));
     state.setOptions(core::engineOptionsFromSnapshot(snapshot));
+    state.setTypingOptions(resources.typing_options);
     state.setMacros(resources.snapshot, resources.generation);
     state.setKeymap(resources.keymap_snapshot, resources.keymap_generation);
     state.setDictionary(resources.dictionary_snapshot,

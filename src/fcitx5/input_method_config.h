@@ -4,6 +4,7 @@
 
 #include "unilume_context.h"
 #include "config_snapshot.h"
+#include "typing_pipeline.h"
 
 #include <fcitx-config/configuration.h>
 #include <fcitx-config/enum.h>
@@ -15,6 +16,8 @@ namespace unilume::fcitx5 {
 // permit lossy commits, which UniLume intentionally does not support.
 FCITX_CONFIG_ENUM(ConfigInputMethod, Telex, VNI, VIQR)
 FCITX_CONFIG_ENUM(ConfigOutputCharset, UTF8)
+FCITX_CONFIG_ENUM(
+    ConfigShortcutScope, Inherited, Disabled, NonStart, Everywhere)
 
 FCITX_CONFIGURATION(
     InputMethodConfig,
@@ -27,6 +30,19 @@ FCITX_CONFIGURATION(
     fcitx::Option<bool> free_marking{this, "FreeMarking", "Free marking", true};
     fcitx::Option<bool> modern_tone{this, "ModernTone", "Modern tone placement", false};
     fcitx::Option<bool> auto_restore{this, "AutoRestore", "Restore non-Vietnamese words", true};
+    fcitx::Option<bool> auto_capitalize{
+        this, "AutoCapitalize",
+        "Capitalize after sentence punctuation or Enter", false};
+    fcitx::Option<bool> double_space_to_period{
+        this, "DoubleSpaceToPeriod", "Replace word-ending double space with period", false};
+    fcitx::Option<bool> double_hyphen_to_em_dash{
+        this, "DoubleHyphenToEmDash", "Replace prose double hyphen with em dash", false};
+    fcitx::Option<ConfigShortcutScope> w_shortcut{
+        this, "WShortcut", "Standalone w to ư shortcut scope",
+        ConfigShortcutScope::Inherited};
+    fcitx::Option<ConfigShortcutScope> bracket_shortcut{
+        this, "BracketShortcut", "Bracket to horn-vowel shortcut scope",
+        ConfigShortcutScope::Inherited};
     fcitx::Option<bool> macro_enabled{
         this, "MacroEnabled", "Enable word-boundary macros", false};
     fcitx::Option<std::string> macro_file{
@@ -63,6 +79,8 @@ FCITX_CONFIGURATION(
 [[nodiscard]] UlInputMethod toUlInputMethod(ConfigInputMethod method);
 [[nodiscard]] UlInputMethod toUlInputMethod(config::InputMethod method);
 [[nodiscard]] config::Snapshot snapshotFromConfig(
+    const InputMethodConfig &config);
+[[nodiscard]] core::TypingConvenienceOptions typingOptionsFromConfig(
     const InputMethodConfig &config);
 [[nodiscard]] bool loadInputMethodConfig(InputMethodConfig &destination,
                                          const fcitx::RawConfig &source);
