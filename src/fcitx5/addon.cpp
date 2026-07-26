@@ -4,10 +4,14 @@
 
 #include "engine_options.h"
 #include "macro_store.h"
+#include "keymap_contract.h"
 
 #include <fcitx/addoninstance.h>
 #include <fcitx/addonmanager.h>
 #include <fcitx/inputcontextmanager.h>
+
+#include <filesystem>
+#include <fstream>
 
 namespace unilume::fcitx5 {
 
@@ -30,6 +34,7 @@ void UniLumeAddon::keyEvent(const fcitx::InputMethodEntry &entry,
     state->setInputMethod(toUlInputMethod(snapshot.input_method));
     state->setOptions(core::engineOptionsFromSnapshot(snapshot));
     state->setMacros(macros.snapshot, macros.generation);
+    state->setKeymap(macros.keymap_snapshot, macros.keymap_generation);
     state->keyEvent(event);
 }
 
@@ -42,6 +47,7 @@ void UniLumeAddon::reset(const fcitx::InputMethodEntry &entry,
     state->setInputMethod(toUlInputMethod(snapshot.input_method));
     state->setOptions(core::engineOptionsFromSnapshot(snapshot));
     state->setMacros(macros.snapshot, macros.generation);
+    state->setKeymap(macros.keymap_snapshot, macros.keymap_generation);
     state->reset();
 }
 
@@ -58,11 +64,64 @@ void UniLumeAddon::setConfigForInputMethod(
     MacroRuntime prepared = macroFor(entry);
     if (!validateInputMethodConfig(config) ||
         !prepareMacroUpdate(entry, config, prepared) ||
+        !prepareKeymapUpdate(entry, config, prepared) ||
         !loadInputMethodConfig(configFor(entry), config)) {
         return;
     }
     prepared.configuration = snapshotFromConfig(configFor(entry));
     macroFor(entry) = std::move(prepared);
+}
+
+bool UniLumeAddon::prepareKeymapUpdate(
+    const fcitx::InputMethodEntry &entry,
+    const fcitx::RawConfig &source,
+    MacroRuntime &runtime) const
+{
+    const InputMethodConfig &current = configFor(entry);
+    const std::string *enabled_value = source.valueByPath("KeymapEnabled");
+    const std::string *path_value = source.valueByPath("KeymapFile");
+    if (!enabled_value && !path_value) {
+        return true;
+    }
+    const bool enabled =
+        enabled_value ? *enabled_value == "True" : *current.keymap_enabled;
+    const std::string path =
+        path_value ? *path_value : *current.keymap_file;
+    keymap::Snapshot snapshot;
+    if (enabled) {
+        if (path.empty()) {
+            return false;
+        }
+        std::error_code error;
+        const auto size = std::filesystem::file_size(path, error);
+        if (error || size > keymap::max_serialized_bytes) {
+            return false;
+        }
+        std::ifstream stream(path, std::ios::binary);
+        if (!stream) {
+            return false;
+        }
+        std::string text(static_cast<std::size_t>(size), '\0');
+        stream.read(text.data(), static_cast<std::streamsize>(text.size()));
+        if (stream.gcount() != static_cast<std::streamsize>(text.size())) {
+            return false;
+        }
+        char extra = 0;
+        if (stream.get(extra)) {
+            return false;
+        }
+        keymap::DecodeResult decoded = keymap::decode(text);
+        if (!decoded.ok()) {
+            return false;
+        }
+        snapshot = std::move(decoded.snapshot);
+    }
+    runtime.keymap_snapshot = std::move(snapshot);
+    ++runtime.keymap_generation;
+    if (runtime.keymap_generation == 0) {
+        ++runtime.keymap_generation;
+    }
+    return true;
 }
 
 UniLumeAddon::MacroRuntime &UniLumeAddon::macroFor(

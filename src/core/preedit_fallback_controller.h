@@ -26,6 +26,7 @@ public:
     void setInputMethod(UlInputMethod method);
     void setOptions(const UlEngineOptions &options);
     void setMacros(const macro::Snapshot &snapshot);
+    void setKeymap(const keymap::Snapshot &snapshot);
 
     [[nodiscard]] std::string_view preedit() const;
 

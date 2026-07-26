@@ -2,9 +2,13 @@
 
 #include "unilume_context.h"
 
+#include "inputproc.h"
 #include "ukengine.h"
 #include "vnconv.h"
 
+#include <algorithm>
+#include <array>
+#include <cctype>
 #include <climits>
 #include <cstring>
 #include <new>
@@ -108,6 +112,18 @@ bool isValidOptions(const UlEngineOptions &options)
            isBoolean(options.free_marking) &&
            isBoolean(options.modern_tone) &&
            isBoolean(options.auto_restore);
+}
+
+int legacyKeymapAction(UlKeymapAction action)
+{
+    static constexpr std::array<int, UL_KEYMAP_ACTION_COUNT> actions{{
+        vneTone0, vneTone1, vneTone2, vneTone3, vneTone4, vneTone5,
+        vneRoofAll, vneRoof_a, vneRoof_e, vneRoof_o, vneHookAll,
+        vneHook_uo, vneHook_u, vneHook_o, vneBowl, vneDd, vne_telex_w,
+        vneEscChar,
+    }};
+    const auto index = static_cast<std::size_t>(action);
+    return index < actions.size() ? actions[index] : -1;
 }
 
 UlEngineOptions toPublicOptions(const UnikeyOptions &options)
@@ -341,6 +357,46 @@ UlStatus ul_engine_set_macros(UlEngineContext *context,
     context->control.options.macroEnabled =
         options->enabled && entry_count != 0;
     context->control.options.alwaysMacro = 0;
+    return UL_STATUS_OK;
+}
+
+UlStatus ul_engine_set_keymap(UlEngineContext *context,
+                              const UlKeymapEntry *entries,
+                              size_t entry_count)
+{
+    if (context == 0 || entries == 0 || entry_count == 0 ||
+        entry_count > 64) {
+        return UL_STATUS_INVALID_ARGUMENT;
+    }
+    int replacement[256];
+    UkResetKeyMap(replacement);
+    std::array<bool, 256> seen{};
+    for (size_t index = 0; index < entry_count; ++index) {
+        const UlKeymapEntry &entry = entries[index];
+        const int action = legacyKeymapAction(entry.action);
+        if (entry.key < 0x21 || entry.key > 0x7e ||
+            entry.key == '=' || entry.key == ';' || action < 0 ||
+            seen[entry.key]) {
+            return UL_STATUS_INVALID_ARGUMENT;
+        }
+        seen[entry.key] = true;
+        replacement[entry.key] = action;
+        const auto key = static_cast<unsigned char>(entry.key);
+        if (std::isalpha(key) != 0) {
+            const auto counterpart = static_cast<unsigned char>(
+                std::islower(key) ? std::toupper(key) : std::tolower(key));
+            if (seen[counterpart]) {
+                return UL_STATUS_DUPLICATE;
+            }
+            seen[counterpart] = true;
+            replacement[counterpart] = action;
+        }
+    }
+    context->engine.reset();
+    context->control.input.setIM(replacement);
+    context->control.usrKeyMapLoaded = 1;
+    std::copy(std::begin(replacement), std::end(replacement),
+              context->control.usrKeyMap);
     return UL_STATUS_OK;
 }
 

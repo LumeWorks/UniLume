@@ -3,6 +3,7 @@
 #pragma once
 
 #include "key_input.h"
+#include "keymap_contract.h"
 #include "key_result.h"
 #include "macro_contract.h"
 #include "unilume_context.h"
@@ -26,6 +27,7 @@ public:
     void setInputMethod(UlInputMethod method);
     void setOptions(const UlEngineOptions &options);
     void setMacros(const macro::Snapshot &snapshot);
+    void setKeymap(const keymap::Snapshot &snapshot);
 
 private:
     KeyResult processText(const KeyInput &input, std::uint64_t sequence);
@@ -46,6 +48,7 @@ private:
 
     static constexpr std::size_t output_capacity = 4096;
     UlEngineContext *context_{};
+    UlInputMethod method_{UL_INPUT_METHOD_TELEX};
     std::array<char, output_capacity> output_{};
     std::uint64_t next_sequence_{1};
     std::string raw_token_;

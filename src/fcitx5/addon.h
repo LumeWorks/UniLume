@@ -5,6 +5,7 @@
 #include "input_context_state.h"
 #include "input_method_config.h"
 #include "macro_contract.h"
+#include "keymap_contract.h"
 
 #include <fcitx/addonfactory.h>
 #include <fcitx/inputcontextproperty.h>
@@ -35,6 +36,8 @@ private:
         config::Snapshot configuration{config::defaults()};
         macro::Snapshot snapshot;
         std::uint64_t generation{};
+        keymap::Snapshot keymap_snapshot;
+        std::uint64_t keymap_generation{};
     };
 
     InputMethodConfig &configFor(const fcitx::InputMethodEntry &entry) const;
@@ -42,6 +45,9 @@ private:
     bool prepareMacroUpdate(const fcitx::InputMethodEntry &entry,
                             const fcitx::RawConfig &source,
                             MacroRuntime &runtime) const;
+    bool prepareKeymapUpdate(const fcitx::InputMethodEntry &entry,
+                             const fcitx::RawConfig &source,
+                             MacroRuntime &runtime) const;
 
     fcitx::Instance &instance_;
     fcitx::FactoryFor<InputContextState> state_factory_;

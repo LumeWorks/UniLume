@@ -30,7 +30,11 @@ FCITX_CONFIGURATION(
     fcitx::Option<bool> macro_enabled{
         this, "MacroEnabled", "Enable word-boundary macros", false};
     fcitx::Option<std::string> macro_file{
-        this, "MacroFile", "Validated UTF-8 macro table", ""};)
+        this, "MacroFile", "Validated UTF-8 macro table", ""};
+    fcitx::Option<bool> keymap_enabled{
+        this, "KeymapEnabled", "Enable validated custom keymap", false};
+    fcitx::Option<std::string> keymap_file{
+        this, "KeymapFile", "Validated UniKey-compatible keymap", ""};)
 
 [[nodiscard]] UlInputMethod toUlInputMethod(ConfigInputMethod method);
 [[nodiscard]] UlInputMethod toUlInputMethod(config::InputMethod method);
