@@ -10,8 +10,8 @@ Ba target hiện có:
 
 - `unilume_fuzz_engine`: phím, backspace, reset, đổi Telex/VNI/VIQR và đổi
   options qua `EngineContext`;
-- `unilume_fuzz_parsers`: decode/migrate/encode config, macro, custom keymap
-  và personal dictionary, kiểm tra
+- `unilume_fuzz_parsers`: decode/migrate/encode config, macro, custom keymap,
+  personal dictionary và per-application policy, kiểm tra
   canonical round-trip;
 - `unilume_fuzz_transaction`: focus/reset, navigation (bao gồm thay đổi
   cursor/selection theo adapter contract), mode/options/macro switch, queue,

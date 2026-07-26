@@ -38,7 +38,24 @@ FCITX_CONFIGURATION(
     fcitx::Option<bool> dictionary_enabled{
         this, "DictionaryEnabled", "Enable personal dictionary policy", false};
     fcitx::Option<std::string> dictionary_file{
-        this, "DictionaryFile", "Validated personal dictionary", ""};)
+        this, "DictionaryFile", "Validated personal dictionary", ""};
+    fcitx::Option<bool> application_policy_enabled{
+        this, "ApplicationPolicyEnabled",
+        "Enable per-application input policy", false};
+    fcitx::Option<std::string> application_policy_file{
+        this, "ApplicationPolicyFile",
+        "Validated per-application input policy", ""};
+    fcitx::Option<std::string> cycle_mode_hotkey{
+        this, "CycleModeHotkey", "Cycle application input mode",
+        "Control+Alt+u"};
+    fcitx::Option<std::string> automatic_mode_hotkey{
+        this, "AutomaticModeHotkey", "Select automatic mode", ""};
+    fcitx::Option<std::string> direct_mode_hotkey{
+        this, "DirectModeHotkey", "Select direct mode", ""};
+    fcitx::Option<std::string> safe_preedit_mode_hotkey{
+        this, "SafePreeditModeHotkey", "Select safe preedit mode", ""};
+    fcitx::Option<std::string> off_mode_hotkey{
+        this, "OffModeHotkey", "Turn processing off for this context", ""};)
 
 [[nodiscard]] UlInputMethod toUlInputMethod(ConfigInputMethod method);
 [[nodiscard]] UlInputMethod toUlInputMethod(config::InputMethod method);

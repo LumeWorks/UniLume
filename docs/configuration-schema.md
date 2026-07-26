@@ -63,9 +63,9 @@ files are ignored on load.
 ## Scope boundary
 
 v2 deliberately does not persist GUI widgets, Fcitx actions, custom keymaps,
-dictionary paths, legacy charsets, hotkeys or app policy. Those
-features are consumers of this contract in their own Issues. The schema does
-not change the UniKey algorithm or its defaults.
+dictionary paths, legacy charsets, hotkeys or app policy. Those features are
+adapter-level consumers of this contract. The schema does not change the
+UniKey algorithm or its defaults.
 
 The validated runtime/file contract for custom maps now lives in
 [keymap-support.md](keymap-support.md). Persisting its path remains a future
@@ -75,6 +75,10 @@ invent private config keys.
 The equivalent bounded runtime contract for personal dictionaries is
 [dictionary-support.md](dictionary-support.md). Its Fcitx fields are adapter
 configuration; v2 application-level persistence remains unchanged.
+
+The per-application rule table and mode hotkeys follow
+[application-policy.md](application-policy.md). Their Fcitx fields are also
+adapter configuration and do not extend the v2 engine snapshot.
 
 ## Fcitx5 input-method configuration
 
