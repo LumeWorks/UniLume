@@ -123,6 +123,12 @@ project("unilume") {
         compileOptions = ["-Wall", "-Wextra"];
     }
 
+    test("unilume_engine_allocation_failure_tests") {
+        entry = "tests/engine/allocation_failure_tests.cpp";
+        links = ["unilume_context", "unilume_engine"];
+        compileOptions = ["-Wall", "-Wextra"];
+    }
+
     test("unilume_macro_tests") {
         entry = "tests/macro/macro_tests.cpp";
         links = ["unilume_macro", "unilume_context", "unilume_engine"];
@@ -186,6 +192,7 @@ project("unilume") {
             "tests/integration/macro_tests.cpp",
             "tests/integration/options_tests.cpp",
             "tests/integration/preedit_fallback_tests.cpp",
+            "tests/integration/stability_recovery_tests.cpp",
             "tests/integration/transaction_tests.cpp",
             "tests/integration/typing_pipeline_tests.cpp",
             "tests/integration/zero_preedit_architecture_tests.cpp"

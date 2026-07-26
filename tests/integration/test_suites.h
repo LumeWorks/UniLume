@@ -20,6 +20,7 @@ void runBrowserCapabilityTests(Assertions &assertions);
 void runBrowserInputSessionTests(Assertions &assertions);
 void runBurstTests(Assertions &assertions);
 void runSoakSmokeTests(Assertions &assertions);
+void runStabilityRecoveryTests(Assertions &assertions);
 void runZeroPreeditArchitectureTests(Assertions &assertions);
 void runZeroPreeditSoakTests(Assertions &assertions);
 

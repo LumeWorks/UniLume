@@ -60,6 +60,16 @@ ctest --test-dir build/sanitizers --output-on-failure
 ```
 
 Các option sanitizer mặc định tắt và không thay thế test build thông thường.
+ThreadSanitizer dùng một build riêng vì không thể kết hợp với ASan:
+
+```sh
+cmake -S . -B build/tsan \
+  -DCMAKE_BUILD_TYPE=Debug \
+  -DUNILUME_ENABLE_TSAN=ON
+cmake --build build/tsan
+TSAN_OPTIONS=halt_on_error=1 \
+ctest --test-dir build/tsan --output-on-failure
+```
 
 Addon Fcitx5 vẫn chỉ được bật với
 `-DUNILUME_BUILD_FCITX5_ADDON=ON`; xem

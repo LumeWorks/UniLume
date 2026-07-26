@@ -147,6 +147,13 @@ build/integration-benchmarks/benchmarks/unilume_integration_benchmark \
   --profile=immediate --keys=1000000 --typing=enabled --format=json
 ```
 
+For stability qualification, run every profile at one million events and the
+release-candidate profile set at ten million events. The JSON report includes
+open FD/thread counts and checkpoint p99 in addition to RSS. Growth is rejected
+only when it is both material and sustained across at least 80% of checkpoint
+transitions; this avoids treating allocator step-and-plateau behavior as a
+leak. P99 growth additionally requires more than 25% second-half drift.
+
 The enabled case turns on capitalization, double-space, double-hyphen, and
 both shortcut scopes. Result names include the selected mode so stored reports
 cannot silently mix the fast path and convenience path. Compare only repeated
@@ -196,6 +203,17 @@ ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 \
 UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1 \
 ctest --test-dir build/benchmark-smoke --output-on-failure \
   -R 'allocation-instrumentation|benchmark-smoke'
+```
+
+ThreadSanitizer is a separate build because it cannot be combined with ASan:
+
+```sh
+cmake -S . -B build/tsan \
+  -DCMAKE_BUILD_TYPE=Debug \
+  -DUNILUME_ENABLE_TSAN=ON
+cmake --build build/tsan --parallel 2
+TSAN_OPTIONS=halt_on_error=1 \
+ctest --test-dir build/tsan --output-on-failure
 ```
 
 ## Comparison limits

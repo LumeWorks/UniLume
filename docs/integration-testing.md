@@ -24,6 +24,7 @@ CTest separates engine regression from these integration suites:
 - `integration-mode-policy`;
 - `integration-burst`;
 - `integration-soak-smoke`;
+- `integration-stability-recovery`;
 - `integration-zero-preedit-architecture`;
 - `integration-zero-preedit-soak`.
 
@@ -54,6 +55,21 @@ UNILUME_PROTOTYPE_SOAK_SECONDS=1800 \
   build/integration/tests/unilume_integration_tests zero-preedit-soak
 ```
 
+The stability-recovery suite repeatedly destroys and recreates the real
+controller/test-backend pair, injects replacement refusal, dropped completion
+and uncertain cancellation, and verifies exact post-recovery output and a
+drained queue. Its default is 10,000 events. A deterministic acceptance run is:
+
+```sh
+UNILUME_RECOVERY_SOAK_EVENTS=1000000 \
+  build/integration/tests/unilume_integration_tests stability-recovery
+```
+
+`engine-allocation-failure` calls the public context API while the test-only
+global nothrow allocation boundary returns null. It requires
+`UL_STATUS_OUT_OF_MEMORY`, a null result, and successful context creation
+immediately afterwards. Production code is not given a test allocator.
+
 Every suite checks final output, valid UTF-8, bounded/final queue depth, and
 the absence of a pending transaction. Duplicate and reordered callbacks must
 be rejected by sequence ID. The sustained delayed profile is five virtual
@@ -75,8 +91,8 @@ build/integration-benchmark/benchmarks/unilume_integration_benchmark \
   --profile=all
 ```
 
-Profiles are `immediate`, `delayed`, and `stale`. A one-million-key soak and
-JSON export use:
+Profiles are `immediate`, `delayed`, and `stale`. One-million and ten-million
+event qualifications and JSON export use:
 
 ```sh
 build/integration-benchmark/benchmarks/unilume_integration_benchmark \
@@ -86,10 +102,14 @@ build/integration-benchmark/benchmarks/unilume_integration_benchmark \
   --output=integration-benchmark-results.json
 ```
 
+Repeat with `--keys=10000000` for the release-candidate long run.
+
 The report includes per-event p50/p95/p99, mean and standard deviation,
-throughput, latency drift, queue metrics, transaction counts, current/peak RSS,
-RSS checkpoints, checksum, and lost/duplicate/reordered error counters. Local
-result files remain untracked.
+throughput, mean and checkpoint-p99 drift, process CPU, queue metrics,
+transaction counts, current/peak RSS, FD/thread bounds, resource checkpoints,
+checksum, and lost/duplicate/reordered error counters. At one million events
+or more, sustained RSS/FD/thread growth or p99 growth over the 25% SLO is an
+error. Local result files remain untracked.
 
 Allocation count is `not_measured`. RSS is not an allocation count, and
 Issue #16 tracks instrumentation that can cover both C and C++ paths without

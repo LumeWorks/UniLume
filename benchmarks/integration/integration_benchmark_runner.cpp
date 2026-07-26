@@ -4,6 +4,7 @@
 
 #include "checksum.h"
 #include "integration_session.h"
+#include "process_resource_reader.h"
 #include "rss_reader.h"
 #include "statistics.h"
 #include "system_metadata.h"
@@ -84,6 +85,36 @@ bool linearRssGrowth(const std::vector<benchmark::RssCheckpoint> &points)
     return increases * 5 >= (points.size() - 1) * 4;
 }
 
+template<typename Value>
+bool linearGrowth(const std::vector<StabilityCheckpoint> &points,
+                  Value value,
+                  std::size_t material_growth)
+{
+    if (points.size() < 3 ||
+        value(points.back()) <= value(points.front()) + material_growth) {
+        return false;
+    }
+    std::size_t increases = 0;
+    for (std::size_t index = 1; index < points.size(); ++index) {
+        increases += value(points[index]) > value(points[index - 1]);
+    }
+    return increases * 5 >= (points.size() - 1) * 4;
+}
+
+bool sustainedP99Growth(const std::vector<StabilityCheckpoint> &points,
+                        double drift_percent)
+{
+    if (points.size() < 3 || drift_percent <= 25.0) {
+        return false;
+    }
+    std::size_t increases = 0;
+    for (std::size_t index = 1; index < points.size(); ++index) {
+        increases += points[index].p99_latency_ns >
+                     points[index - 1].p99_latency_ns;
+    }
+    return increases * 5 >= (points.size() - 1) * 4;
+}
+
 core::TypingConvenienceOptions typingOptions(bool enabled)
 {
     if (!enabled) {
@@ -146,11 +177,15 @@ IntegrationResult runProfile(
     result.total_keys = keys;
     result.rss.initial_kib = benchmark::currentRssKiB();
     result.rss.after_warmup_kib = result.rss.initial_kib;
+    result.open_file_descriptors.initial =
+        benchmark::openFileDescriptorCount();
+    result.threads.initial = benchmark::threadCount();
+    const double initial_cpu_seconds = benchmark::processCpuSeconds();
 
     CorpusCursor cursor;
     const std::size_t checkpoint_interval = std::max(keys / 10, std::size_t{1});
     std::uint64_t checkpoint_latency = 0;
-    std::size_t checkpoint_samples = 0;
+    std::size_t checkpoint_sample_count = 0;
     const auto run_start = Clock::now();
     for (std::size_t index = 0; index < keys; ++index) {
         const auto start = Clock::now();
@@ -161,16 +196,23 @@ IntegrationResult runProfile(
                 .count());
         samples[index] = latency;
         checkpoint_latency += latency;
-        ++checkpoint_samples;
+        ++checkpoint_sample_count;
 
         if ((index + 1) % checkpoint_interval == 0 || index + 1 == keys) {
             result.rss.checkpoints.push_back(
                 {index + 1, benchmark::currentRssKiB()});
+            result.stability_checkpoints.push_back({
+                index + 1,
+                result.rss.checkpoints.back().current_kib,
+                benchmark::openFileDescriptorCount(),
+                benchmark::threadCount(),
+                0.0,
+            });
             checkpoint_means.push_back(
                 static_cast<double>(checkpoint_latency) /
-                static_cast<double>(checkpoint_samples));
+                static_cast<double>(checkpoint_sample_count));
             checkpoint_latency = 0;
-            checkpoint_samples = 0;
+            checkpoint_sample_count = 0;
         }
     }
     session.drain();
@@ -180,6 +222,12 @@ IntegrationResult runProfile(
         std::chrono::duration<double>(run_end - run_start).count();
     result.keys_per_second =
         static_cast<double>(keys) / result.total_seconds;
+    result.process_cpu_seconds =
+        benchmark::processCpuSeconds() - initial_cpu_seconds;
+    result.process_cpu_utilization_percent =
+        result.total_seconds == 0.0
+            ? 0.0
+            : result.process_cpu_seconds / result.total_seconds * 100.0;
     result.latency = benchmark::calculateStatistics(samples);
     result.latency_drift_percent =
         benchmark::calculateStabilityDriftPercent(checkpoint_means);
@@ -189,6 +237,58 @@ IntegrationResult runProfile(
         std::max(result.rss.maximum_kib, result.rss.final_kib);
     result.rss.linear_growth_detected =
         linearRssGrowth(result.rss.checkpoints);
+    result.open_file_descriptors.final =
+        benchmark::openFileDescriptorCount();
+    result.threads.final = benchmark::threadCount();
+    result.open_file_descriptors.maximum =
+        result.open_file_descriptors.initial;
+    result.threads.maximum = result.threads.initial;
+
+    std::vector<double> checkpoint_p99;
+    checkpoint_p99.reserve(result.stability_checkpoints.size());
+    std::vector<std::uint64_t> checkpoint_samples;
+    checkpoint_samples.reserve(checkpoint_interval);
+    for (std::size_t checkpoint = 0;
+         checkpoint < result.stability_checkpoints.size();
+         ++checkpoint) {
+        const std::size_t begin = checkpoint * checkpoint_interval;
+        const std::size_t end =
+            std::min(begin + checkpoint_interval, samples.size());
+        checkpoint_samples.assign(
+            samples.begin() + static_cast<std::ptrdiff_t>(begin),
+            samples.begin() + static_cast<std::ptrdiff_t>(end));
+        const double p99 =
+            benchmark::calculateStatistics(checkpoint_samples).p99_ns;
+        StabilityCheckpoint &point =
+            result.stability_checkpoints[checkpoint];
+        point.p99_latency_ns = p99;
+        checkpoint_p99.push_back(p99);
+        result.open_file_descriptors.maximum = std::max(
+            result.open_file_descriptors.maximum,
+            point.open_file_descriptors);
+        result.threads.maximum =
+            std::max(result.threads.maximum, point.threads);
+    }
+    result.open_file_descriptors.maximum = std::max(
+        result.open_file_descriptors.maximum,
+        result.open_file_descriptors.final);
+    result.threads.maximum =
+        std::max(result.threads.maximum, result.threads.final);
+    result.p99_latency_drift_percent =
+        benchmark::calculateStabilityDriftPercent(checkpoint_p99);
+    result.p99_latency_growth_detected =
+        sustainedP99Growth(result.stability_checkpoints,
+                           result.p99_latency_drift_percent);
+    result.open_file_descriptors.linear_growth_detected = linearGrowth(
+        result.stability_checkpoints,
+        [](const StabilityCheckpoint &point) {
+            return point.open_file_descriptors;
+        },
+        0);
+    result.threads.linear_growth_detected = linearGrowth(
+        result.stability_checkpoints,
+        [](const StabilityCheckpoint &point) { return point.threads; },
+        0);
 
     benchmark::Checksum checksum;
     checksum.add(session.output());
@@ -229,6 +329,12 @@ IntegrationResult runProfile(
     // Treat RSS slope as a soak invariant only; smoke still reports it.
     result.errors +=
         keys >= 1'000'000 && result.rss.linear_growth_detected;
+    result.errors += keys >= 1'000'000 &&
+                     result.p99_latency_growth_detected;
+    result.errors += keys >= 1'000'000 &&
+                     result.open_file_descriptors.linear_growth_detected;
+    result.errors += keys >= 1'000'000 &&
+                     result.threads.linear_growth_detected;
     if (name != "stale") {
         result.errors += result.aborted_transactions != 0;
     }
