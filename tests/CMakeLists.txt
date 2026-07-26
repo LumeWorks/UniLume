@@ -72,6 +72,35 @@ set_target_properties(unilume_macro_tests PROPERTIES
 
 add_test(NAME macro COMMAND unilume_macro_tests)
 
+add_executable(unilume_property_tests
+  ../fuzz/property_test_main.cpp
+  ../fuzz/support/fuzz_harness.cpp
+)
+
+target_link_libraries(unilume_property_tests PRIVATE
+  unilume_config
+  unilume_core
+  unilume_integration_simulation
+  unilume_macro
+  unilume_sanitizer_options
+)
+
+target_include_directories(unilume_property_tests PRIVATE
+  ${CMAKE_SOURCE_DIR}/fuzz/support
+)
+
+target_compile_definitions(unilume_property_tests PRIVATE
+  UNILUME_FUZZ_CORPUS_DIR="${CMAKE_SOURCE_DIR}/fuzz/corpus"
+)
+
+set_target_properties(unilume_property_tests PROPERTIES
+  CXX_STANDARD 23
+  CXX_STANDARD_REQUIRED YES
+  CXX_EXTENSIONS NO
+)
+
+add_test(NAME property-model COMMAND unilume_property_tests)
+
 add_library(unilume_integration_test_support STATIC
   integration/integration_fixture.cpp
   integration/test_assertions.cpp

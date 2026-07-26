@@ -21,6 +21,7 @@ option(UNILUME_BUILD_BENCHMARKS "Build UniLume core benchmarks" OFF)
 option(UNILUME_BUILD_INTEGRATION_BENCHMARKS
   "Build UniLume adapter integration benchmarks" OFF)
 option(UNILUME_BUILD_FCITX5_ADDON "Build the experimental Fcitx5 addon" OFF)
+option(UNILUME_BUILD_FUZZERS "Build Clang libFuzzer targets" OFF)
 
 add_library(unilume_sanitizer_options INTERFACE)
 
@@ -186,7 +187,7 @@ set_target_properties(unilume_core PROPERTIES
   POSITION_INDEPENDENT_CODE ON
 )
 
-if(BUILD_TESTING OR UNILUME_BUILD_INTEGRATION_BENCHMARKS)
+if(BUILD_TESTING OR UNILUME_BUILD_INTEGRATION_BENCHMARKS OR UNILUME_BUILD_FUZZERS)
   add_library(unilume_integration_simulation STATIC
     src/platform/simulation/deterministic_backend.cpp
   )
@@ -209,6 +210,13 @@ endif()
 
 if(BUILD_TESTING)
   add_subdirectory(tests)
+endif()
+
+if(UNILUME_BUILD_FUZZERS)
+  if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    message(FATAL_ERROR "UNILUME_BUILD_FUZZERS requires Clang")
+  endif()
+  add_subdirectory(fuzz)
 endif()
 
 if(UNILUME_BUILD_BENCHMARKS OR UNILUME_BUILD_INTEGRATION_BENCHMARKS)
