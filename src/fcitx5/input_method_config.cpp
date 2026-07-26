@@ -45,7 +45,8 @@ bool hasOnlyKnownOptions(const fcitx::RawConfig &source)
             name != "AutomaticModeHotkey" &&
             name != "DirectModeHotkey" &&
             name != "SafePreeditModeHotkey" &&
-            name != "OffModeHotkey") {
+            name != "OffModeHotkey" &&
+            name != "EmojiEnabled" && name != "EmojiHotkey") {
             return false;
         }
     }
@@ -67,7 +68,7 @@ bool validHotkeys(const fcitx::RawConfig &source)
     for (const char *name :
          {"CycleModeHotkey", "AutomaticModeHotkey",
           "DirectModeHotkey", "SafePreeditModeHotkey",
-          "OffModeHotkey"}) {
+          "OffModeHotkey", "EmojiHotkey"}) {
         const std::string *value = source.valueByPath(name);
         if (!value || value->empty()) {
             continue;
@@ -190,6 +191,7 @@ bool validateInputMethodConfig(const fcitx::RawConfig &source)
         !isOneOf(source, "DictionaryEnabled", {"True", "False"}) ||
         !isOneOf(source, "VerifiedDirectEnabled", {"True", "False"}) ||
         !isOneOf(source, "ApplicationPolicyEnabled", {"True", "False"}) ||
+        !isOneOf(source, "EmojiEnabled", {"True", "False"}) ||
         !validPath(source, "KeymapFile") ||
         !validPath(source, "DictionaryFile") ||
         !validPath(source, "ApplicationPolicyFile") ||

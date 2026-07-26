@@ -11,6 +11,18 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
+msgid "Clear emoji history"
+msgstr "Xóa lịch sử emoji"
+
+msgid "Emoji picker"
+msgstr "Bộ chọn emoji"
+
+msgid "Remove the bounded local recently used emoji list"
+msgstr "Xóa danh sách emoji dùng gần đây được giới hạn trên máy"
+
+msgid "Search Fcitx emoji data without network access"
+msgstr "Tìm dữ liệu emoji của Fcitx mà không truy cập mạng"
+
 msgid "Automatic"
 msgstr "Tự động"
 
@@ -58,6 +70,15 @@ msgstr "Đang dùng chính sách ứng dụng mặc định"
 
 msgid "; direct replacement unavailable, using safe preedit"
 msgstr "; không thể thay thế trực tiếp, đang dùng preedit an toàn"
+
+msgid "Recently used"
+msgstr "Dùng gần đây"
+
+msgid "Emoji: type to search or choose a recent item"
+msgstr "Emoji: gõ để tìm hoặc chọn một mục dùng gần đây"
+
+msgid "Emoji search"
+msgstr "Tìm emoji"
 
 msgid "Inherited"
 msgstr "Kế thừa"
@@ -145,6 +166,12 @@ msgstr "Chọn chế độ preedit an toàn"
 
 msgid "Turn processing off for this context"
 msgstr "Tắt xử lý cho ngữ cảnh này"
+
+msgid "Enable the optional emoji picker"
+msgstr "Bật bộ chọn emoji tùy chọn"
+
+msgid "Open the emoji picker"
+msgstr "Mở bộ chọn emoji"
 
 msgid "Input method: Telex"
 msgstr "Kiểu gõ: Telex"

@@ -29,6 +29,7 @@ public:
 
     void keyEvent(fcitx::KeyEvent &event);
     void reset();
+    void suspendComposition();
     void setInputMethod(UlInputMethod method);
     void setOptions(const UlEngineOptions &options);
     void setTypingOptions(

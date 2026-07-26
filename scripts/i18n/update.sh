@@ -19,6 +19,7 @@ xgettext \
   --msgid-bugs-address=https://github.com/dismonjames/UniLume/issues \
   --output="$root/po/unilume.pot" \
   "$root/src/fcitx5/addon.cpp" \
+  "$root/src/fcitx5/emoji_picker.cpp" \
   "$root/src/fcitx5/input_method_config.h" \
   "$root/src/fcitx5/status_action_model.cpp"
 
