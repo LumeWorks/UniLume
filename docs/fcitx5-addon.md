@@ -103,6 +103,9 @@ output charset. Production macros use `MacroEnabled` and `MacroFile`; tables
 are validated outside the key path and installed per context as documented in
 [macro-support.md](macro-support.md). Personal dictionaries use
 `DictionaryEnabled` and `DictionaryFile` with the same atomic per-context
-lifecycle described in [dictionary-support.md](dictionary-support.md). Legacy
+lifecycle described in [dictionary-support.md](dictionary-support.md).
+Per-application modes, status menu, configurable hotkeys, deterministic rule
+precedence, and safe direct-mode fallback are documented in
+[application-policy.md](application-policy.md). Legacy
 charset output, uinput, distro packages, and system-wide Wayland protocol
 integration are not provided yet.

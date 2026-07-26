@@ -2,6 +2,10 @@
 
 #include "input_method_config.h"
 
+#include <fcitx-utils/key.h>
+
+#include <set>
+
 namespace unilume::fcitx5 {
 namespace {
 
@@ -29,7 +33,43 @@ bool hasOnlyKnownOptions(const fcitx::RawConfig &source)
             name != "ModernTone" && name != "AutoRestore" &&
             name != "MacroEnabled" && name != "MacroFile" &&
             name != "KeymapEnabled" && name != "KeymapFile" &&
-            name != "DictionaryEnabled" && name != "DictionaryFile") {
+            name != "DictionaryEnabled" && name != "DictionaryFile" &&
+            name != "ApplicationPolicyEnabled" &&
+            name != "ApplicationPolicyFile" &&
+            name != "CycleModeHotkey" &&
+            name != "AutomaticModeHotkey" &&
+            name != "DirectModeHotkey" &&
+            name != "SafePreeditModeHotkey" &&
+            name != "OffModeHotkey") {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool validPath(const fcitx::RawConfig &source, const char *name)
+{
+    const std::string *path = source.valueByPath(name);
+    return !path ||
+           (path->find('\r') == std::string::npos &&
+            path->find('\n') == std::string::npos &&
+            path->find('\0') == std::string::npos);
+}
+
+bool validHotkeys(const fcitx::RawConfig &source)
+{
+    std::set<std::string> seen;
+    for (const char *name :
+         {"CycleModeHotkey", "AutomaticModeHotkey",
+          "DirectModeHotkey", "SafePreeditModeHotkey",
+          "OffModeHotkey"}) {
+        const std::string *value = source.valueByPath(name);
+        if (!value || value->empty()) {
+            continue;
+        }
+        const fcitx::Key key(*value);
+        if (!key.isValid() ||
+            !seen.emplace(key.normalize().toString()).second) {
             return false;
         }
     }
@@ -110,27 +150,18 @@ bool validateInputMethodConfig(const fcitx::RawConfig &source)
         !isOneOf(source, "AutoRestore", {"True", "False"}) ||
         !isOneOf(source, "MacroEnabled", {"True", "False"}) ||
         !isOneOf(source, "KeymapEnabled", {"True", "False"}) ||
-        !isOneOf(source, "DictionaryEnabled", {"True", "False"})) {
+        !isOneOf(source, "DictionaryEnabled", {"True", "False"}) ||
+        !isOneOf(source, "ApplicationPolicyEnabled", {"True", "False"}) ||
+        !validPath(source, "KeymapFile") ||
+        !validPath(source, "DictionaryFile") ||
+        !validPath(source, "ApplicationPolicyFile") ||
+        !validHotkeys(source)) {
         return false;
     }
     if (const std::string *path = source.valueByPath("MacroFile")) {
         config::Snapshot snapshot = config::defaults();
         snapshot.macro_file = *path;
         if (!config::validate(snapshot).empty()) {
-            return false;
-        }
-    }
-    if (const std::string *path = source.valueByPath("KeymapFile")) {
-        if (path->find('\r') != std::string::npos ||
-            path->find('\n') != std::string::npos ||
-            path->find('\0') != std::string::npos) {
-            return false;
-        }
-    }
-    if (const std::string *path = source.valueByPath("DictionaryFile")) {
-        if (path->find('\r') != std::string::npos ||
-            path->find('\n') != std::string::npos ||
-            path->find('\0') != std::string::npos) {
             return false;
         }
     }

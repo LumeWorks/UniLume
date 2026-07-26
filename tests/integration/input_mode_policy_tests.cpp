@@ -58,6 +58,25 @@ void runInputModePolicyTests(Assertions &assertions)
     reset_test.observe(false);
     assertions.truth("after reset, new observation picks preedit",
         reset_test.path() == platform::InputPath::preedit);
+
+    platform::InputModePolicy explicit_modes;
+    explicit_modes.observe(policy::ApplicationMode::safe_preedit, true);
+    assertions.truth(
+        "safe preedit never selects direct replacement",
+        explicit_modes.path() == platform::InputPath::preedit);
+    explicit_modes.observe(policy::ApplicationMode::off, true);
+    assertions.truth(
+        "off mode bypasses both processing paths",
+        explicit_modes.path() == platform::InputPath::off);
+    explicit_modes.observe(policy::ApplicationMode::direct, false);
+    assertions.truth(
+        "explicit direct mode falls back when capability is unavailable",
+        explicit_modes.path() == platform::InputPath::preedit);
+    explicit_modes.resetForCompositionEnd();
+    explicit_modes.observe(policy::ApplicationMode::direct, true);
+    assertions.truth(
+        "explicit direct mode uses approved backend when available",
+        explicit_modes.path() == platform::InputPath::direct);
 }
 
 } // namespace unilume::integration::test

@@ -2,6 +2,7 @@
 
 #include "fuzz_harness.h"
 
+#include "application_policy.h"
 #include "config_snapshot.h"
 #include "direct_commit_controller.h"
 #include "dictionary_contract.h"
@@ -156,6 +157,17 @@ Outcome runParsers(std::span<const std::uint8_t> input)
             dictionary::decode(encoded);
         valid = valid && !encoded.empty() && decoded.ok() &&
                 decoded.snapshot == dictionary_result.snapshot;
+    }
+
+    const policy::DecodeResult policy_result = policy::decode(text);
+    trace << "p:" << policy_result.ok() << ':'
+          << policy_result.line << ':' << policy_result.field << ':'
+          << policy_result.error << ';';
+    if (policy_result.ok()) {
+        const std::string encoded = policy::encode(policy_result.snapshot);
+        const policy::DecodeResult decoded = policy::decode(encoded);
+        valid = valid && !encoded.empty() && decoded.ok() &&
+                decoded.snapshot == policy_result.snapshot;
     }
     return {valid, trace.str()};
 }

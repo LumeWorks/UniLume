@@ -10,8 +10,12 @@
 #include "preedit_fallback_controller.h"
 #include "macro_contract.h"
 #include "keymap_contract.h"
+#include "application_policy.h"
 
 #include <fcitx/inputcontextproperty.h>
+
+#include <optional>
+#include <string>
 
 namespace unilume::fcitx5 {
 
@@ -33,8 +37,21 @@ public:
                    std::uint64_t generation);
     void setDictionary(const dictionary::Snapshot &snapshot,
                        std::uint64_t generation);
+    void setApplicationPolicy(const policy::Resolution &resolution,
+                              std::uint64_t generation,
+                              std::string_view application_identity);
+    [[nodiscard]] bool applicationPolicyIsCurrent(
+        std::uint64_t generation,
+        std::string_view application_identity) const;
+    void selectApplicationMode(policy::ApplicationMode mode);
+    void cycleApplicationMode();
+    [[nodiscard]] policy::ApplicationMode requestedApplicationMode() const;
+    [[nodiscard]] platform::InputPath effectiveInputPath() const;
+    [[nodiscard]] std::uint64_t applicationModeRevision() const;
+    [[nodiscard]] std::string applicationModeReason() const;
 
 private:
+    void compositionBoundary();
     void synchronizeMode();
     void handlePreeditEvent(fcitx::KeyEvent &event,
                             const MappedKey &mapped,
@@ -54,6 +71,16 @@ private:
     std::uint64_t macro_generation_{};
     std::uint64_t keymap_generation_{};
     std::uint64_t dictionary_generation_{};
+    policy::ApplicationMode policy_mode_{
+        policy::ApplicationMode::safe_preedit};
+    policy::ResolutionSource policy_source_{
+        policy::ResolutionSource::missing_identity};
+    std::optional<policy::ApplicationMode> application_mode_override_;
+    std::string application_identity_;
+    std::string policy_pattern_;
+    std::uint64_t policy_generation_{};
+    std::uint64_t application_mode_revision_{};
+    bool policy_initialized_{};
 };
 
 } // namespace unilume::fcitx5

@@ -139,6 +139,21 @@ add_library(unilume_dictionary STATIC
   src/dictionary/dictionary_store.cpp
 )
 
+add_library(unilume_application_policy STATIC
+  src/policy/application_policy.cpp
+)
+
+target_link_libraries(unilume_application_policy PRIVATE
+  unilume_sanitizer_options
+)
+target_include_directories(unilume_application_policy PUBLIC src/policy)
+set_target_properties(unilume_application_policy PROPERTIES
+  CXX_STANDARD 23
+  CXX_STANDARD_REQUIRED YES
+  CXX_EXTENSIONS NO
+  POSITION_INDEPENDENT_CODE ON
+)
+
 target_link_libraries(unilume_dictionary PRIVATE unilume_sanitizer_options)
 target_include_directories(unilume_dictionary PUBLIC src/dictionary)
 set_target_properties(unilume_dictionary PROPERTIES
@@ -196,6 +211,7 @@ add_library(unilume_core STATIC
 )
 
 target_link_libraries(unilume_core PUBLIC
+  unilume_application_policy
   unilume_config
   unilume_context
   unilume_dictionary

@@ -38,10 +38,18 @@ int main()
     raw["KeymapFile"] = "/tmp/unilume-keymap";
     raw["DictionaryEnabled"] = "True";
     raw["DictionaryFile"] = "/tmp/unilume-dictionary";
+    raw["ApplicationPolicyEnabled"] = "True";
+    raw["ApplicationPolicyFile"] = "/tmp/unilume-application-policy";
+    raw["CycleModeHotkey"] = "Control+Alt+u";
+    raw["AutomaticModeHotkey"] = "Control+Alt+a";
     ok &= expect(loadInputMethodConfig(input_method_config, raw),
                  "valid Fcitx configuration must load");
     ok &= expect(*input_method_config.input_method == ConfigInputMethod::VNI,
                  "Fcitx config must apply VNI");
+    ok &= expect(*input_method_config.application_policy_enabled &&
+                     *input_method_config.application_policy_file ==
+                         "/tmp/unilume-application-policy",
+                 "application policy configuration must load");
     ok &= expect(*input_method_config.output_charset == ConfigOutputCharset::UTF8,
                  "Fcitx config must retain UTF8");
     ok &= expect(toUlInputMethod(*input_method_config.input_method) == UL_INPUT_METHOD_VNI,
@@ -103,6 +111,24 @@ int main()
                      *input_method_config.dictionary_file ==
                          "/tmp/unilume-dictionary",
                  "invalid dictionary update must preserve configuration");
+
+    fcitx::RawConfig invalid_policy_path;
+    invalid_policy_path["ApplicationPolicyFile"] = "bad\npath";
+    ok &= expect(
+        !loadInputMethodConfig(input_method_config, invalid_policy_path),
+        "invalid application policy path must be rejected");
+
+    fcitx::RawConfig invalid_hotkey;
+    invalid_hotkey["DirectModeHotkey"] = "Not-A-Real-Fcitx-Key";
+    ok &= expect(!loadInputMethodConfig(input_method_config, invalid_hotkey),
+                 "invalid mode hotkey must be rejected");
+
+    fcitx::RawConfig conflicting_hotkeys;
+    conflicting_hotkeys["DirectModeHotkey"] = "Control+Alt+d";
+    conflicting_hotkeys["OffModeHotkey"] = "Control+Alt+d";
+    ok &= expect(
+        !loadInputMethodConfig(input_method_config, conflicting_hotkeys),
+        "conflicting mode hotkeys must be rejected");
 
     fcitx::RawConfig description;
     input_method_config.dumpDescription(description);

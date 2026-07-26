@@ -1,0 +1,4 @@
+unilume_app_policy_version=1
+default	automatic
+rule	org.example.editor	direct
+rule	org.example.*	safe-preedit

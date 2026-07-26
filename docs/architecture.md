@@ -39,12 +39,14 @@ The optional `src/fcitx5/` addon maps Fcitx events into the same controller and
 keeps one state object per Fcitx input context. It is an experimental Telex
 MVP, not a supported production frontend.
 
-Each Fcitx context selects one application path on its first processable key.
-Reliable surrounding-text contexts use direct replacement; contexts without
-that capability retain a client-preedit fallback. A direct context may demote
-after capability loss, but a preedit context is never promoted in place. This
-prevents asynchronous frontend updates from overlapping the first direct
-replacement.
+Each Fcitx context resolves an explicit application policy and selects one path
+on its first processable key. Automatic mode uses direct replacement only with
+the required surrounding-text capability; explicit direct mode has the same
+capability gate, safe-preedit never selects direct replacement, and off passes
+ordinary keys through. A direct context may demote after capability loss, but
+a preedit context is never promoted in place. Policy and mode changes cross a
+composition reset barrier. The schema and precedence are documented in
+[application-policy.md](application-policy.md).
 
 The production ownership decision is frozen in
 [ADR 0001](adr/0001-composition-ownership.md): `InputContextState` is the sole
