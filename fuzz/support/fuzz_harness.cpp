@@ -5,6 +5,7 @@
 #include "config_snapshot.h"
 #include "direct_commit_controller.h"
 #include "engine_context.h"
+#include "keymap_contract.h"
 #include "macro_contract.h"
 #include "deterministic_backend.h"
 #include "utf8_validation.h"
@@ -130,6 +131,16 @@ Outcome runParsers(std::span<const std::uint8_t> input)
         const macro::DecodeResult decoded = macro::decode(encoded);
         valid = valid && !encoded.empty() && decoded.ok() &&
                 decoded.snapshot == macro_result.snapshot && !decoded.migrated;
+    }
+
+    const keymap::DecodeResult keymap_result = keymap::decode(text);
+    trace << "k:" << keymap_result.ok() << ':' << keymap_result.line << ':'
+          << keymap_result.field << ':' << keymap_result.error << ';';
+    if (keymap_result.ok()) {
+        const std::string encoded = keymap::encode(keymap_result.snapshot);
+        const keymap::DecodeResult decoded = keymap::decode(encoded);
+        valid = valid && !encoded.empty() && decoded.ok() &&
+                decoded.snapshot == keymap_result.snapshot;
     }
     return {valid, trace.str()};
 }

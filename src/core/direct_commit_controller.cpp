@@ -89,6 +89,12 @@ void DirectCommitController::setMacros(const macro::Snapshot &snapshot)
     engine_.setMacros(snapshot);
 }
 
+void DirectCommitController::setKeymap(const keymap::Snapshot &snapshot)
+{
+    resetForFocus();
+    engine_.setKeymap(snapshot);
+}
+
 const TransactionMetrics &DirectCommitController::metrics() const
 {
     return metrics_;

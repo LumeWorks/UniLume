@@ -34,6 +34,8 @@ int main()
     raw["AutoRestore"] = "False";
     raw["MacroEnabled"] = "False";
     raw["MacroFile"] = "/tmp/unilume-macros";
+    raw["KeymapEnabled"] = "True";
+    raw["KeymapFile"] = "/tmp/unilume-keymap";
     ok &= expect(loadInputMethodConfig(input_method_config, raw),
                  "valid Fcitx configuration must load");
     ok &= expect(*input_method_config.input_method == ConfigInputMethod::VNI,
@@ -80,6 +82,15 @@ int main()
     invalid_macro_path["MacroFile"] = "bad\npath";
     ok &= expect(!loadInputMethodConfig(input_method_config, invalid_macro_path),
                  "invalid macro path must be rejected");
+
+    fcitx::RawConfig invalid_keymap_path;
+    invalid_keymap_path["KeymapFile"] = "bad\npath";
+    ok &= expect(!loadInputMethodConfig(input_method_config, invalid_keymap_path),
+                 "invalid keymap path must be rejected");
+    ok &= expect(*input_method_config.keymap_enabled &&
+                     *input_method_config.keymap_file ==
+                         "/tmp/unilume-keymap",
+                 "invalid keymap update must preserve active configuration");
 
     fcitx::RawConfig description;
     input_method_config.dumpDescription(description);

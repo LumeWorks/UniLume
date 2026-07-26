@@ -52,6 +52,13 @@ project("unilume") {
         compileOptions = ["-Wall", "-Wextra"];
     }
 
+    static_library("unilume_keymap") {
+        sources = ["src/keymap/keymap_contract.cpp"];
+        includes = ["src/keymap"];
+        public_includes = ["src/keymap"];
+        compileOptions = ["-Wall", "-Wextra"];
+    }
+
     static_library("unilume_core") {
         sources = [
             "src/core/direct_commit_controller.cpp",
@@ -64,7 +71,7 @@ project("unilume") {
         ];
         includes = ["src/core", "src/platform"];
         public_includes = ["src/core", "src/platform"];
-        links = ["unilume_config", "unilume_context", "unilume_engine", "unilume_macro"];
+        links = ["unilume_config", "unilume_context", "unilume_engine", "unilume_keymap", "unilume_macro"];
         compileOptions = ["-Wall", "-Wextra"];
     }
 
@@ -110,11 +117,17 @@ project("unilume") {
         compileOptions = ["-Wall", "-Wextra"];
     }
 
+    test("unilume_keymap_tests") {
+        entry = "tests/keymap/keymap_tests.cpp";
+        links = ["unilume_context", "unilume_keymap", "unilume_engine"];
+        compileOptions = ["-Wall", "-Wextra"];
+    }
+
     test("unilume_property_tests") {
         entry = "fuzz/property_test_main.cpp";
         sources = ["fuzz/support/fuzz_harness.cpp"];
         includes = ["fuzz/support"];
-        links = ["unilume_integration_simulation", "unilume_core", "unilume_config", "unilume_context", "unilume_macro", "unilume_engine"];
+        links = ["unilume_integration_simulation", "unilume_core", "unilume_config", "unilume_context", "unilume_keymap", "unilume_macro", "unilume_engine"];
         compileOptions = ["-Wall", "-Wextra"];
     }
 

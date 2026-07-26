@@ -16,6 +16,7 @@ target_link_libraries(unilume_fcitx5 PRIVATE
   PkgConfig::FCITX5_CORE
   PkgConfig::FCITX5_CONFIG
   unilume_core
+  unilume_keymap
   unilume_macro
 )
 
@@ -58,6 +59,7 @@ if(BUILD_TESTING)
     PkgConfig::FCITX5_CONFIG
     unilume_config
     unilume_context
+    unilume_keymap
     unilume_macro
     unilume_sanitizer_options
   )

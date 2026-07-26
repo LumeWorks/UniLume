@@ -18,7 +18,7 @@ bool isCompositionBoundary(unsigned char key)
 
 } // namespace
 
-EngineContext::EngineContext(UlInputMethod method)
+EngineContext::EngineContext(UlInputMethod method) : method_(method)
 {
     if (ul_engine_create(method, &context_) != UL_STATUS_OK) {
         throw std::runtime_error("cannot create UniLume engine context");
@@ -62,6 +62,7 @@ void EngineContext::setInputMethod(UlInputMethod method)
     if (ul_engine_set_input_method(context_, method) != UL_STATUS_OK) {
         throw std::invalid_argument("unsupported UniLume input method");
     }
+    method_ = method;
     reset();
 }
 
@@ -90,6 +91,32 @@ void EngineContext::setMacros(const macro::Snapshot &snapshot)
         context_, entries.data(), entries.size(), &options);
     if (status != UL_STATUS_OK) {
         throw std::invalid_argument("invalid UniLume macro snapshot");
+    }
+    reset();
+}
+
+void EngineContext::setKeymap(const keymap::Snapshot &snapshot)
+{
+    static_assert(static_cast<std::size_t>(keymap::Action::count) ==
+                  UL_KEYMAP_ACTION_COUNT);
+    if (snapshot.entries.empty()) {
+        if (ul_engine_set_input_method(context_, method_) != UL_STATUS_OK) {
+            throw std::invalid_argument("cannot restore built-in keymap");
+        }
+        reset();
+        return;
+    }
+    std::vector<UlKeymapEntry> entries;
+    entries.reserve(snapshot.entries.size());
+    for (const keymap::Entry &entry : snapshot.entries) {
+        entries.push_back({
+            static_cast<unsigned char>(entry.key),
+            static_cast<UlKeymapAction>(entry.action),
+        });
+    }
+    if (ul_engine_set_keymap(context_, entries.data(), entries.size()) !=
+        UL_STATUS_OK) {
+        throw std::invalid_argument("invalid UniLume keymap snapshot");
     }
     reset();
 }

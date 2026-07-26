@@ -62,10 +62,15 @@ files are ignored on load.
 
 ## Scope boundary
 
-v2 deliberately does not expose GUI widgets, Fcitx actions, custom keymaps,
+v2 deliberately does not persist GUI widgets, Fcitx actions, custom keymaps,
 dictionary paths, legacy charsets, hotkeys or app policy. Those
 features are consumers of this contract in their own Issues. The schema does
 not change the UniKey algorithm or its defaults.
+
+The validated runtime/file contract for custom maps now lives in
+[keymap-support.md](keymap-support.md). Persisting its path remains a future
+schema migration owned by the configuration GUI/backup work; adapters may not
+invent private config keys.
 
 ## Fcitx5 input-method configuration
 

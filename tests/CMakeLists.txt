@@ -72,6 +72,24 @@ set_target_properties(unilume_macro_tests PROPERTIES
 
 add_test(NAME macro COMMAND unilume_macro_tests)
 
+add_executable(unilume_keymap_tests
+  keymap/keymap_tests.cpp
+)
+
+target_link_libraries(unilume_keymap_tests PRIVATE
+  unilume_context
+  unilume_keymap
+  unilume_sanitizer_options
+)
+
+set_target_properties(unilume_keymap_tests PROPERTIES
+  CXX_STANDARD 23
+  CXX_STANDARD_REQUIRED YES
+  CXX_EXTENSIONS NO
+)
+
+add_test(NAME keymap COMMAND unilume_keymap_tests)
+
 add_executable(unilume_property_tests
   ../fuzz/property_test_main.cpp
   ../fuzz/support/fuzz_harness.cpp

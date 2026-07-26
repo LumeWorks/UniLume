@@ -78,6 +78,8 @@ Cách chạy harness delayed/stale, burst, soak và benchmark integration đư�
 tả trong [docs/integration-testing.md](docs/integration-testing.md).
 Property test, corpus và libFuzzer được mô tả trong
 [docs/fuzz-testing.md](docs/fuzz-testing.md).
+Contract custom keymap và quy tắc activate/rollback được mô tả trong
+[docs/keymap-support.md](docs/keymap-support.md).
 Kết quả cài user-local và kiểm tra ứng dụng desktop thực tế được ghi tại
 [docs/real-application-validation.md](docs/real-application-validation.md).
 

@@ -10,7 +10,7 @@ Ba target hiện có:
 
 - `unilume_fuzz_engine`: phím, backspace, reset, đổi Telex/VNI/VIQR và đổi
   options qua `EngineContext`;
-- `unilume_fuzz_parsers`: decode/migrate/encode config và macro, kiểm tra
+- `unilume_fuzz_parsers`: decode/migrate/encode config, macro và custom keymap, kiểm tra
   canonical round-trip;
 - `unilume_fuzz_transaction`: focus/reset, navigation (bao gồm thay đổi
   cursor/selection theo adapter contract), mode/options/macro switch, queue,
@@ -22,7 +22,7 @@ document khớp model tạo lại từ event log, callback stale/lặp không s�
 document, và cùng input luôn cho cùng kết quả. Property test còn tiêm fault đã
 biết để chứng minh bộ dò stale/duplicate hoạt động.
 
-Repository chưa có production parser cho custom keymap, dictionary hoặc IPC.
+Repository chưa có production parser cho dictionary hoặc IPC.
 Vì vậy các bề mặt đó chưa có fuzz target; không dùng legacy file loader hay
 parser giả thay thế. Khi các API tương ứng được đưa vào production, phải thêm
 target hoặc mở rộng parser target trong cùng issue triển khai API.

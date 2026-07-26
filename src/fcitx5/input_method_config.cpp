@@ -27,7 +27,8 @@ bool hasOnlyKnownOptions(const fcitx::RawConfig &source)
         if (name != "InputMethod" && name != "OutputCharset" &&
             name != "SpellCheck" && name != "FreeMarking" &&
             name != "ModernTone" && name != "AutoRestore" &&
-            name != "MacroEnabled" && name != "MacroFile") {
+            name != "MacroEnabled" && name != "MacroFile" &&
+            name != "KeymapEnabled" && name != "KeymapFile") {
             return false;
         }
     }
@@ -106,13 +107,23 @@ bool validateInputMethodConfig(const fcitx::RawConfig &source)
         !isOneOf(source, "FreeMarking", {"True", "False"}) ||
         !isOneOf(source, "ModernTone", {"True", "False"}) ||
         !isOneOf(source, "AutoRestore", {"True", "False"}) ||
-        !isOneOf(source, "MacroEnabled", {"True", "False"})) {
+        !isOneOf(source, "MacroEnabled", {"True", "False"}) ||
+        !isOneOf(source, "KeymapEnabled", {"True", "False"})) {
         return false;
     }
     if (const std::string *path = source.valueByPath("MacroFile")) {
         config::Snapshot snapshot = config::defaults();
         snapshot.macro_file = *path;
-        return config::validate(snapshot).empty();
+        if (!config::validate(snapshot).empty()) {
+            return false;
+        }
+    }
+    if (const std::string *path = source.valueByPath("KeymapFile")) {
+        if (path->find('\r') != std::string::npos ||
+            path->find('\n') != std::string::npos ||
+            path->find('\0') != std::string::npos) {
+            return false;
+        }
     }
     return true;
 }

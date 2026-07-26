@@ -63,6 +63,33 @@ typedef struct UlMacroOptions {
     UlMacroCapitalization capitalization;
 } UlMacroOptions;
 
+typedef enum UlKeymapAction {
+    UL_KEYMAP_TONE0 = 0,
+    UL_KEYMAP_TONE1,
+    UL_KEYMAP_TONE2,
+    UL_KEYMAP_TONE3,
+    UL_KEYMAP_TONE4,
+    UL_KEYMAP_TONE5,
+    UL_KEYMAP_ROOF_ALL,
+    UL_KEYMAP_ROOF_A,
+    UL_KEYMAP_ROOF_E,
+    UL_KEYMAP_ROOF_O,
+    UL_KEYMAP_HOOK_ALL,
+    UL_KEYMAP_HOOK_UO,
+    UL_KEYMAP_HOOK_U,
+    UL_KEYMAP_HOOK_O,
+    UL_KEYMAP_BOWL,
+    UL_KEYMAP_D_MARK,
+    UL_KEYMAP_TELEX_W,
+    UL_KEYMAP_ESCAPE,
+    UL_KEYMAP_ACTION_COUNT
+} UlKeymapAction;
+
+typedef struct UlKeymapEntry {
+    uint32_t key;
+    UlKeymapAction action;
+} UlKeymapEntry;
+
 UlStatus ul_engine_create(UlInputMethod method, UlEngineContext **out_context);
 void ul_engine_destroy(UlEngineContext *context);
 
@@ -89,6 +116,9 @@ UlStatus ul_engine_set_macros(UlEngineContext *context,
                               const UlMacroEntry *entries,
                               size_t entry_count,
                               const UlMacroOptions *options);
+UlStatus ul_engine_set_keymap(UlEngineContext *context,
+                              const UlKeymapEntry *entries,
+                              size_t entry_count);
 void ul_engine_reset(UlEngineContext *context);
 
 #ifdef __cplusplus
