@@ -1,0 +1,27 @@
+<!-- SPDX-License-Identifier: GPL-2.0-or-later -->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Fcitx5 comparison probe</title>
+  <style>
+    body { font: 18px sans-serif; margin: 2rem; }
+    textarea { box-sizing: border-box; height: 50vh; width: 100%; }
+  </style>
+</head>
+<body>
+  <label for="probe">Fcitx5 comparison probe</label>
+  <textarea id="probe" autofocus></textarea>
+  <script>
+    const token = new URL(window.location.href).hash.slice(1) || "probe";
+    const probe = document.querySelector("#probe");
+    const report = () => {
+      // Keep the observed value in the window title so X11 automation can
+      // verify application output rather than assuming injected keys landed.
+      document.title = `${token}|RESULT|${probe.value.replaceAll("\\n", "|")}`;
+    };
+    probe.addEventListener("input", report);
+    document.title = `${token}|RESULT|`;
+  </script>
+</body>
+</html>

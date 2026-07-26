@@ -1,0 +1,13 @@
+# name	method	input	expected UTF-8 output
+basic_phrase	telex	tieengs Vieetj	tiếng Việt
+natural_phrase	telex	tooi ddang gox tieengs vieetj	tôi đang gõ tiếng việt
+vietnamese_letters	telex	AS AW AA EE OO OW UW DD	Á Ă Â Ê Ô Ơ Ư Đ
+replace_tone	telex	asf	à
+backspace	telex	tieengs<BS>	tiến
+url_passthrough	telex	http://abc.com/a1	http://abc.com/a1
+basic_phrase	vni	tie61ng Vie65t	tiếng Việt
+replace_tone	vni	a12	à
+backspace	vni	tie61ng<BS>	tiến
+basic_phrase	viqr	tie^'ng Vie^.t	tiếng Việt
+replace_tone	viqr	a'`	à
+backspace	viqr	tie^'ng<BS>	tiến
