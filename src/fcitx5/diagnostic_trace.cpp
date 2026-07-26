@@ -55,6 +55,8 @@ void DiagnosticTrace::recordDirect(
         metrics.queue_depth,
         metrics.reset_count,
         metrics.stale_result_count,
+        metrics.uncertain_outcome_count,
+        metrics.fallback_failure_count,
         monotonicNanoseconds() - started_at_ns,
         static_cast<std::uint8_t>(status),
         TraceResetReason::none,
@@ -81,6 +83,8 @@ void DiagnosticTrace::recordPreedit(
         0,
         reset_events_,
         0,
+        0,
+        0,
         monotonicNanoseconds() - started_at_ns,
         0,
         TraceResetReason::none,
@@ -101,7 +105,9 @@ void DiagnosticTrace::recordReset(TraceResetReason reason)
             0,
             0,
             0,
+            0,
             reset_events_,
+            0,
             0,
             0,
             0,
@@ -154,6 +160,8 @@ void DiagnosticTrace::flush() const
             << " queue=" << event.queue_depth
             << " resets=" << event.reset_count
             << " stale=" << event.stale_count
+            << " uncertain=" << event.uncertain_count
+            << " fallback_failures=" << event.fallback_failure_count
             << " duration_ns=" << event.duration_ns
             << " surrounding=" << event.surrounding_available
             << " cursor_valid=" << event.cursor_valid;

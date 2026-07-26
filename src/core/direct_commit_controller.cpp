@@ -49,20 +49,26 @@ void DirectCommitController::timeout(std::uint64_t sequence_id)
         ++metrics_.stale_result_count;
         return;
     }
-    if (!backend_.cancel(sequence_id)) {
+    const bool cancelled = backend_.cancel(sequence_id);
+    if (!cancelled) {
         ++metrics_.stale_result_count;
+        ++metrics_.uncertain_outcome_count;
+        backend_.reset();
     }
-    finishActive(false);
+    finishActive(false, cancelled);
 }
 
 void DirectCommitController::resetForFocus()
 {
     if (transaction_.active()) {
-        backend_.cancel(transaction_.sequenceId());
+        if (!backend_.cancel(transaction_.sequenceId())) {
+            ++metrics_.uncertain_outcome_count;
+        }
         transaction_.abort();
         ++metrics_.aborted_transactions;
         transaction_.clear();
     }
+    backend_.reset();
     queue_head_ = 0;
     queue_size_ = 0;
     updateQueueMetrics();
@@ -143,17 +149,6 @@ SubmissionStatus DirectCommitController::startTransaction(
         return SubmissionStatus::fallback;
     }
 
-    if (!backend_.canReplace(result.delete_before_cursor)) {
-        transaction_.abort();
-        ++metrics_.aborted_transactions;
-        ++metrics_.duplicate_prevention_count;
-        const std::uint64_t sequence = transaction_.sequenceId();
-        transaction_.clear();
-        engine_.reset();
-        ++metrics_.reset_count;
-        return fallback(input, sequence);
-    }
-
     transaction_.markRequested();
     metrics_.active_transaction = true;
     const platform::ReplacementStatus status = backend_.requestReplacement(
@@ -167,8 +162,10 @@ SubmissionStatus DirectCommitController::startTransaction(
     case platform::ReplacementStatus::pending:
         return SubmissionStatus::handled;
     case platform::ReplacementStatus::failed:
-        finishActive(false);
-        return SubmissionStatus::fallback;
+        ++metrics_.duplicate_prevention_count;
+        return finishActive(false)
+                   ? SubmissionStatus::fallback
+                   : SubmissionStatus::unhandled;
     }
     return SubmissionStatus::fallback;
 }
@@ -180,8 +177,9 @@ SubmissionStatus DirectCommitController::fallback(
     if (input.kind != KeyKind::text || input.text.empty()) {
         return SubmissionStatus::unhandled;
     }
-    if (backend_.requestReplacement(sequence_id, 0, input.text) ==
-        platform::ReplacementStatus::failed) {
+    if (backend_.requestFallbackCommit(sequence_id, input.text) !=
+        platform::ReplacementStatus::completed) {
+        ++metrics_.fallback_failure_count;
         return SubmissionStatus::unhandled;
     }
     return SubmissionStatus::fallback;
@@ -226,8 +224,10 @@ KeyInput DirectCommitController::view(const QueuedInput &input)
     };
 }
 
-void DirectCommitController::finishActive(bool success)
+bool DirectCommitController::finishActive(bool success,
+                                          bool fallback_allowed)
 {
+    bool fallback_succeeded = false;
     if (success) {
         transaction_.complete();
         ++metrics_.completed_transactions;
@@ -238,8 +238,13 @@ void DirectCommitController::finishActive(bool success)
         ++metrics_.aborted_transactions;
         engine_.reset();
         ++metrics_.reset_count;
-        if (!fallback_text.empty()) {
-            backend_.requestReplacement(sequence, 0, fallback_text);
+        if (fallback_allowed && !fallback_text.empty()) {
+            fallback_succeeded =
+                backend_.requestFallbackCommit(sequence, fallback_text) ==
+                platform::ReplacementStatus::completed;
+            if (!fallback_succeeded) {
+                ++metrics_.fallback_failure_count;
+            }
         }
     }
     transaction_.clear();
@@ -247,6 +252,7 @@ void DirectCommitController::finishActive(bool success)
     if (!draining_) {
         drainQueue();
     }
+    return success || fallback_succeeded;
 }
 
 void DirectCommitController::drainQueue()

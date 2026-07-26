@@ -50,19 +50,20 @@ the backend requests the minimum surrounding-text deletion and commits the
 replacement in the same synchronous controller transaction. Cursor movement,
 focus changes, reset events, and unhandled Backspace clear composition state.
 
-An input context with usable surrounding-text capability on its first key
-uses direct commit with no client preedit and therefore no underline. A
-context without that capability uses the safe preedit fallback for its entire
-lifespan. Frontends may display that client preedit with an underline. The
-addon never promotes a live preedit context into direct mode,
+When `VerifiedDirectEnabled=True`, an input context with a valid live
+surrounding-text snapshot on its first key uses direct commit with no client
+preedit and therefore no underline. The flag defaults to `False` until the
+production matrices are complete. A context without the flag or live oracle
+uses the safe preedit fallback. Frontends may display that client preedit with
+an underline. The addon never promotes a live preedit context into direct mode,
 because a frontend may still be applying an asynchronous preedit update.
 
 ## Safety fallback
 
-Replacement requires the Fcitx `SurroundingText` capability plus either text
-committed by the current state or a valid, unselected surrounding-text cursor
-with enough characters. If the condition is not trustworthy, UniLume resets
-composition and commits the triggering raw key instead of guessing a deletion.
+Replacement requires the Fcitx `SurroundingText` capability and a bounded,
+valid UTF-8 snapshot with an unselected cursor and enough characters. Previously
+committed text never bypasses this live check. Verified replacement and raw
+fallback use separate backend calls so fallback cannot guess a deletion.
 
 This policy prefers a visible uncomposed key over duplicate or missing text.
 It does not synthesize Backspace, sleep, retry indefinitely, use a socket
@@ -72,6 +73,9 @@ Fcitx delete/commit methods are synchronous requests on its event thread and
 do not acknowledge application-side mutation. See
 [real-application-validation.md](real-application-validation.md) for the
 tested frontend matrix and the reason Firefox remains on fallback.
+The complete lifecycle, feature flag, failure semantics, and rollback contract
+are documented in
+[verified-direct-backend.md](verified-direct-backend.md).
 
 ## Verification status
 

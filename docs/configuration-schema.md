@@ -80,6 +80,10 @@ The per-application rule table and mode hotkeys follow
 [application-policy.md](application-policy.md). Their Fcitx fields are also
 adapter configuration and do not extend the v2 engine snapshot.
 
+`VerifiedDirectEnabled` is the adapter-level qualification flag documented in
+[verified-direct-backend.md](verified-direct-backend.md). It defaults off and
+is intentionally not persisted in the v2 engine snapshot.
+
 ## Fcitx5 input-method configuration
 
 The Fcitx5 addon exposes the same method choice per Fcitx input-method entry:

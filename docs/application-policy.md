@@ -10,7 +10,7 @@ writer or backend.
 - `automatic`: use direct replacement only when the current Fcitx context
   advertises the required surrounding-text capability, otherwise use preedit;
 - `direct`: request the approved direct replacement backend, with an immediate
-  safe-preedit fallback when that capability is unavailable;
+  safe-preedit fallback when the feature flag or live oracle is unavailable;
 - `safe-preedit`: always use the existing client/server preedit fallback;
 - `off`: pass ordinary key events through without running the engine.
 
@@ -53,3 +53,7 @@ conflicting hotkeys reject the complete update.
 The cycle order is automatic, direct, safe-preedit, off. A focus reset clears
 the temporary selection; an identity or policy reload also returns the context
 to its resolved rule.
+
+`VerifiedDirectEnabled` defaults to `False` during production qualification.
+Neither an application rule nor a mode hotkey can bypass it. See
+[verified-direct-backend.md](verified-direct-backend.md).

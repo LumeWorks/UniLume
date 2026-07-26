@@ -62,7 +62,7 @@ private:
     bool enqueue(const KeyInput &input);
     QueuedInput dequeue();
     static KeyInput view(const QueuedInput &input);
-    void finishActive(bool success);
+    bool finishActive(bool success, bool fallback_allowed = true);
     void drainQueue();
     void updateQueueMetrics();
 

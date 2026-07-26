@@ -3,6 +3,7 @@
 #include "fcitx_replacement_backend.h"
 
 #include "utf8_validation.h"
+#include "verified_surrounding_snapshot.h"
 
 #include <fcitx-utils/capabilityflags.h>
 #include <fcitx/surroundingtext.h>
@@ -18,38 +19,37 @@ FcitxReplacementBackend::FcitxReplacementBackend(
 
 bool FcitxReplacementBackend::supportsDirectReplacement() const
 {
-    return input_context_.capabilityFlags().test(
-        fcitx::CapabilityFlag::SurroundingText);
+    return canReplace(0);
 }
 
 bool FcitxReplacementBackend::canReplace(
     std::int32_t delete_before_cursor) const
 {
     observation_.delete_before_cursor = delete_before_cursor;
+    observation_.generation = generation_;
     observation_.surrounding_available =
-        supportsDirectReplacement();
-    observation_.cursor_valid = true;
-    if (delete_before_cursor <= 0) {
-        return true;
-    }
-    if (!supportsDirectReplacement()) {
+        input_context_.capabilityFlags().test(
+            fcitx::CapabilityFlag::SurroundingText);
+    observation_.cursor_valid = false;
+    observation_.utf8_valid = false;
+    observation_.within_resource_limit = false;
+    if (delete_before_cursor < 0 ||
+        !observation_.surrounding_available) {
         return false;
     }
-    const auto delete_count =
-        static_cast<std::size_t>(delete_before_cursor);
-    if (committed_characters_ >= delete_count) {
-        return true;
-    }
-
     const fcitx::SurroundingText &surrounding =
         input_context_.surroundingText();
-    observation_.cursor_valid =
-        surrounding.isValid() &&
-        surrounding.anchor() == surrounding.cursor();
-    return surrounding.isValid() &&
-           surrounding.anchor() == surrounding.cursor() &&
-           surrounding.cursor() >= delete_count &&
-           core::isValidUtf8(surrounding.text());
+    const SurroundingSnapshotValidation validated =
+        validateSurroundingSnapshot(
+            observation_.surrounding_available,
+            surrounding,
+            delete_before_cursor);
+    observation_.surrounding_bytes = validated.bytes;
+    observation_.cursor_valid = validated.cursor_valid;
+    observation_.within_resource_limit =
+        validated.within_resource_limit;
+    observation_.utf8_valid = validated.utf8_valid;
+    return validated.allowsReplacement();
 }
 
 platform::ReplacementStatus
@@ -72,14 +72,28 @@ FcitxReplacementBackend::requestReplacement(
         input_context_.deleteSurroundingText(
             -delete_before_cursor,
             static_cast<unsigned int>(delete_count));
-        committed_characters_ =
-            committed_characters_ > delete_count
-                ? committed_characters_ - delete_count
-                : 0;
     }
     if (!commit_text.empty()) {
         input_context_.commitString(std::string(commit_text));
-        committed_characters_ += utf8Characters(commit_text);
+    }
+    last_sequence_id_ = sequence_id;
+    return platform::ReplacementStatus::completed;
+}
+
+platform::ReplacementStatus
+FcitxReplacementBackend::requestFallbackCommit(
+    std::uint64_t sequence_id,
+    std::string_view commit_text)
+{
+    observation_.delete_before_cursor = 0;
+    observation_.commit_bytes = commit_text.size();
+    observation_.generation = generation_;
+    if (sequence_id <= last_sequence_id_ ||
+        !core::isValidUtf8(commit_text)) {
+        return platform::ReplacementStatus::failed;
+    }
+    if (!commit_text.empty()) {
+        input_context_.commitString(std::string(commit_text));
     }
     last_sequence_id_ = sequence_id;
     return platform::ReplacementStatus::completed;
@@ -93,23 +107,18 @@ bool FcitxReplacementBackend::cancel(std::uint64_t)
 
 void FcitxReplacementBackend::reset()
 {
-    committed_characters_ = 0;
+    ++generation_;
+    if (generation_ == 0) {
+        ++generation_;
+    }
     observation_ = {};
+    observation_.generation = generation_;
 }
 
 const ReplacementObservation &
 FcitxReplacementBackend::lastObservation() const
 {
     return observation_;
-}
-
-std::size_t FcitxReplacementBackend::utf8Characters(std::string_view text)
-{
-    std::size_t count = 0;
-    for (const unsigned char byte : text) {
-        count += (byte & 0xc0) != 0x80;
-    }
-    return count;
 }
 
 } // namespace unilume::fcitx5

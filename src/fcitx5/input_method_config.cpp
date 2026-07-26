@@ -34,6 +34,7 @@ bool hasOnlyKnownOptions(const fcitx::RawConfig &source)
             name != "MacroEnabled" && name != "MacroFile" &&
             name != "KeymapEnabled" && name != "KeymapFile" &&
             name != "DictionaryEnabled" && name != "DictionaryFile" &&
+            name != "VerifiedDirectEnabled" &&
             name != "ApplicationPolicyEnabled" &&
             name != "ApplicationPolicyFile" &&
             name != "CycleModeHotkey" &&
@@ -151,6 +152,7 @@ bool validateInputMethodConfig(const fcitx::RawConfig &source)
         !isOneOf(source, "MacroEnabled", {"True", "False"}) ||
         !isOneOf(source, "KeymapEnabled", {"True", "False"}) ||
         !isOneOf(source, "DictionaryEnabled", {"True", "False"}) ||
+        !isOneOf(source, "VerifiedDirectEnabled", {"True", "False"}) ||
         !isOneOf(source, "ApplicationPolicyEnabled", {"True", "False"}) ||
         !validPath(source, "KeymapFile") ||
         !validPath(source, "DictionaryFile") ||

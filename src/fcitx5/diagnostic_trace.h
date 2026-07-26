@@ -47,6 +47,8 @@ private:
         std::size_t queue_depth{};
         std::uint64_t reset_count{};
         std::uint64_t stale_count{};
+        std::uint64_t uncertain_count{};
+        std::uint64_t fallback_failure_count{};
         std::uint64_t duration_ns{};
         std::uint8_t status{};
         TraceResetReason reset_reason{};

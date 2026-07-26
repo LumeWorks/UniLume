@@ -37,6 +37,7 @@ public:
                    std::uint64_t generation);
     void setDictionary(const dictionary::Snapshot &snapshot,
                        std::uint64_t generation);
+    void setVerifiedDirectEnabled(bool enabled);
     void setApplicationPolicy(const policy::Resolution &resolution,
                               std::uint64_t generation,
                               std::string_view application_identity);
@@ -71,6 +72,7 @@ private:
     std::uint64_t macro_generation_{};
     std::uint64_t keymap_generation_{};
     std::uint64_t dictionary_generation_{};
+    bool verified_direct_enabled_{};
     policy::ApplicationMode policy_mode_{
         policy::ApplicationMode::safe_preedit};
     policy::ResolutionSource policy_source_{

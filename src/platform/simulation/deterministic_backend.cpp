@@ -22,10 +22,8 @@ DeterministicBackend::DeterministicBackend(BackendProfile profile)
 bool DeterministicBackend::canReplace(
     std::int32_t delete_before_cursor) const
 {
-    if (delete_before_cursor <= 0) {
-        return true;
-    }
-    if (!profile_.surrounding_text_available ||
+    if (delete_before_cursor < 0 ||
+        !profile_.surrounding_text_available ||
         profile_.stale_surrounding_text ||
         profile_.invalid_surrounding_text ||
         profile_.cursor_misaligned) {
@@ -40,7 +38,7 @@ platform::ReplacementStatus DeterministicBackend::requestReplacement(
     std::int32_t delete_before_cursor,
     std::string_view commit_text)
 {
-    if (pending_.active) {
+    if (pending_.active || !canReplace(delete_before_cursor)) {
         return platform::ReplacementStatus::failed;
     }
     if (delete_before_cursor > 0 && profile_.fail_next_delete) {
@@ -58,8 +56,12 @@ platform::ReplacementStatus DeterministicBackend::requestReplacement(
             return platform::ReplacementStatus::failed;
         }
         if (profile_.record_event_log) {
-            event_log_.push_back(
-                {sequence_id, delete_before_cursor, std::string(commit_text)});
+            event_log_.push_back({
+                BackendEventKind::verified_replacement,
+                sequence_id,
+                delete_before_cursor,
+                std::string(commit_text),
+            });
         }
         ++applied_events_;
         return platform::ReplacementStatus::completed;
@@ -81,13 +83,47 @@ platform::ReplacementStatus DeterministicBackend::requestReplacement(
     return platform::ReplacementStatus::pending;
 }
 
+platform::ReplacementStatus
+DeterministicBackend::requestFallbackCommit(
+    std::uint64_t sequence_id,
+    std::string_view commit_text)
+{
+    if (pending_.active || !core::isValidUtf8(commit_text)) {
+        return platform::ReplacementStatus::failed;
+    }
+    if (!commit_text.empty() && profile_.fail_next_commit) {
+        profile_.fail_next_commit = false;
+        return platform::ReplacementStatus::failed;
+    }
+    if (!apply(0, commit_text)) {
+        return platform::ReplacementStatus::failed;
+    }
+    if (profile_.record_event_log) {
+        event_log_.push_back({
+            BackendEventKind::fallback_commit,
+            sequence_id,
+            0,
+            std::string(commit_text),
+        });
+    }
+    ++applied_events_;
+    return platform::ReplacementStatus::completed;
+}
+
 bool DeterministicBackend::cancel(std::uint64_t sequence_id)
 {
-    if (!pending_.active || pending_.sequence_id != sequence_id) {
+    if (profile_.refuse_cancel ||
+        !pending_.active || pending_.sequence_id != sequence_id) {
         return false;
     }
     pending_ = {};
     return true;
+}
+
+void DeterministicBackend::reset()
+{
+    pending_ = {};
+    injected_.clear();
 }
 
 std::vector<BackendCompletion> DeterministicBackend::advance(
@@ -108,6 +144,7 @@ std::vector<BackendCompletion> DeterministicBackend::advance(
     if (success) {
         if (profile_.record_event_log) {
             event_log_.push_back({
+                BackendEventKind::verified_replacement,
                 pending.sequence_id,
                 pending.delete_before_cursor,
                 pending.commit_text,

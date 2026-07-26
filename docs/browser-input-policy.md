@@ -129,6 +129,9 @@ the cursor.
 browsers did not advertise `CapabilityFlag::SurroundingText`, so
 `canReplace()` returned `false`. The tested native Wayland clients did expose
 it, but direct replacement remains gated on validation of the live state.
+The adapter-level `VerifiedDirectEnabled` flag must also be enabled during
+qualification; it defaults off. See
+[verified-direct-backend.md](verified-direct-backend.md).
 
 ### B. Stable prefix commit
 

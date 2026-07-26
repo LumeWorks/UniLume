@@ -60,6 +60,7 @@ private:
         std::uint64_t keymap_generation{};
         dictionary::Snapshot dictionary_snapshot;
         std::uint64_t dictionary_generation{};
+        bool verified_direct_enabled{};
         policy::Snapshot application_policy_snapshot;
         std::uint64_t application_policy_generation{};
         ModeHotkeys mode_hotkeys;

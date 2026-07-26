@@ -10,6 +10,7 @@ add_library(unilume_fcitx5 MODULE
   fcitx_replacement_backend.cpp
   input_context_state.cpp
   input_method_config.cpp
+  verified_surrounding_snapshot.cpp
 )
 
 target_link_libraries(unilume_fcitx5 PRIVATE
@@ -74,4 +75,26 @@ if(BUILD_TESTING)
     CXX_EXTENSIONS NO
   )
   add_test(NAME fcitx5-config COMMAND unilume_fcitx5_config_tests)
+
+  add_executable(unilume_fcitx5_backend_contract_tests
+    verified_surrounding_snapshot.cpp
+    verified_surrounding_snapshot_test.cpp
+  )
+  target_link_libraries(unilume_fcitx5_backend_contract_tests PRIVATE
+    PkgConfig::FCITX5_CORE
+    unilume_core
+    unilume_sanitizer_options
+  )
+  target_include_directories(unilume_fcitx5_backend_contract_tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+  set_target_properties(unilume_fcitx5_backend_contract_tests PROPERTIES
+    CXX_STANDARD 23
+    CXX_STANDARD_REQUIRED YES
+    CXX_EXTENSIONS NO
+  )
+  add_test(
+    NAME fcitx5-backend-contract
+    COMMAND unilume_fcitx5_backend_contract_tests
+  )
 endif()
