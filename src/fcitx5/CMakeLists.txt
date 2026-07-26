@@ -10,6 +10,7 @@ add_library(unilume_fcitx5 MODULE
   fcitx_replacement_backend.cpp
   input_context_state.cpp
   input_method_config.cpp
+  status_action_model.cpp
   verified_surrounding_snapshot.cpp
 )
 
@@ -27,6 +28,8 @@ target_include_directories(unilume_fcitx5 PRIVATE
 )
 
 target_compile_definitions(unilume_fcitx5 PRIVATE
+  FCITX_GETTEXT_DOMAIN="unilume"
+  UNILUME_LOCALE_DIR="${CMAKE_INSTALL_FULL_LOCALEDIR}"
   UNILUME_DIAGNOSTIC_UNILUME_VERSION="${PROJECT_VERSION}"
   UNILUME_DIAGNOSTIC_FCITX_VERSION="${FCITX5_CORE_VERSION}"
 )
@@ -44,6 +47,28 @@ configure_file(
   ${CMAKE_CURRENT_BINARY_DIR}/unilume-addon.conf
   @ONLY
 )
+configure_file(
+  ${PROJECT_SOURCE_DIR}/data/org.fcitx.Fcitx5.Addon.UniLume.metainfo.xml.in
+  ${CMAKE_CURRENT_BINARY_DIR}/org.fcitx.Fcitx5.Addon.UniLume.metainfo.xml
+  @ONLY
+)
+
+set(UNILUME_VI_CATALOG
+  ${CMAKE_CURRENT_BINARY_DIR}/locale/vi/LC_MESSAGES/unilume.mo
+)
+add_custom_command(
+  OUTPUT ${UNILUME_VI_CATALOG}
+  COMMAND ${CMAKE_COMMAND} -E make_directory
+    ${CMAKE_CURRENT_BINARY_DIR}/locale/vi/LC_MESSAGES
+  COMMAND ${GETTEXT_MSGFMT_EXECUTABLE}
+    --check
+    --check-format
+    -o ${UNILUME_VI_CATALOG}
+    ${PROJECT_SOURCE_DIR}/po/vi.po
+  DEPENDS ${PROJECT_SOURCE_DIR}/po/vi.po
+  VERBATIM
+)
+add_custom_target(unilume-translations ALL DEPENDS ${UNILUME_VI_CATALOG})
 
 install(TARGETS unilume_fcitx5
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/fcitx5
@@ -55,6 +80,23 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/unilume-addon.conf
 install(FILES unilume-inputmethod.conf
   DESTINATION ${CMAKE_INSTALL_DATADIR}/fcitx5/inputmethod
   RENAME unilume.conf
+)
+install(FILES ${UNILUME_VI_CATALOG}
+  DESTINATION ${CMAKE_INSTALL_LOCALEDIR}/vi/LC_MESSAGES
+)
+install(FILES
+  ${PROJECT_SOURCE_DIR}/data/icons/unilume.svg
+  ${PROJECT_SOURCE_DIR}/data/icons/unilume-off.svg
+  ${PROJECT_SOURCE_DIR}/data/icons/unilume-fallback.svg
+  DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps
+)
+install(FILES
+  ${PROJECT_SOURCE_DIR}/data/org.fcitx.Fcitx5.Addon.UniLume.desktop
+  DESTINATION ${CMAKE_INSTALL_DATADIR}/applications
+)
+install(FILES
+  ${CMAKE_CURRENT_BINARY_DIR}/org.fcitx.Fcitx5.Addon.UniLume.metainfo.xml
+  DESTINATION ${CMAKE_INSTALL_DATADIR}/metainfo
 )
 
 if(BUILD_TESTING)
@@ -76,6 +118,58 @@ if(BUILD_TESTING)
     CXX_EXTENSIONS NO
   )
   add_test(NAME fcitx5-config COMMAND unilume_fcitx5_config_tests)
+
+  add_executable(unilume_fcitx5_status_action_tests
+    input_method_config.cpp
+    status_action_model.cpp
+    status_action_model_test.cpp
+  )
+  target_link_libraries(unilume_fcitx5_status_action_tests PRIVATE
+    PkgConfig::FCITX5_CONFIG
+    unilume_core
+    unilume_sanitizer_options
+  )
+  target_include_directories(unilume_fcitx5_status_action_tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+  target_compile_definitions(unilume_fcitx5_status_action_tests PRIVATE
+    FCITX_GETTEXT_DOMAIN="unilume"
+  )
+  set_target_properties(unilume_fcitx5_status_action_tests PROPERTIES
+    CXX_STANDARD 23
+    CXX_STANDARD_REQUIRED YES
+    CXX_EXTENSIONS NO
+  )
+  add_test(
+    NAME fcitx5-status-actions
+    COMMAND unilume_fcitx5_status_action_tests
+  )
+
+  add_executable(unilume_fcitx5_translation_tests translation_test.cpp)
+  target_link_libraries(unilume_fcitx5_translation_tests PRIVATE
+    PkgConfig::FCITX5_CORE
+    unilume_sanitizer_options
+  )
+  target_compile_definitions(unilume_fcitx5_translation_tests PRIVATE
+    FCITX_GETTEXT_DOMAIN="unilume"
+    UNILUME_TEST_LOCALE_DIR="${CMAKE_CURRENT_BINARY_DIR}/locale"
+  )
+  set_target_properties(unilume_fcitx5_translation_tests PROPERTIES
+    CXX_STANDARD 23
+    CXX_STANDARD_REQUIRED YES
+    CXX_EXTENSIONS NO
+  )
+  add_dependencies(
+    unilume_fcitx5_translation_tests
+    unilume-translations
+  )
+  add_test(
+    NAME fcitx5-translation
+    COMMAND unilume_fcitx5_translation_tests
+  )
+  set_tests_properties(fcitx5-translation PROPERTIES
+    ENVIRONMENT "LANGUAGE=vi;LC_ALL=en_US.UTF-8"
+  )
 
   add_executable(unilume_fcitx5_backend_contract_tests
     verified_surrounding_snapshot.cpp

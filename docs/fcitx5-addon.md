@@ -7,11 +7,12 @@ MVP, not a production-ready package.
 
 ## Build
 
-Install CMake, pkg-config, a C++23 compiler, and Fcitx5 core development files.
+Install CMake, gettext, pkg-config, a C++23 compiler, and Fcitx5 core
+development files.
 On Debian-family systems the Fcitx dependency is:
 
 ```sh
-sudo apt-get install libfcitx5core-dev libfcitx5config-dev pkg-config
+sudo apt-get install gettext libfcitx5core-dev libfcitx5config-dev pkg-config
 ```
 
 Build and install into a disposable prefix:
@@ -33,6 +34,12 @@ The prefix contains:
 lib/fcitx5/unilume.so
 share/fcitx5/addon/unilume.conf
 share/fcitx5/inputmethod/unilume.conf
+share/applications/org.fcitx.Fcitx5.Addon.UniLume.desktop
+share/icons/hicolor/scalable/apps/unilume.svg
+share/icons/hicolor/scalable/apps/unilume-off.svg
+share/icons/hicolor/scalable/apps/unilume-fallback.svg
+share/locale/vi/LC_MESSAGES/unilume.mo
+share/metainfo/org.fcitx.Fcitx5.Addon.UniLume.metainfo.xml
 ```
 
 With the option left `OFF`, normal core builds do not require Fcitx5. With the
@@ -86,6 +93,23 @@ shortcut scope defaults to `Inherited`. Modified shortcuts, URL/email/code
 literal contexts and reset boundaries are never rewritten. See
 [ADR 0003](adr/0003-typing-convenience-pipeline.md) for exact ordering and
 scope semantics.
+
+## Status actions and localization
+
+The Fcitx status menu exposes the effective application mode, Telex/VNI/VIQR,
+lossless UTF-8 output, spell checking, macros and personal dictionary state.
+Input-method and option changes are partial updates to the same validated
+Fcitx configuration contract; the new state crosses the existing composition
+boundary before another key is processed. Macros and dictionaries cannot be
+enabled from the status menu until their validated file is configured.
+
+The input-method icon distinguishes normal Vietnamese processing, off, and
+safe-preedit fallback. All three are scalable SVGs installed in the hicolor
+theme for KDE/GNOME and HiDPI fallback. English source strings and the complete
+Vietnamese gettext catalog cover status tooltips and configuration
+descriptions. Run `scripts/i18n/update.sh` after changing a production string;
+CI rejects stale or invalid catalogs and validates the desktop/AppStream
+metadata.
 
 ## Diagnostics
 
