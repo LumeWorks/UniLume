@@ -48,6 +48,8 @@ int main()
     raw["ApplicationPolicyFile"] = "/tmp/unilume-application-policy";
     raw["CycleModeHotkey"] = "Control+Alt+u";
     raw["AutomaticModeHotkey"] = "Control+Alt+a";
+    raw["EmojiEnabled"] = "True";
+    raw["EmojiHotkey"] = "Control+Alt+period";
     ok &= expect(loadInputMethodConfig(input_method_config, raw),
                  "valid Fcitx configuration must load");
     ok &= expect(*input_method_config.input_method == ConfigInputMethod::VNI,
@@ -58,6 +60,10 @@ int main()
                  "application policy configuration must load");
     ok &= expect(*input_method_config.verified_direct_enabled,
                  "verified direct feature flag must load");
+    ok &= expect(*input_method_config.emoji_enabled &&
+                     *input_method_config.emoji_hotkey ==
+                         "Control+Alt+period",
+                 "optional emoji configuration must load");
     const unilume::core::TypingConvenienceOptions typing =
         typingOptionsFromConfig(input_method_config);
     ok &= expect(
@@ -153,6 +159,13 @@ int main()
     ok &= expect(
         !loadInputMethodConfig(input_method_config, conflicting_hotkeys),
         "conflicting mode hotkeys must be rejected");
+
+    fcitx::RawConfig emoji_hotkey_conflict;
+    emoji_hotkey_conflict["CycleModeHotkey"] = "Control+Alt+u";
+    emoji_hotkey_conflict["EmojiHotkey"] = "Control+Alt+u";
+    ok &= expect(
+        !loadInputMethodConfig(input_method_config, emoji_hotkey_conflict),
+        "emoji hotkey must not conflict with mode hotkeys");
 
     fcitx::RawConfig description;
     input_method_config.dumpDescription(description);

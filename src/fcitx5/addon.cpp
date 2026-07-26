@@ -15,6 +15,7 @@
 #include <fcitx/userinterface.h>
 #include <fcitx/userinterfacemanager.h>
 #include <fcitx-utils/i18n.h>
+#include <fcitx-utils/standardpath.h>
 
 #include <filesystem>
 #include <fstream>
@@ -61,6 +62,45 @@ public:
 private:
     UniLumeAddon &addon_;
     StatusCommand command_;
+};
+
+class UniLumeAddon::EmojiAction final : public fcitx::Action {
+public:
+    EmojiAction(UniLumeAddon &addon, bool clear_history)
+        : addon_(addon), clear_history_(clear_history)
+    {
+    }
+
+    std::string shortText(fcitx::InputContext *) const override
+    {
+        return clear_history_ ? _("Clear emoji history")
+                              : _("Emoji picker");
+    }
+
+    std::string icon(fcitx::InputContext *) const override
+    {
+        return clear_history_ ? "edit-clear-history" : "face-smile";
+    }
+
+    std::string longText(fcitx::InputContext *) const override
+    {
+        return clear_history_
+                   ? _("Remove the bounded local recently used emoji list")
+                   : _("Search Fcitx emoji data without network access");
+    }
+
+    void activate(fcitx::InputContext *input_context) override
+    {
+        if (clear_history_) {
+            addon_.clearEmojiHistory(input_context);
+        } else {
+            addon_.openEmojiPicker(input_context);
+        }
+    }
+
+private:
+    UniLumeAddon &addon_;
+    bool clear_history_{};
 };
 
 class UniLumeAddon::ModeAction final : public fcitx::Action {
@@ -178,6 +218,12 @@ UniLumeAddon::UniLumeAddon(fcitx::Instance &instance)
       })
 {
     fcitx::registerDomain("unilume", UNILUME_LOCALE_DIR);
+    emoji_picker_ = std::make_unique<EmojiPicker>(
+        instance_,
+        std::filesystem::path(
+            fcitx::StandardPath::global().userDirectory(
+                fcitx::StandardPath::Type::PkgData)) /
+            "unilume" / "emoji-history-v1");
     instance_.inputContextManager().registerProperty(
         "unilume-input-context", &state_factory_);
     mode_menu_ = std::make_unique<fcitx::Menu>();
@@ -204,6 +250,9 @@ UniLumeAddon::UniLumeAddon(fcitx::Instance &instance)
         *this, StatusCommand::toggle_macros);
     dictionary_action_ = std::make_unique<ConfigAction>(
         *this, StatusCommand::toggle_dictionary);
+    emoji_action_ = std::make_unique<EmojiAction>(*this, false);
+    clear_emoji_history_action_ =
+        std::make_unique<EmojiAction>(*this, true);
     mode_action_->registerAction(
         "unilume-mode", &instance_.userInterfaceManager());
     automatic_mode_action_->registerAction(
@@ -228,6 +277,11 @@ UniLumeAddon::UniLumeAddon(fcitx::Instance &instance)
         "unilume-macros", &instance_.userInterfaceManager());
     dictionary_action_->registerAction(
         "unilume-dictionary", &instance_.userInterfaceManager());
+    emoji_action_->registerAction(
+        "unilume-emoji-picker", &instance_.userInterfaceManager());
+    clear_emoji_history_action_->registerAction(
+        "unilume-clear-emoji-history",
+        &instance_.userInterfaceManager());
     mode_menu_->addAction(automatic_mode_action_.get());
     mode_menu_->addAction(direct_mode_action_.get());
     mode_menu_->addAction(safe_preedit_mode_action_.get());
@@ -239,6 +293,8 @@ UniLumeAddon::UniLumeAddon(fcitx::Instance &instance)
     mode_menu_->addAction(spell_action_.get());
     mode_menu_->addAction(macro_action_.get());
     mode_menu_->addAction(dictionary_action_.get());
+    mode_menu_->addAction(emoji_action_.get());
+    mode_menu_->addAction(clear_emoji_history_action_.get());
     mode_action_->setMenu(mode_menu_.get());
 }
 
@@ -283,9 +339,21 @@ void UniLumeAddon::activate(const fcitx::InputMethodEntry &entry,
     updateModeActions(event.inputContext());
 }
 
+void UniLumeAddon::deactivate(const fcitx::InputMethodEntry &,
+                              fcitx::InputContextEvent &event)
+{
+    emoji_picker_->reset(event.inputContext());
+}
+
 void UniLumeAddon::keyEvent(const fcitx::InputMethodEntry &entry,
                             fcitx::KeyEvent &event)
 {
+    if (emoji_picker_->active(event.inputContext())) {
+        if (emoji_picker_->handle(event)) {
+            event.filterAndAccept();
+        }
+        return;
+    }
     auto *state = event.inputContext()->propertyFor(&state_factory_);
     const RuntimeResources &resources = resourcesFor(entry);
     const std::uint64_t previous_revision =
@@ -293,6 +361,15 @@ void UniLumeAddon::keyEvent(const fcitx::InputMethodEntry &entry,
     const platform::InputPath previous_path =
         state->effectiveInputPath();
     synchronizeState(entry, *event.inputContext(), *state);
+    if (resources.emoji_enabled && !event.isRelease() &&
+        resources.mode_hotkeys.emoji.isValid() &&
+        event.key().check(resources.mode_hotkeys.emoji)) {
+        openEmojiPicker(event.inputContext());
+        if (emoji_picker_->active(event.inputContext())) {
+            event.filterAndAccept();
+            return;
+        }
+    }
     if (handleModeHotkey(resources.mode_hotkeys, event, *state)) {
         return;
     }
@@ -306,6 +383,7 @@ void UniLumeAddon::keyEvent(const fcitx::InputMethodEntry &entry,
 void UniLumeAddon::reset(const fcitx::InputMethodEntry &entry,
                          fcitx::InputContextEvent &event)
 {
+    emoji_picker_->reset(event.inputContext());
     auto *state = event.inputContext()->propertyFor(&state_factory_);
     synchronizeState(entry, *event.inputContext(), *state);
     state->reset();
@@ -336,6 +414,7 @@ void UniLumeAddon::setConfigForInputMethod(
         typingOptionsFromConfig(configFor(entry));
     prepared.verified_direct_enabled =
         *configFor(entry).verified_direct_enabled;
+    prepared.emoji_enabled = *configFor(entry).emoji_enabled;
     resourcesFor(entry) = std::move(prepared);
     instance_.inputContextManager().foreach(
         [this, &entry](fcitx::InputContext *input_context) {
@@ -444,6 +523,8 @@ void UniLumeAddon::updateModeActions(fcitx::InputContext *input_context)
     spell_action_->update(input_context);
     macro_action_->update(input_context);
     dictionary_action_->update(input_context);
+    emoji_action_->update(input_context);
+    clear_emoji_history_action_->update(input_context);
     input_context->updateUserInterface(
         fcitx::UserInterfaceComponent::StatusArea);
 }
@@ -486,6 +567,34 @@ void UniLumeAddon::applyStatusCommand(
     update.setValueByPath(mutation->path, mutation->value);
     setConfigForInputMethod(*entry, update);
     updateModeActions(input_context);
+}
+
+void UniLumeAddon::openEmojiPicker(
+    fcitx::InputContext *input_context)
+{
+    const fcitx::InputMethodEntry *entry =
+        input_context ? instance_.inputMethodEntry(input_context) : nullptr;
+    if (!entry || !*configFor(*entry).emoji_enabled ||
+        !emoji_picker_->available()) {
+        return;
+    }
+    if (InputContextState *state = stateFor(input_context)) {
+        state->suspendComposition();
+    }
+    const bool opened = emoji_picker_->trigger(input_context);
+    (void)opened;
+}
+
+void UniLumeAddon::clearEmojiHistory(
+    fcitx::InputContext *input_context)
+{
+    const bool cleared = emoji_picker_->clearHistory();
+    (void)cleared;
+    if (emoji_picker_->active(input_context)) {
+        emoji_picker_->reset(input_context);
+        const bool reopened = emoji_picker_->trigger(input_context);
+        (void)reopened;
+    }
 }
 
 std::string UniLumeAddon::statusIcon(
@@ -627,7 +736,8 @@ bool UniLumeAddon::prepareModeHotkeyUpdate(
         source.valueByPath("AutomaticModeHotkey") ||
         source.valueByPath("DirectModeHotkey") ||
         source.valueByPath("SafePreeditModeHotkey") ||
-        source.valueByPath("OffModeHotkey");
+        source.valueByPath("OffModeHotkey") ||
+        source.valueByPath("EmojiHotkey");
     if (!has_update) {
         return true;
     }
@@ -641,17 +751,20 @@ bool UniLumeAddon::prepareModeHotkeyUpdate(
         "SafePreeditModeHotkey", *current.safe_preedit_mode_hotkey);
     const std::string off = effective(
         "OffModeHotkey", *current.off_mode_hotkey);
+    const std::string emoji = effective(
+        "EmojiHotkey", *current.emoji_hotkey);
     ModeHotkeys parsed{
         cycle.empty() ? fcitx::Key() : fcitx::Key(cycle),
         automatic.empty() ? fcitx::Key() : fcitx::Key(automatic),
         direct.empty() ? fcitx::Key() : fcitx::Key(direct),
         safe_preedit.empty() ? fcitx::Key() : fcitx::Key(safe_preedit),
         off.empty() ? fcitx::Key() : fcitx::Key(off),
+        emoji.empty() ? fcitx::Key() : fcitx::Key(emoji),
     };
     std::set<std::string> seen;
     for (const fcitx::Key *key :
          {&parsed.cycle, &parsed.automatic, &parsed.direct,
-          &parsed.safe_preedit, &parsed.off}) {
+          &parsed.safe_preedit, &parsed.off, &parsed.emoji}) {
         if (!key->isValid()) {
             continue;
         }

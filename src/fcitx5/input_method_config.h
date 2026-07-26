@@ -88,7 +88,12 @@ FCITX_CONFIGURATION(
     fcitx::Option<std::string> safe_preedit_mode_hotkey{
         this, "SafePreeditModeHotkey", _("Select safe preedit mode"), ""};
     fcitx::Option<std::string> off_mode_hotkey{
-        this, "OffModeHotkey", _("Turn processing off for this context"), ""};)
+        this, "OffModeHotkey", _("Turn processing off for this context"), ""};
+    fcitx::Option<bool> emoji_enabled{
+        this, "EmojiEnabled", _("Enable the optional emoji picker"), false};
+    fcitx::Option<std::string> emoji_hotkey{
+        this, "EmojiHotkey", _("Open the emoji picker"),
+        "Control+Alt+period"};)
 
 [[nodiscard]] UlInputMethod toUlInputMethod(ConfigInputMethod method);
 [[nodiscard]] UlInputMethod toUlInputMethod(config::InputMethod method);

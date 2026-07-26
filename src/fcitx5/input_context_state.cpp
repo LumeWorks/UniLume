@@ -102,6 +102,11 @@ void InputContextState::reset()
     synchronizeMode();
 }
 
+void InputContextState::suspendComposition()
+{
+    compositionBoundary();
+}
+
 void InputContextState::setInputMethod(UlInputMethod method)
 {
     if (method == input_method_) {

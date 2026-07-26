@@ -153,6 +153,25 @@ add_library(unilume_application_policy STATIC
   src/policy/application_policy.cpp
 )
 
+add_library(unilume_emoji STATIC
+  src/emoji/emoji_model.cpp
+)
+
+target_link_libraries(unilume_emoji PUBLIC
+  unilume_core
+  unilume_sanitizer_options
+)
+target_include_directories(unilume_emoji
+  PUBLIC src/emoji
+  PRIVATE src/core
+)
+set_target_properties(unilume_emoji PROPERTIES
+  CXX_STANDARD 23
+  CXX_STANDARD_REQUIRED YES
+  CXX_EXTENSIONS NO
+  POSITION_INDEPENDENT_CODE ON
+)
+
 target_link_libraries(unilume_application_policy PRIVATE
   unilume_sanitizer_options
 )
@@ -284,9 +303,11 @@ if(UNILUME_BUILD_FCITX5_ADDON)
   find_package(Gettext REQUIRED)
   pkg_check_modules(FCITX5_CORE QUIET IMPORTED_TARGET "Fcitx5Core>=5.0")
   pkg_check_modules(FCITX5_CONFIG QUIET IMPORTED_TARGET "Fcitx5Config>=5.0")
-  if(NOT FCITX5_CORE_FOUND OR NOT FCITX5_CONFIG_FOUND)
+  pkg_check_modules(FCITX5_MODULE QUIET IMPORTED_TARGET "Fcitx5Module>=5.0")
+  if(NOT FCITX5_CORE_FOUND OR NOT FCITX5_CONFIG_FOUND OR
+     NOT FCITX5_MODULE_FOUND)
     message(FATAL_ERROR
-      "UNILUME_BUILD_FCITX5_ADDON=ON requires Fcitx5Core and Fcitx5Config development files"
+      "UNILUME_BUILD_FCITX5_ADDON=ON requires Fcitx5Core, Fcitx5Config and Fcitx5Module development files"
     )
   endif()
   add_subdirectory(src/fcitx5)

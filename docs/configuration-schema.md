@@ -92,6 +92,11 @@ selected UniKey method exactly. These remain adapter fields until the
 versioned GUI/backup migration in Issue #50. Their runtime contract is
 [ADR 0003](adr/0003-typing-convenience-pipeline.md).
 
+`EmojiEnabled` and `EmojiHotkey` control the optional Fcitx-native picker.
+They remain adapter fields and do not extend schema v2. The module, bounded
+search index, atomic recent history and privacy boundary are documented in
+[emoji-picker.md](emoji-picker.md).
+
 ## Fcitx5 input-method configuration
 
 The Fcitx5 addon exposes the same method choice per Fcitx input-method entry:

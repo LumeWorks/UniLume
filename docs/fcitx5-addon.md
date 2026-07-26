@@ -111,6 +111,18 @@ descriptions. Run `scripts/i18n/update.sh` after changing a production string;
 CI rejects stale or invalid catalogs and validates the desktop/AppStream
 metadata.
 
+## Optional emoji picker
+
+`EmojiEnabled` defaults to `False`; `EmojiHotkey` defaults to
+`Control+Alt+period`. On the first explicit request, the addon uses the
+installed Fcitx emoji module and builds a bounded deterministic search index.
+It never bundles a second database or performs search, history I/O or module
+loading in normal Vietnamese typing. Candidate paging, keyboard navigation,
+focus/reset behavior, bounded atomic recent history and the clear-history
+action are specified in [emoji-picker.md](emoji-picker.md). Install
+`fcitx5-modules-dev` to build this API integration; the runtime module remains
+optional and failure to load it leaves Vietnamese input unaffected.
+
 ## Diagnostics
 
 Diagnostics remain disabled by default. An explicit environment opt-in enables

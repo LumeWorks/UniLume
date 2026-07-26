@@ -4,6 +4,7 @@
 
 #include "input_context_state.h"
 #include "input_method_config.h"
+#include "emoji_picker.h"
 #include "status_action_model.h"
 #include "dictionary_contract.h"
 #include "macro_contract.h"
@@ -33,6 +34,8 @@ public:
 
     void activate(const fcitx::InputMethodEntry &entry,
                   fcitx::InputContextEvent &event) override;
+    void deactivate(const fcitx::InputMethodEntry &entry,
+                    fcitx::InputContextEvent &event) override;
     void keyEvent(const fcitx::InputMethodEntry &entry,
                   fcitx::KeyEvent &event) override;
     void reset(const fcitx::InputMethodEntry &entry,
@@ -53,6 +56,7 @@ public:
 private:
     class ModeAction;
     class ConfigAction;
+    class EmojiAction;
 
     struct ModeHotkeys {
         fcitx::Key cycle{"Control+Alt+u"};
@@ -60,6 +64,7 @@ private:
         fcitx::Key direct;
         fcitx::Key safe_preedit;
         fcitx::Key off;
+        fcitx::Key emoji{"Control+Alt+period"};
     };
 
     struct RuntimeResources {
@@ -72,6 +77,7 @@ private:
         dictionary::Snapshot dictionary_snapshot;
         std::uint64_t dictionary_generation{};
         bool verified_direct_enabled{};
+        bool emoji_enabled{};
         policy::Snapshot application_policy_snapshot;
         std::uint64_t application_policy_generation{};
         ModeHotkeys mode_hotkeys;
@@ -111,6 +117,8 @@ private:
         fcitx::InputContext *input_context) const;
     void applyStatusCommand(fcitx::InputContext *input_context,
                             StatusCommand command);
+    void openEmojiPicker(fcitx::InputContext *input_context);
+    void clearEmojiHistory(fcitx::InputContext *input_context);
     [[nodiscard]] std::string statusIcon(
         fcitx::InputContext *input_context) const;
 
@@ -129,6 +137,9 @@ private:
     std::unique_ptr<ConfigAction> spell_action_;
     std::unique_ptr<ConfigAction> macro_action_;
     std::unique_ptr<ConfigAction> dictionary_action_;
+    std::unique_ptr<EmojiAction> emoji_action_;
+    std::unique_ptr<EmojiAction> clear_emoji_history_action_;
+    std::unique_ptr<EmojiPicker> emoji_picker_;
     mutable std::map<std::string, InputMethodConfig> input_method_configs_;
     mutable std::map<std::string, RuntimeResources> runtime_resources_;
 };

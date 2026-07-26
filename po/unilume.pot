@@ -1,3 +1,15 @@
+msgid "Clear emoji history"
+msgstr ""
+
+msgid "Emoji picker"
+msgstr ""
+
+msgid "Remove the bounded local recently used emoji list"
+msgstr ""
+
+msgid "Search Fcitx emoji data without network access"
+msgstr ""
+
 msgid "Automatic"
 msgstr ""
 
@@ -44,6 +56,15 @@ msgid "Using the default application policy"
 msgstr ""
 
 msgid "; direct replacement unavailable, using safe preedit"
+msgstr ""
+
+msgid "Recently used"
+msgstr ""
+
+msgid "Emoji: type to search or choose a recent item"
+msgstr ""
+
+msgid "Emoji search"
 msgstr ""
 
 msgid "Inherited"
@@ -131,6 +152,12 @@ msgid "Select safe preedit mode"
 msgstr ""
 
 msgid "Turn processing off for this context"
+msgstr ""
+
+msgid "Enable the optional emoji picker"
+msgstr ""
+
+msgid "Open the emoji picker"
 msgstr ""
 
 msgid "Input method: Telex"

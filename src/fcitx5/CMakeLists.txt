@@ -6,6 +6,7 @@ include(GNUInstallDirs)
 add_library(unilume_fcitx5 MODULE
   addon.cpp
   diagnostic_trace.cpp
+  emoji_picker.cpp
   fcitx_key_mapper.cpp
   fcitx_replacement_backend.cpp
   input_context_state.cpp
@@ -17,8 +18,10 @@ add_library(unilume_fcitx5 MODULE
 target_link_libraries(unilume_fcitx5 PRIVATE
   PkgConfig::FCITX5_CORE
   PkgConfig::FCITX5_CONFIG
+  PkgConfig::FCITX5_MODULE
   unilume_core
   unilume_dictionary
+  unilume_emoji
   unilume_keymap
   unilume_macro
 )
@@ -169,6 +172,32 @@ if(BUILD_TESTING)
   )
   set_tests_properties(fcitx5-translation PROPERTIES
     ENVIRONMENT "LANGUAGE=vi;LC_ALL=en_US.UTF-8"
+  )
+
+  add_executable(unilume_fcitx5_emoji_module_tests
+    emoji_module_test.cpp
+  )
+  target_link_libraries(unilume_fcitx5_emoji_module_tests PRIVATE
+    PkgConfig::FCITX5_CORE
+    PkgConfig::FCITX5_MODULE
+    unilume_core
+    unilume_emoji
+    unilume_sanitizer_options
+  )
+  target_include_directories(unilume_fcitx5_emoji_module_tests PRIVATE
+    ${PROJECT_SOURCE_DIR}/src/core
+  )
+  target_compile_definitions(unilume_fcitx5_emoji_module_tests PRIVATE
+    UNILUME_TEST_FCITX_VERSION="${FCITX5_CORE_VERSION}"
+  )
+  set_target_properties(unilume_fcitx5_emoji_module_tests PROPERTIES
+    CXX_STANDARD 23
+    CXX_STANDARD_REQUIRED YES
+    CXX_EXTENSIONS NO
+  )
+  add_test(
+    NAME fcitx5-emoji-module
+    COMMAND unilume_fcitx5_emoji_module_tests
   )
 
   add_executable(unilume_fcitx5_backend_contract_tests

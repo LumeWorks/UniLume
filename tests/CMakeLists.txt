@@ -125,6 +125,20 @@ set_target_properties(unilume_dictionary_tests PROPERTIES
 
 add_test(NAME dictionary COMMAND unilume_dictionary_tests)
 
+add_executable(unilume_emoji_tests
+  emoji/emoji_model_tests.cpp
+)
+target_link_libraries(unilume_emoji_tests PRIVATE
+  unilume_emoji
+  unilume_sanitizer_options
+)
+set_target_properties(unilume_emoji_tests PROPERTIES
+  CXX_STANDARD 23
+  CXX_STANDARD_REQUIRED YES
+  CXX_EXTENSIONS NO
+)
+add_test(NAME emoji COMMAND unilume_emoji_tests)
+
 add_executable(unilume_application_policy_tests
   policy/application_policy_tests.cpp
 )
