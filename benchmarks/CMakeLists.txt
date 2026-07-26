@@ -101,6 +101,12 @@ if(UNILUME_BUILD_BENCHMARKS)
     CXX_STANDARD 23
     CXX_STANDARD_REQUIRED YES
     CXX_EXTENSIONS NO
+    INTERPROCEDURAL_OPTIMIZATION FALSE
+  )
+  target_compile_options(unilume_allocation_instrumentation_test PRIVATE
+    -fno-builtin-malloc
+    -fno-builtin-calloc
+    -fno-builtin-realloc
   )
 
   if(BUILD_TESTING)
