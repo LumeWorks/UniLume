@@ -3,6 +3,7 @@
 #pragma once
 
 #include "unilume_context.h"
+#include "config_snapshot.h"
 
 #include <fcitx-config/configuration.h>
 #include <fcitx-config/enum.h>
@@ -21,9 +22,15 @@ FCITX_CONFIGURATION(
         this, "InputMethod", "Vietnamese input method", ConfigInputMethod::Telex};
     fcitx::Option<ConfigOutputCharset> output_charset{
         this, "OutputCharset", "Output charset (lossless only)",
-        ConfigOutputCharset::UTF8};)
+        ConfigOutputCharset::UTF8};
+    fcitx::Option<bool> spell_check{this, "SpellCheck", "Spell check", true};
+    fcitx::Option<bool> free_marking{this, "FreeMarking", "Free marking", true};
+    fcitx::Option<bool> modern_tone{this, "ModernTone", "Modern tone placement", false};
+    fcitx::Option<bool> auto_restore{this, "AutoRestore", "Restore non-Vietnamese words", true};)
 
 [[nodiscard]] UlInputMethod toUlInputMethod(ConfigInputMethod method);
+[[nodiscard]] config::Snapshot snapshotFromConfig(
+    const InputMethodConfig &config);
 [[nodiscard]] bool loadInputMethodConfig(InputMethodConfig &destination,
                                          const fcitx::RawConfig &source);
 

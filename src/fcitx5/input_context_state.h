@@ -23,6 +23,7 @@ public:
     void keyEvent(fcitx::KeyEvent &event);
     void reset();
     void setInputMethod(UlInputMethod method);
+    void setOptions(const UlEngineOptions &options);
 
 private:
     void synchronizeMode();
@@ -40,6 +41,7 @@ private:
     platform::InputModePolicy mode_policy_;
     DiagnosticTrace diagnostics_;
     UlInputMethod input_method_{UL_INPUT_METHOD_TELEX};
+    UlEngineOptions options_{1, 1, 0, 1};
 };
 
 } // namespace unilume::fcitx5

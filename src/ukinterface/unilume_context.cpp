@@ -48,6 +48,34 @@ void setDefaultOptions(UnikeyOptions &options)
     options.autoNonVnRestore = 1;
 }
 
+bool isBoolean(int value)
+{
+    return value == 0 || value == 1;
+}
+
+bool isValidOptions(const UlEngineOptions &options)
+{
+    return isBoolean(options.spell_check) &&
+           isBoolean(options.free_marking) &&
+           isBoolean(options.modern_tone) &&
+           isBoolean(options.auto_restore);
+}
+
+UlEngineOptions toPublicOptions(const UnikeyOptions &options)
+{
+    return {options.spellCheckEnabled, options.freeMarking,
+            options.modernStyle, options.autoNonVnRestore};
+}
+
+void applyOptions(UnikeyOptions &destination,
+                  const UlEngineOptions &source)
+{
+    destination.spellCheckEnabled = source.spell_check;
+    destination.freeMarking = source.free_marking;
+    destination.modernStyle = source.modern_tone;
+    destination.autoNonVnRestore = source.auto_restore;
+}
+
 UlStatus validateOutputArguments(char *output,
                                  size_t output_capacity,
                                  UlEngineEdit *edit)
@@ -188,6 +216,27 @@ UlStatus ul_engine_set_input_method(UlEngineContext *context,
         return UL_STATUS_INVALID_ARGUMENT;
     }
     context->control.input.setIM(toLegacyMethod(method));
+    context->engine.reset();
+    return UL_STATUS_OK;
+}
+
+UlStatus ul_engine_get_options(const UlEngineContext *context,
+                               UlEngineOptions *out_options)
+{
+    if (context == 0 || out_options == 0) {
+        return UL_STATUS_INVALID_ARGUMENT;
+    }
+    *out_options = toPublicOptions(context->control.options);
+    return UL_STATUS_OK;
+}
+
+UlStatus ul_engine_set_options(UlEngineContext *context,
+                               const UlEngineOptions *options)
+{
+    if (context == 0 || options == 0 || !isValidOptions(*options)) {
+        return UL_STATUS_INVALID_ARGUMENT;
+    }
+    applyOptions(context->control.options, *options);
     context->engine.reset();
     return UL_STATUS_OK;
 }

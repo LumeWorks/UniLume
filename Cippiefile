@@ -31,10 +31,21 @@ project("unilume") {
         compileOptions = ["-Wall", "-Wextra"];
     }
 
+    static_library("unilume_config") {
+        sources = [
+            "src/config/config_snapshot.cpp",
+            "src/config/config_store.cpp"
+        ];
+        includes = ["src/config"];
+        public_includes = ["src/config"];
+        compileOptions = ["-Wall", "-Wextra"];
+    }
+
     static_library("unilume_core") {
         sources = [
             "src/core/direct_commit_controller.cpp",
             "src/core/engine_context.cpp",
+            "src/core/engine_options.cpp",
             "src/core/preedit_fallback_controller.cpp",
             "src/core/replacement_transaction.cpp",
             "src/core/utf8_validation.cpp",
@@ -42,7 +53,7 @@ project("unilume") {
         ];
         includes = ["src/core", "src/platform"];
         public_includes = ["src/core", "src/platform"];
-        links = ["unilume_context", "unilume_engine"];
+        links = ["unilume_config", "unilume_context", "unilume_engine"];
         compileOptions = ["-Wall", "-Wextra"];
     }
 
@@ -52,7 +63,7 @@ project("unilume") {
         ];
         includes = ["src/platform/simulation"];
         public_includes = ["src/platform/simulation"];
-        links = ["unilume_core", "unilume_context", "unilume_engine"];
+        links = ["unilume_core", "unilume_config", "unilume_context", "unilume_engine"];
         compileOptions = ["-Wall", "-Wextra"];
     }
 
@@ -83,7 +94,7 @@ project("unilume") {
         ];
         includes = ["tests/integration"];
         public_includes = ["tests/integration"];
-        links = ["unilume_core", "unilume_integration_simulation", "unilume_context", "unilume_engine"];
+        links = ["unilume_core", "unilume_config", "unilume_integration_simulation", "unilume_context", "unilume_engine"];
         compileOptions = ["-Wall", "-Wextra"];
     }
 
@@ -97,11 +108,12 @@ project("unilume") {
             "tests/integration/duplicate_text_tests.cpp",
             "tests/integration/immediate_tests.cpp",
             "tests/integration/input_mode_policy_tests.cpp",
+            "tests/integration/options_tests.cpp",
             "tests/integration/preedit_fallback_tests.cpp",
             "tests/integration/transaction_tests.cpp"
         ];
         includes = ["tests/integration"];
-        links = ["unilume_integration_test_support", "unilume_core", "unilume_integration_simulation", "unilume_context", "unilume_engine"];
+        links = ["unilume_integration_test_support", "unilume_core", "unilume_config", "unilume_integration_simulation", "unilume_context", "unilume_engine"];
         compileOptions = ["-Wall", "-Wextra"];
     }
 }

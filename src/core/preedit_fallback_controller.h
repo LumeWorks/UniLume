@@ -24,6 +24,7 @@ public:
     PreeditAction submit(const KeyInput &input);
     void reset();
     void setInputMethod(UlInputMethod method);
+    void setOptions(const UlEngineOptions &options);
 
     [[nodiscard]] std::string_view preedit() const;
 

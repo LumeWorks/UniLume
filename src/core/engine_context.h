@@ -23,6 +23,7 @@ public:
     KeyResult process(const KeyInput &input);
     void reset();
     void setInputMethod(UlInputMethod method);
+    void setOptions(const UlEngineOptions &options);
 
 private:
     KeyResult processText(const KeyInput &input, std::uint64_t sequence);

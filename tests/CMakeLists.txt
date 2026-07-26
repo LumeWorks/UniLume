@@ -83,6 +83,7 @@ add_executable(unilume_integration_tests
   integration/duplicate_text_tests.cpp
   integration/immediate_tests.cpp
   integration/input_mode_policy_tests.cpp
+  integration/options_tests.cpp
   integration/integration_test_main.cpp
   integration/preedit_fallback_tests.cpp
   integration/transaction_tests.cpp
@@ -108,6 +109,7 @@ foreach(suite IN ITEMS
     browser-capability
     browser-input-session
     mode-policy
+    options
     burst
     soak-smoke
 )

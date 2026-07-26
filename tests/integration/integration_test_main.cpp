@@ -20,6 +20,7 @@ int main(int argc, char **argv)
         runBrowserCapabilityTests(assertions);
         runBrowserInputSessionTests(assertions);
         runInputModePolicyTests(assertions);
+        runOptionsTests(assertions);
         runBurstTests(assertions);
         runSoakSmokeTests(assertions);
     } else {
@@ -40,6 +41,8 @@ int main(int argc, char **argv)
             runBrowserInputSessionTests(assertions);
         } else if (suite == "mode-policy") {
             runInputModePolicyTests(assertions);
+        } else if (suite == "options") {
+            runOptionsTests(assertions);
         } else if (suite == "burst") {
             runBurstTests(assertions);
         } else if (suite == "soak-smoke") {
