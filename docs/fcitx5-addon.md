@@ -87,6 +87,15 @@ literal contexts and reset boundaries are never rewritten. See
 [ADR 0003](adr/0003-typing-convenience-pipeline.md) for exact ordering and
 scope semantics.
 
+## Diagnostics
+
+Diagnostics remain disabled by default. An explicit environment opt-in enables
+a fixed per-context ring of path, capability, queue, reset, outcome and coarse
+duration signals. No typed/preedit/surrounding text is accepted by the trace.
+Optional JSON export is atomic, private and bounded to current plus previous
+snapshots. Setup and bug-report guidance are in
+[diagnostics.md](diagnostics.md).
+
 ## Verification status
 
 Automated:

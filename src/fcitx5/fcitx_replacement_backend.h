@@ -11,6 +11,7 @@
 namespace unilume::fcitx5 {
 
 struct ReplacementObservation {
+    std::uint64_t sequence_id{};
     std::int32_t delete_before_cursor{};
     std::size_t commit_bytes{};
     std::size_t surrounding_bytes{};

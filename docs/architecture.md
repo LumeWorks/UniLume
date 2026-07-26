@@ -81,6 +81,12 @@ literal-context policy are frozen in
 [ADR 0003](adr/0003-typing-convenience-pipeline.md). No convenience state
 lives in the Fcitx callback or inherited UniKey algorithm.
 
+Production diagnostics are input-context-local and event-loop confined. The
+disabled path does not read a clock; the opt-in path stores only closed numeric
+or enum fields in a fixed ring and performs export after the context stops.
+The privacy inventory, incident vocabulary and disk bounds are documented in
+[diagnostics.md](diagnostics.md).
+
 Mid-composition stable-prefix commit (commit immutable UTF-8 bytes while
 keeping a mutable client-preedit suffix, without SurroundingText) was researched
 under Issue #24. The legacy engine does not expose a proven monotonic mutable

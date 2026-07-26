@@ -26,6 +26,11 @@ target_include_directories(unilume_fcitx5 PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
+target_compile_definitions(unilume_fcitx5 PRIVATE
+  UNILUME_DIAGNOSTIC_UNILUME_VERSION="${PROJECT_VERSION}"
+  UNILUME_DIAGNOSTIC_FCITX_VERSION="${FCITX5_CORE_VERSION}"
+)
+
 set_target_properties(unilume_fcitx5 PROPERTIES
   CXX_STANDARD 23
   CXX_STANDARD_REQUIRED YES
@@ -92,5 +97,31 @@ if(BUILD_TESTING)
   add_test(
     NAME fcitx5-backend-contract
     COMMAND unilume_fcitx5_backend_contract_tests
+  )
+
+  add_executable(unilume_fcitx5_diagnostic_tests
+    diagnostic_trace.cpp
+    diagnostic_trace_test.cpp
+  )
+  target_link_libraries(unilume_fcitx5_diagnostic_tests PRIVATE
+    PkgConfig::FCITX5_CORE
+    unilume_core
+    unilume_sanitizer_options
+  )
+  target_include_directories(unilume_fcitx5_diagnostic_tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+  target_compile_definitions(unilume_fcitx5_diagnostic_tests PRIVATE
+    UNILUME_DIAGNOSTIC_UNILUME_VERSION="${PROJECT_VERSION}"
+    UNILUME_DIAGNOSTIC_FCITX_VERSION="${FCITX5_CORE_VERSION}"
+  )
+  set_target_properties(unilume_fcitx5_diagnostic_tests PROPERTIES
+    CXX_STANDARD 23
+    CXX_STANDARD_REQUIRED YES
+    CXX_EXTENSIONS NO
+  )
+  add_test(
+    NAME fcitx5-diagnostics
+    COMMAND unilume_fcitx5_diagnostic_tests
   )
 endif()
