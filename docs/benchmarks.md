@@ -153,6 +153,28 @@ cannot silently mix the fast path and convenience path. Compare only repeated
 runs on the same machine; scheduler noise makes a single run unsuitable for a
 hard performance claim.
 
+## Paired regression and desktop gates
+
+Pull requests run a same-host, five-round regression control:
+
+```sh
+python3 scripts/benchmark/check_integration_regression.py \
+  --baseline /path/to/base/unilume_integration_benchmark \
+  --candidate /path/to/head/unilume_integration_benchmark \
+  --rounds 5 --keys 1000000 --output regression.json
+```
+
+The control uses alternating randomized order, calibrates timing tolerance
+from median absolute deviation, caps the permitted regression at 15%, checks
+p95/p99/throughput, and rejects correctness, lifecycle, or RSS-growth errors.
+Absolute nanosecond limits are deliberately not used on shared CI runners.
+
+The real X11 harness `scripts/benchmark/compare_fcitx5_desktop.py` warms each
+selected input path before measurement, supports repeated `--scenario NAME`
+filters for investigating a corpus failure, records p50, p95, p99, throughput,
+CPU and RSS, and exposes `--enforce-slo`. The enforced gate requires both
+methods to be correct before latency results can count as a fair win.
+
 ## Sanitizer smoke
 
 The `Benchmark Smoke` workflow builds the harness in Debug with ASan and UBSan

@@ -19,7 +19,29 @@ FcitxReplacementBackend::FcitxReplacementBackend(
 
 bool FcitxReplacementBackend::supportsDirectReplacement() const
 {
-    return canReplace(0);
+    observation_.delete_before_cursor = 0;
+    observation_.generation = generation_;
+    observation_.surrounding_available =
+        input_context_.capabilityFlags().test(
+            fcitx::CapabilityFlag::SurroundingText);
+    if (!observation_.surrounding_available) {
+        observation_.surrounding_bytes = 0;
+        observation_.cursor_valid = false;
+        observation_.within_resource_limit = false;
+        observation_.utf8_valid = false;
+        verified_ticket_.clear();
+        return false;
+    }
+    const SurroundingSnapshotValidation &validated =
+        verified_ticket_.prepare(
+            observation_.surrounding_available,
+            input_context_.surroundingText());
+    observation_.surrounding_bytes = validated.bytes;
+    observation_.cursor_valid = validated.cursor_valid;
+    observation_.within_resource_limit =
+        validated.within_resource_limit;
+    observation_.utf8_valid = validated.utf8_valid;
+    return validated.allowsReplacement();
 }
 
 bool FcitxReplacementBackend::canReplace(
@@ -35,15 +57,21 @@ bool FcitxReplacementBackend::canReplace(
     observation_.within_resource_limit = false;
     if (delete_before_cursor < 0 ||
         !observation_.surrounding_available) {
+        verified_ticket_.clear();
         return false;
     }
     const fcitx::SurroundingText &surrounding =
         input_context_.surroundingText();
-    const SurroundingSnapshotValidation validated =
-        validateSurroundingSnapshot(
-            observation_.surrounding_available,
-            surrounding,
-            delete_before_cursor);
+    const auto prepared = verified_ticket_.consume(
+        observation_.surrounding_available,
+        surrounding,
+        delete_before_cursor);
+    const SurroundingSnapshotValidation validated = prepared
+        ? *prepared
+        : validateSurroundingSnapshot(
+              observation_.surrounding_available,
+              surrounding,
+              delete_before_cursor);
     observation_.surrounding_bytes = validated.bytes;
     observation_.cursor_valid = validated.cursor_valid;
     observation_.within_resource_limit =
@@ -62,8 +90,11 @@ FcitxReplacementBackend::requestReplacement(
     observation_.commit_bytes = commit_text.size();
     if (sequence_id <= last_sequence_id_ ||
         delete_before_cursor < 0 ||
-        !core::isValidUtf8(commit_text) ||
-        !canReplace(delete_before_cursor)) {
+        !core::isValidUtf8(commit_text)) {
+        verified_ticket_.clear();
+        return platform::ReplacementStatus::failed;
+    }
+    if (!canReplace(delete_before_cursor)) {
         return platform::ReplacementStatus::failed;
     }
 
@@ -90,6 +121,7 @@ FcitxReplacementBackend::requestFallbackCommit(
     observation_.delete_before_cursor = 0;
     observation_.commit_bytes = commit_text.size();
     observation_.generation = generation_;
+    verified_ticket_.clear();
     if (sequence_id <= last_sequence_id_ ||
         !core::isValidUtf8(commit_text)) {
         return platform::ReplacementStatus::failed;
@@ -115,6 +147,7 @@ void FcitxReplacementBackend::reset()
     }
     observation_ = {};
     observation_.generation = generation_;
+    verified_ticket_.clear();
 }
 
 const ReplacementObservation &

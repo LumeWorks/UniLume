@@ -325,10 +325,12 @@ void InputContextState::compositionBoundary()
 void InputContextState::synchronizeMode()
 {
     const platform::InputPath previous = mode_policy_.path();
+    direct_replacement_available_ =
+        backend_.supportsDirectReplacement();
     const platform::InputPath current = mode_policy_.observe(
         requestedApplicationMode(),
         verified_direct_enabled_ &&
-            backend_.supportsDirectReplacement());
+            direct_replacement_available_);
     if (previous == current) {
         return;
     }
@@ -343,7 +345,7 @@ void InputContextState::synchronizeMode()
     if (current != platform::InputPath::off) {
         diagnostics_.recordModeChange(
             current == platform::InputPath::preedit,
-            backend_.supportsDirectReplacement());
+            direct_replacement_available_);
     }
 }
 
@@ -363,7 +365,7 @@ void InputContextState::handlePreeditEvent(
     updatePreedit();
     diagnostics_.recordPreedit(
         action,
-        backend_.supportsDirectReplacement(),
+        direct_replacement_available_,
         started_at_ns);
     if (action.handled) {
         event.filterAndAccept();
