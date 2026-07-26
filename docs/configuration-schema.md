@@ -72,6 +72,10 @@ The validated runtime/file contract for custom maps now lives in
 schema migration owned by the configuration GUI/backup work; adapters may not
 invent private config keys.
 
+The equivalent bounded runtime contract for personal dictionaries is
+[dictionary-support.md](dictionary-support.md). Its Fcitx fields are adapter
+configuration; v2 application-level persistence remains unchanged.
+
 ## Fcitx5 input-method configuration
 
 The Fcitx5 addon exposes the same method choice per Fcitx input-method entry:
@@ -92,6 +96,11 @@ context snapshot.
 `macro_enabled` and `macro_file` map to the validated lifecycle documented in
 [macro-support.md](macro-support.md). Enabling macros with an empty, missing
 or invalid table is rejected while preserving the active snapshot.
+
+`dictionary_enabled` and `dictionary_file` select the atomic personal
+dictionary lifecycle. Invalid or missing files preserve the active snapshot;
+policy and precedence are documented in
+[dictionary-support.md](dictionary-support.md).
 
 The complete mapping, defaults, golden behavior, and deliberately deferred
 legacy fields are recorded in [unikey-options.md](unikey-options.md).

@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "dictionary_contract.h"
 #include "key_input.h"
 #include "keymap_contract.h"
 #include "key_result.h"
@@ -11,6 +12,7 @@
 #include <array>
 #include <cstdint>
 #include <string>
+#include <vector>
 
 namespace unilume::core {
 
@@ -28,6 +30,7 @@ public:
     void setOptions(const UlEngineOptions &options);
     void setMacros(const macro::Snapshot &snapshot);
     void setKeymap(const keymap::Snapshot &snapshot);
+    void setDictionary(const dictionary::Snapshot &snapshot);
 
 private:
     KeyResult processText(const KeyInput &input, std::uint64_t sequence);
@@ -42,6 +45,11 @@ private:
     void trackTokenEdit(std::int32_t delete_before_cursor,
                         std::string_view commit_text,
                         char raw_key);
+    [[nodiscard]] KeyResult applyDictionaryBoundary(
+        const KeyInput &input,
+        std::uint64_t sequence);
+    [[nodiscard]] bool macroMatchesRawToken() const;
+    static bool eraseUtf8Characters(std::string &text, std::size_t count);
     [[nodiscard]] bool shouldStartTokenLiteral(char key) const;
     static bool shouldStartLineLiteral(std::string_view token);
     static std::size_t utf8Characters(std::string_view text);
@@ -52,7 +60,11 @@ private:
     std::array<char, output_capacity> output_{};
     std::uint64_t next_sequence_{1};
     std::string raw_token_;
+    std::string displayed_token_;
     std::size_t displayed_token_characters_{};
+    dictionary::Snapshot dictionary_;
+    std::vector<std::string> macro_keys_;
+    bool macros_enabled_{};
     bool literal_mode_{};
     bool line_literal_mode_{};
     bool quote_literal_mode_{};

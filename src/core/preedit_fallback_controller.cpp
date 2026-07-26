@@ -89,6 +89,14 @@ void PreeditFallbackController::setKeymap(const keymap::Snapshot &snapshot)
     commit_.clear();
 }
 
+void PreeditFallbackController::setDictionary(
+    const dictionary::Snapshot &snapshot)
+{
+    engine_.setDictionary(snapshot);
+    preedit_.clear();
+    commit_.clear();
+}
+
 std::string_view PreeditFallbackController::preedit() const
 {
     return preedit_;

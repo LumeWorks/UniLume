@@ -51,6 +51,7 @@ void EngineContext::reset()
 {
     ul_engine_reset(context_);
     raw_token_.clear();
+    displayed_token_.clear();
     displayed_token_characters_ = 0;
     literal_mode_ = false;
     line_literal_mode_ = false;
@@ -92,6 +93,13 @@ void EngineContext::setMacros(const macro::Snapshot &snapshot)
     if (status != UL_STATUS_OK) {
         throw std::invalid_argument("invalid UniLume macro snapshot");
     }
+    macros_enabled_ = snapshot.enabled;
+    macro_keys_.clear();
+    macro_keys_.reserve(snapshot.entries.size());
+    for (const macro::Entry &entry : snapshot.entries) {
+        macro_keys_.push_back(entry.key);
+    }
+    std::sort(macro_keys_.begin(), macro_keys_.end());
     reset();
 }
 
@@ -118,6 +126,18 @@ void EngineContext::setKeymap(const keymap::Snapshot &snapshot)
         UL_STATUS_OK) {
         throw std::invalid_argument("invalid UniLume keymap snapshot");
     }
+    reset();
+}
+
+void EngineContext::setDictionary(const dictionary::Snapshot &snapshot)
+{
+    if (!dictionary::validate(snapshot).empty()) {
+        throw std::invalid_argument("invalid UniLume dictionary snapshot");
+    }
+    if (snapshot.enabled && displayed_token_.capacity() < 128) {
+        displayed_token_.reserve(128);
+    }
+    dictionary_ = snapshot;
     reset();
 }
 
@@ -150,6 +170,13 @@ KeyResult EngineContext::processText(const KeyInput &input,
     if (shouldStartTokenLiteral(static_cast<char>(first))) {
         return startLiteral(sequence, input.text, false);
     }
+    if (isCompositionBoundary(first) && !raw_token_.empty() &&
+        dictionary_.enabled && !macroMatchesRawToken()) {
+        const KeyResult policy = applyDictionaryBoundary(input, sequence);
+        if (policy.handled) {
+            return policy;
+        }
+    }
 
     UlEngineEdit edit{};
     const UlStatus status = ul_engine_process_ascii(
@@ -173,6 +200,7 @@ KeyResult EngineContext::processText(const KeyInput &input,
     }
     if (std::isspace(first) != 0) {
         raw_token_.clear();
+        displayed_token_.clear();
         displayed_token_characters_ = 0;
     } else {
         trackTokenEdit(
@@ -213,6 +241,12 @@ KeyResult EngineContext::processBackspace(std::uint64_t sequence)
             : 0;
     displayed_token_characters_ +=
         utf8Characters(std::string_view{output_.data(), edit.output_size});
+    if (dictionary_.enabled) {
+        if (!eraseUtf8Characters(displayed_token_, delete_count)) {
+            return makeFailure(sequence, true);
+        }
+        displayed_token_.append(output_.data(), edit.output_size);
+    }
     return {
         true,
         sequence,
@@ -270,6 +304,7 @@ KeyResult EngineContext::startLiteral(
         static_cast<std::int32_t>(displayed_token_characters_);
     ul_engine_reset(context_);
     raw_token_.clear();
+    displayed_token_.clear();
     displayed_token_characters_ = 0;
     literal_mode_ = true;
     line_literal_mode_ = line_mode;
@@ -330,11 +365,73 @@ void EngineContext::trackTokenEdit(
     raw_token_.push_back(raw_key);
     const auto delete_count =
         static_cast<std::size_t>(delete_before_cursor);
+    if (dictionary_.enabled) {
+        if (!eraseUtf8Characters(displayed_token_, delete_count)) {
+            raw_token_.clear();
+            displayed_token_.clear();
+            displayed_token_characters_ = 0;
+            return;
+        }
+        displayed_token_.append(commit_text);
+    }
     displayed_token_characters_ =
         displayed_token_characters_ > delete_count
             ? displayed_token_characters_ - delete_count
             : 0;
     displayed_token_characters_ += utf8Characters(commit_text);
+}
+
+KeyResult EngineContext::applyDictionaryBoundary(
+    const KeyInput &input,
+    std::uint64_t sequence)
+{
+    if (dictionary::restores(dictionary_, raw_token_)) {
+        if (raw_token_.size() + input.text.size() > output_.size()) {
+            return makeFailure(sequence, true);
+        }
+        std::copy(raw_token_.begin(), raw_token_.end(), output_.begin());
+        std::copy(input.text.begin(), input.text.end(),
+                  output_.begin() +
+                      static_cast<std::ptrdiff_t>(raw_token_.size()));
+        const std::size_t output_size = raw_token_.size() + input.text.size();
+        const auto delete_count =
+            static_cast<std::int32_t>(displayed_token_characters_);
+        reset();
+        return {true, sequence, delete_count,
+                std::string_view{output_.data(), output_size}, {}, true, false};
+    }
+    if (dictionary::keeps(dictionary_, displayed_token_)) {
+        const std::size_t output_size = input.text.size();
+        std::copy(input.text.begin(), input.text.end(), output_.begin());
+        reset();
+        return {true, sequence, 0,
+                std::string_view{output_.data(), output_size}, {}, true, false};
+    }
+    return {};
+}
+
+bool EngineContext::macroMatchesRawToken() const
+{
+    return macros_enabled_ &&
+           std::binary_search(macro_keys_.begin(), macro_keys_.end(),
+                              raw_token_);
+}
+
+bool EngineContext::eraseUtf8Characters(std::string &text, std::size_t count)
+{
+    std::size_t position = text.size();
+    while (count-- > 0) {
+        if (position == 0) {
+            return false;
+        }
+        --position;
+        while (position > 0 &&
+               (static_cast<unsigned char>(text[position]) & 0xc0) == 0x80) {
+            --position;
+        }
+    }
+    text.erase(position);
+    return true;
 }
 
 std::size_t EngineContext::utf8Characters(std::string_view text)

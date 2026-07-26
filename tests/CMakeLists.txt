@@ -90,6 +90,24 @@ set_target_properties(unilume_keymap_tests PROPERTIES
 
 add_test(NAME keymap COMMAND unilume_keymap_tests)
 
+add_executable(unilume_dictionary_tests
+  dictionary/dictionary_tests.cpp
+)
+
+target_link_libraries(unilume_dictionary_tests PRIVATE
+  unilume_core
+  unilume_dictionary
+  unilume_sanitizer_options
+)
+
+set_target_properties(unilume_dictionary_tests PROPERTIES
+  CXX_STANDARD 23
+  CXX_STANDARD_REQUIRED YES
+  CXX_EXTENSIONS NO
+)
+
+add_test(NAME dictionary COMMAND unilume_dictionary_tests)
+
 add_executable(unilume_property_tests
   ../fuzz/property_test_main.cpp
   ../fuzz/support/fuzz_harness.cpp
@@ -145,6 +163,7 @@ add_executable(unilume_integration_tests
   integration/browser_input_session_tests.cpp
   integration/burst_tests.cpp
   integration/delayed_surrounding_text_tests.cpp
+  integration/dictionary_tests.cpp
   integration/duplicate_text_tests.cpp
   integration/immediate_tests.cpp
   integration/input_mode_policy_tests.cpp
@@ -178,6 +197,7 @@ foreach(suite IN ITEMS
     mode-policy
     options
     macro
+    dictionary
     burst
     soak-smoke
     zero-preedit-architecture

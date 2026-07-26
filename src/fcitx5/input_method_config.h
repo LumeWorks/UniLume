@@ -34,7 +34,11 @@ FCITX_CONFIGURATION(
     fcitx::Option<bool> keymap_enabled{
         this, "KeymapEnabled", "Enable validated custom keymap", false};
     fcitx::Option<std::string> keymap_file{
-        this, "KeymapFile", "Validated UniKey-compatible keymap", ""};)
+        this, "KeymapFile", "Validated UniKey-compatible keymap", ""};
+    fcitx::Option<bool> dictionary_enabled{
+        this, "DictionaryEnabled", "Enable personal dictionary policy", false};
+    fcitx::Option<std::string> dictionary_file{
+        this, "DictionaryFile", "Validated personal dictionary", ""};)
 
 [[nodiscard]] UlInputMethod toUlInputMethod(ConfigInputMethod method);
 [[nodiscard]] UlInputMethod toUlInputMethod(config::InputMethod method);

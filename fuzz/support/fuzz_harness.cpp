@@ -4,6 +4,7 @@
 
 #include "config_snapshot.h"
 #include "direct_commit_controller.h"
+#include "dictionary_contract.h"
 #include "engine_context.h"
 #include "keymap_contract.h"
 #include "macro_contract.h"
@@ -141,6 +142,20 @@ Outcome runParsers(std::span<const std::uint8_t> input)
         const keymap::DecodeResult decoded = keymap::decode(encoded);
         valid = valid && !encoded.empty() && decoded.ok() &&
                 decoded.snapshot == keymap_result.snapshot;
+    }
+
+    const dictionary::DecodeResult dictionary_result =
+        dictionary::decode(text);
+    trace << "d:" << dictionary_result.ok() << ':'
+          << dictionary_result.line << ':' << dictionary_result.field << ':'
+          << dictionary_result.error << ';';
+    if (dictionary_result.ok()) {
+        const std::string encoded =
+            dictionary::encode(dictionary_result.snapshot);
+        const dictionary::DecodeResult decoded =
+            dictionary::decode(encoded);
+        valid = valid && !encoded.empty() && decoded.ok() &&
+                decoded.snapshot == dictionary_result.snapshot;
     }
     return {valid, trace.str()};
 }

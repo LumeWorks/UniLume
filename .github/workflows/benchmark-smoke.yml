@@ -59,4 +59,26 @@ jobs:
           ctest \
             --test-dir build/benchmark-smoke \
             --output-on-failure \
-            -R 'allocation-instrumentation|benchmark-smoke'
+            -R 'allocation-instrumentation|benchmark-smoke|dictionary-benchmark'
+
+      - name: Configure Release dictionary budget
+        env:
+          CC: ${{ matrix.cc }}
+          CXX: ${{ matrix.cxx }}
+        run: |
+          cmake \
+            -S . \
+            -B build/dictionary-release \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DUNILUME_BUILD_BENCHMARKS=ON
+
+      - name: Enforce Release dictionary budget
+        run: |
+          cmake \
+            --build build/dictionary-release \
+            --parallel 2 \
+            --target unilume_dictionary_benchmark
+          ctest \
+            --test-dir build/dictionary-release \
+            --output-on-failure \
+            -R dictionary-benchmark

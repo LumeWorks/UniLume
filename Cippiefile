@@ -59,6 +59,16 @@ project("unilume") {
         compileOptions = ["-Wall", "-Wextra"];
     }
 
+    static_library("unilume_dictionary") {
+        sources = [
+            "src/dictionary/dictionary_contract.cpp",
+            "src/dictionary/dictionary_store.cpp",
+        ];
+        includes = ["src/dictionary"];
+        public_includes = ["src/dictionary"];
+        compileOptions = ["-Wall", "-Wextra"];
+    }
+
     static_library("unilume_core") {
         sources = [
             "src/core/direct_commit_controller.cpp",
@@ -71,7 +81,7 @@ project("unilume") {
         ];
         includes = ["src/core", "src/platform"];
         public_includes = ["src/core", "src/platform"];
-        links = ["unilume_config", "unilume_context", "unilume_engine", "unilume_keymap", "unilume_macro"];
+        links = ["unilume_config", "unilume_context", "unilume_dictionary", "unilume_engine", "unilume_keymap", "unilume_macro"];
         compileOptions = ["-Wall", "-Wextra"];
     }
 
@@ -123,11 +133,17 @@ project("unilume") {
         compileOptions = ["-Wall", "-Wextra"];
     }
 
+    test("unilume_dictionary_tests") {
+        entry = "tests/dictionary/dictionary_tests.cpp";
+        links = ["unilume_core", "unilume_dictionary", "unilume_context", "unilume_engine", "unilume_keymap", "unilume_macro"];
+        compileOptions = ["-Wall", "-Wextra"];
+    }
+
     test("unilume_property_tests") {
         entry = "fuzz/property_test_main.cpp";
         sources = ["fuzz/support/fuzz_harness.cpp"];
         includes = ["fuzz/support"];
-        links = ["unilume_integration_simulation", "unilume_core", "unilume_config", "unilume_context", "unilume_keymap", "unilume_macro", "unilume_engine"];
+        links = ["unilume_integration_simulation", "unilume_core", "unilume_config", "unilume_context", "unilume_dictionary", "unilume_keymap", "unilume_macro", "unilume_engine"];
         compileOptions = ["-Wall", "-Wextra"];
     }
 
@@ -138,7 +154,7 @@ project("unilume") {
         ];
         includes = ["tests/integration"];
         public_includes = ["tests/integration"];
-        links = ["unilume_core", "unilume_config", "unilume_integration_simulation", "unilume_context", "unilume_engine"];
+        links = ["unilume_core", "unilume_config", "unilume_dictionary", "unilume_integration_simulation", "unilume_context", "unilume_engine"];
         compileOptions = ["-Wall", "-Wextra"];
     }
 
@@ -149,6 +165,7 @@ project("unilume") {
             "tests/integration/browser_input_session_tests.cpp",
             "tests/integration/burst_tests.cpp",
             "tests/integration/delayed_surrounding_text_tests.cpp",
+            "tests/integration/dictionary_tests.cpp",
             "tests/integration/duplicate_text_tests.cpp",
             "tests/integration/immediate_tests.cpp",
             "tests/integration/input_mode_policy_tests.cpp",
@@ -159,7 +176,7 @@ project("unilume") {
             "tests/integration/zero_preedit_architecture_tests.cpp"
         ];
         includes = ["tests/integration"];
-        links = ["unilume_integration_test_support", "unilume_core", "unilume_config", "unilume_integration_simulation", "unilume_context", "unilume_engine"];
+        links = ["unilume_integration_test_support", "unilume_core", "unilume_config", "unilume_dictionary", "unilume_integration_simulation", "unilume_context", "unilume_engine"];
         compileOptions = ["-Wall", "-Wextra"];
     }
 }
