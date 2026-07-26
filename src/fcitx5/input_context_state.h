@@ -51,7 +51,9 @@ public:
     [[nodiscard]] policy::ApplicationMode requestedApplicationMode() const;
     [[nodiscard]] platform::InputPath effectiveInputPath() const;
     [[nodiscard]] std::uint64_t applicationModeRevision() const;
-    [[nodiscard]] std::string applicationModeReason() const;
+    [[nodiscard]] bool hasApplicationModeOverride() const;
+    [[nodiscard]] policy::ResolutionSource applicationPolicySource() const;
+    [[nodiscard]] std::string_view applicationPolicyPattern() const;
 
 private:
     void compositionBoundary();

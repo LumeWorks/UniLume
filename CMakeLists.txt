@@ -281,6 +281,7 @@ endif()
 
 if(UNILUME_BUILD_FCITX5_ADDON)
   find_package(PkgConfig REQUIRED)
+  find_package(Gettext REQUIRED)
   pkg_check_modules(FCITX5_CORE QUIET IMPORTED_TARGET "Fcitx5Core>=5.0")
   pkg_check_modules(FCITX5_CONFIG QUIET IMPORTED_TARGET "Fcitx5Config>=5.0")
   if(NOT FCITX5_CORE_FOUND OR NOT FCITX5_CONFIG_FOUND)

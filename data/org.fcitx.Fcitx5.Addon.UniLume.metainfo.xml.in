@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-License-Identifier: CC0-1.0 -->
+<component type="addon">
+  <id>org.fcitx.Fcitx5.Addon.UniLume</id>
+  <extends>org.fcitx.Fcitx5</extends>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-2.0-or-later</project_license>
+  <name>UniLume</name>
+  <summary>Fast, safe Vietnamese input method for Fcitx5</summary>
+  <summary xml:lang="vi">Bộ gõ tiếng Việt nhanh, an toàn cho Fcitx5</summary>
+  <description>
+    <p>UniLume is a Vietnamese input method built directly on the UniKey
+    engine with capability-gated direct replacement and a safe preedit
+    fallback.</p>
+    <p xml:lang="vi">UniLume là bộ gõ tiếng Việt phát triển trực tiếp trên lõi
+    UniKey, dùng thay thế trực tiếp có kiểm chứng và preedit dự phòng an
+    toàn.</p>
+  </description>
+  <url type="homepage">https://github.com/dismonjames/UniLume</url>
+  <url type="bugtracker">https://github.com/dismonjames/UniLume/issues</url>
+  <project_group>Fcitx</project_group>
+  <developer id="io.github.dismonjames">
+    <name>UniLume maintainers</name>
+  </developer>
+  <releases>
+    <release version="@PROJECT_VERSION@" date="2026-07-26"/>
+  </releases>
+</component>

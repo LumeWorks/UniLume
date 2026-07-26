@@ -4,6 +4,7 @@
 
 #include "input_context_state.h"
 #include "input_method_config.h"
+#include "status_action_model.h"
 #include "dictionary_contract.h"
 #include "macro_contract.h"
 #include "keymap_contract.h"
@@ -25,7 +26,7 @@
 
 namespace unilume::fcitx5 {
 
-class UniLumeAddon final : public fcitx::InputMethodEngine {
+class UniLumeAddon final : public fcitx::InputMethodEngineV2 {
 public:
     explicit UniLumeAddon(fcitx::Instance &instance);
     ~UniLumeAddon() override;
@@ -40,9 +41,18 @@ public:
         const fcitx::InputMethodEntry &entry) const override;
     void setConfigForInputMethod(const fcitx::InputMethodEntry &entry,
                                  const fcitx::RawConfig &config) override;
+    std::string subMode(const fcitx::InputMethodEntry &entry,
+                        fcitx::InputContext &input_context) override;
+    std::string subModeIconImpl(
+        const fcitx::InputMethodEntry &entry,
+        fcitx::InputContext &input_context) override;
+    std::string subModeLabelImpl(
+        const fcitx::InputMethodEntry &entry,
+        fcitx::InputContext &input_context) override;
 
 private:
     class ModeAction;
+    class ConfigAction;
 
     struct ModeHotkeys {
         fcitx::Key cycle{"Control+Alt+u"};
@@ -97,6 +107,12 @@ private:
         fcitx::InputContext *input_context,
         std::optional<policy::ApplicationMode> mode);
     void updateModeActions(fcitx::InputContext *input_context);
+    [[nodiscard]] StatusSnapshot statusSnapshotFor(
+        fcitx::InputContext *input_context) const;
+    void applyStatusCommand(fcitx::InputContext *input_context,
+                            StatusCommand command);
+    [[nodiscard]] std::string statusIcon(
+        fcitx::InputContext *input_context) const;
 
     fcitx::Instance &instance_;
     fcitx::FactoryFor<InputContextState> state_factory_;
@@ -106,6 +122,13 @@ private:
     std::unique_ptr<ModeAction> direct_mode_action_;
     std::unique_ptr<ModeAction> safe_preedit_mode_action_;
     std::unique_ptr<ModeAction> off_mode_action_;
+    std::unique_ptr<ConfigAction> telex_action_;
+    std::unique_ptr<ConfigAction> vni_action_;
+    std::unique_ptr<ConfigAction> viqr_action_;
+    std::unique_ptr<ConfigAction> utf8_action_;
+    std::unique_ptr<ConfigAction> spell_action_;
+    std::unique_ptr<ConfigAction> macro_action_;
+    std::unique_ptr<ConfigAction> dictionary_action_;
     mutable std::map<std::string, InputMethodConfig> input_method_configs_;
     mutable std::map<std::string, RuntimeResources> runtime_resources_;
 };

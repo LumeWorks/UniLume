@@ -1,0 +1,192 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+msgid ""
+msgstr ""
+"Project-Id-Version: UniLume 0.1.0\n"
+"Report-Msgid-Bugs-To: https://github.com/dismonjames/UniLume/issues\n"
+"PO-Revision-Date: 2026-07-26 00:00+0700\n"
+"Last-Translator: UniLume maintainers\n"
+"Language-Team: Vietnamese\n"
+"Language: vi\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Automatic"
+msgstr "Tự động"
+
+msgid "Direct"
+msgstr "Trực tiếp"
+
+msgid "Safe preedit"
+msgstr "Preedit an toàn"
+
+msgid "Off"
+msgstr "Tắt"
+
+msgid "UniLume mode"
+msgstr "Chế độ UniLume"
+
+msgid "Automatic - Direct"
+msgstr "Tự động · Trực tiếp"
+
+msgid "Automatic - Safe preedit"
+msgstr "Tự động · Preedit an toàn"
+
+msgid "Direct - Safe fallback"
+msgstr "Trực tiếp · Dự phòng an toàn"
+
+msgid "Select this mode for the current input context"
+msgstr "Chọn chế độ này cho ngữ cảnh nhập hiện tại"
+
+msgid "UniLume application input mode"
+msgstr "Chế độ nhập theo ứng dụng của UniLume"
+
+msgid "Selected for this input context"
+msgstr "Đã chọn cho ngữ cảnh nhập này"
+
+msgid "Safe preedit: application identity unavailable"
+msgstr "Preedit an toàn: không xác định được ứng dụng"
+
+msgid "Matched exact application rule: "
+msgstr "Khớp chính xác quy tắc ứng dụng: "
+
+msgid "Matched application rule prefix: "
+msgstr "Khớp tiền tố quy tắc ứng dụng: "
+
+msgid "Using the default application policy"
+msgstr "Đang dùng chính sách ứng dụng mặc định"
+
+msgid "; direct replacement unavailable, using safe preedit"
+msgstr "; không thể thay thế trực tiếp, đang dùng preedit an toàn"
+
+msgid "Inherited"
+msgstr "Kế thừa"
+
+msgid "Disabled"
+msgstr "Tắt"
+
+msgid "NonStart"
+msgstr "Không ở đầu từ"
+
+msgid "Everywhere"
+msgstr "Mọi nơi"
+
+msgid "Vietnamese input method"
+msgstr "Kiểu gõ tiếng Việt"
+
+msgid "Output charset (lossless only)"
+msgstr "Bảng mã đầu ra (chỉ dạng không mất dữ liệu)"
+
+msgid "Spell check"
+msgstr "Kiểm tra chính tả"
+
+msgid "Free marking"
+msgstr "Bỏ dấu tự do"
+
+msgid "Modern tone placement"
+msgstr "Đặt dấu thanh kiểu mới"
+
+msgid "Restore non-Vietnamese words"
+msgstr "Khôi phục từ không phải tiếng Việt"
+
+msgid "Capitalize after sentence punctuation or Enter"
+msgstr "Viết hoa sau dấu kết câu hoặc Enter"
+
+msgid "Replace word-ending double space with period"
+msgstr "Đổi hai dấu cách cuối từ thành dấu chấm"
+
+msgid "Replace prose double hyphen with em dash"
+msgstr "Đổi hai dấu gạch nối trong văn bản thành gạch ngang dài"
+
+msgid "Standalone w to u-horn shortcut scope"
+msgstr "Phạm vi phím tắt w riêng lẻ thành ư"
+
+msgid "Bracket to horn-vowel shortcut scope"
+msgstr "Phạm vi phím tắt ngoặc thành nguyên âm có dấu móc"
+
+msgid "Enable word-boundary macros"
+msgstr "Bật macro tại ranh giới từ"
+
+msgid "Validated UTF-8 macro table"
+msgstr "Bảng macro UTF-8 đã kiểm tra"
+
+msgid "Enable validated custom keymap"
+msgstr "Bật ánh xạ phím tùy chỉnh đã kiểm tra"
+
+msgid "Validated UniKey-compatible keymap"
+msgstr "Ánh xạ phím tương thích UniKey đã kiểm tra"
+
+msgid "Enable personal dictionary policy"
+msgstr "Bật chính sách từ điển cá nhân"
+
+msgid "Validated personal dictionary"
+msgstr "Từ điển cá nhân đã kiểm tra"
+
+msgid "Enable capability-gated verified direct replacement"
+msgstr "Bật thay thế trực tiếp đã kiểm chứng theo khả năng"
+
+msgid "Enable per-application input policy"
+msgstr "Bật chính sách nhập theo ứng dụng"
+
+msgid "Validated per-application input policy"
+msgstr "Chính sách nhập theo ứng dụng đã kiểm tra"
+
+msgid "Cycle application input mode"
+msgstr "Chuyển tuần tự chế độ nhập theo ứng dụng"
+
+msgid "Select automatic mode"
+msgstr "Chọn chế độ tự động"
+
+msgid "Select direct mode"
+msgstr "Chọn chế độ trực tiếp"
+
+msgid "Select safe preedit mode"
+msgstr "Chọn chế độ preedit an toàn"
+
+msgid "Turn processing off for this context"
+msgstr "Tắt xử lý cho ngữ cảnh này"
+
+msgid "Input method: Telex"
+msgstr "Kiểu gõ: Telex"
+
+msgid "Input method: VNI"
+msgstr "Kiểu gõ: VNI"
+
+msgid "Input method: VIQR"
+msgstr "Kiểu gõ: VIQR"
+
+msgid "Output charset: UTF-8"
+msgstr "Bảng mã đầu ra: UTF-8"
+
+msgid "Macros"
+msgstr "Macro"
+
+msgid "Personal dictionary"
+msgstr "Từ điển cá nhân"
+
+msgid "UniLume"
+msgstr "UniLume"
+
+msgid "Change the Vietnamese input method at a composition boundary"
+msgstr "Đổi kiểu gõ tiếng Việt tại ranh giới phiên soạn thảo"
+
+msgid "UniLume commits lossless UTF-8 output"
+msgstr "UniLume ghi đầu ra UTF-8 không mất dữ liệu"
+
+msgid "Enable or disable UniKey spell checking"
+msgstr "Bật hoặc tắt kiểm tra chính tả UniKey"
+
+msgid "Configure a valid macro file before enabling macros"
+msgstr "Cấu hình tệp macro hợp lệ trước khi bật macro"
+
+msgid "Enable or disable word-boundary macros"
+msgstr "Bật hoặc tắt macro tại ranh giới từ"
+
+msgid "Configure a valid personal dictionary before enabling it"
+msgstr "Cấu hình từ điển cá nhân hợp lệ trước khi bật"
+
+msgid "Enable or disable personal dictionary policy"
+msgstr "Bật hoặc tắt chính sách từ điển cá nhân"
+
+msgid "UniLume status action"
+msgstr "Tác vụ trạng thái UniLume"

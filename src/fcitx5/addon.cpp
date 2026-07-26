@@ -14,12 +14,54 @@
 #include <fcitx/statusarea.h>
 #include <fcitx/userinterface.h>
 #include <fcitx/userinterfacemanager.h>
+#include <fcitx-utils/i18n.h>
 
 #include <filesystem>
 #include <fstream>
 #include <set>
 
 namespace unilume::fcitx5 {
+
+class UniLumeAddon::ConfigAction final : public fcitx::Action {
+public:
+    ConfigAction(UniLumeAddon &addon, StatusCommand command)
+        : addon_(addon), command_(command)
+    {
+        setCheckable(statusIsCheckable(command_));
+    }
+
+    std::string shortText(fcitx::InputContext *) const override
+    {
+        return _(statusShortText(command_));
+    }
+
+    std::string icon(fcitx::InputContext *input_context) const override
+    {
+        return addon_.statusIcon(input_context);
+    }
+
+    bool isChecked(fcitx::InputContext *input_context) const override
+    {
+        return statusIsChecked(
+            command_, addon_.statusSnapshotFor(input_context));
+    }
+
+    std::string longText(fcitx::InputContext *input_context) const override
+    {
+        const StatusSnapshot snapshot =
+            addon_.statusSnapshotFor(input_context);
+        return _(statusLongText(command_, snapshot));
+    }
+
+    void activate(fcitx::InputContext *input_context) override
+    {
+        addon_.applyStatusCommand(input_context, command_);
+    }
+
+private:
+    UniLumeAddon &addon_;
+    StatusCommand command_;
+};
 
 class UniLumeAddon::ModeAction final : public fcitx::Action {
 public:
@@ -35,39 +77,39 @@ public:
         if (mode_) {
             switch (*mode_) {
             case policy::ApplicationMode::automatic:
-                return "Automatic";
+                return _("Automatic");
             case policy::ApplicationMode::direct:
-                return "Direct";
+                return _("Direct");
             case policy::ApplicationMode::safe_preedit:
-                return "Safe preedit";
+                return _("Safe preedit");
             case policy::ApplicationMode::off:
-                return "Off";
+                return _("Off");
             }
         }
         const InputContextState *state = addon_.stateFor(input_context);
         if (!state) {
-            return "UniLume mode";
+            return _("UniLume mode");
         }
         switch (state->requestedApplicationMode()) {
         case policy::ApplicationMode::automatic:
             return state->effectiveInputPath() == platform::InputPath::direct
-                       ? "Automatic · Direct"
-                       : "Automatic · Safe preedit";
+                       ? _("Automatic - Direct")
+                       : _("Automatic - Safe preedit");
         case policy::ApplicationMode::direct:
             return state->effectiveInputPath() == platform::InputPath::direct
-                       ? "Direct"
-                       : "Direct · Safe fallback";
+                       ? _("Direct")
+                       : _("Direct - Safe fallback");
         case policy::ApplicationMode::safe_preedit:
-            return "Safe preedit";
+            return _("Safe preedit");
         case policy::ApplicationMode::off:
-            return "Off";
+            return _("Off");
         }
-        return "UniLume mode";
+        return _("UniLume mode");
     }
 
-    std::string icon(fcitx::InputContext *) const override
+    std::string icon(fcitx::InputContext *input_context) const override
     {
-        return "input-keyboard";
+        return addon_.statusIcon(input_context);
     }
 
     bool isChecked(fcitx::InputContext *input_context) const override
@@ -80,17 +122,39 @@ public:
     std::string longText(fcitx::InputContext *input_context) const override
     {
         if (mode_) {
-            return "Select this mode for the current input context";
+            return _("Select this mode for the current input context");
         }
         const InputContextState *state = addon_.stateFor(input_context);
         if (!state) {
-            return "UniLume application input mode";
+            return _("UniLume application input mode");
         }
-        std::string result = state->applicationModeReason();
+        std::string result;
+        if (state->hasApplicationModeOverride()) {
+            result = _("Selected for this input context");
+        } else {
+            switch (state->applicationPolicySource()) {
+            case policy::ResolutionSource::missing_identity:
+                result = _(
+                    "Safe preedit: application identity unavailable");
+                break;
+            case policy::ResolutionSource::exact_rule:
+                result = _("Matched exact application rule: ");
+                result += state->applicationPolicyPattern();
+                break;
+            case policy::ResolutionSource::prefix_rule:
+                result = _("Matched application rule prefix: ");
+                result += state->applicationPolicyPattern();
+                result += '*';
+                break;
+            case policy::ResolutionSource::default_rule:
+                result = _("Using the default application policy");
+                break;
+            }
+        }
         if (state->requestedApplicationMode() ==
                 policy::ApplicationMode::direct &&
             state->effectiveInputPath() == platform::InputPath::preedit) {
-            result += "; direct replacement unavailable, using safe preedit";
+            result += _("; direct replacement unavailable, using safe preedit");
         }
         return result;
     }
@@ -113,6 +177,7 @@ UniLumeAddon::UniLumeAddon(fcitx::Instance &instance)
           return new InputContextState(input_context);
       })
 {
+    fcitx::registerDomain("unilume", UNILUME_LOCALE_DIR);
     instance_.inputContextManager().registerProperty(
         "unilume-input-context", &state_factory_);
     mode_menu_ = std::make_unique<fcitx::Menu>();
@@ -125,6 +190,20 @@ UniLumeAddon::UniLumeAddon(fcitx::Instance &instance)
         *this, policy::ApplicationMode::safe_preedit);
     off_mode_action_ = std::make_unique<ModeAction>(
         *this, policy::ApplicationMode::off);
+    telex_action_ = std::make_unique<ConfigAction>(
+        *this, StatusCommand::select_telex);
+    vni_action_ = std::make_unique<ConfigAction>(
+        *this, StatusCommand::select_vni);
+    viqr_action_ = std::make_unique<ConfigAction>(
+        *this, StatusCommand::select_viqr);
+    utf8_action_ = std::make_unique<ConfigAction>(
+        *this, StatusCommand::show_utf8);
+    spell_action_ = std::make_unique<ConfigAction>(
+        *this, StatusCommand::toggle_spell_check);
+    macro_action_ = std::make_unique<ConfigAction>(
+        *this, StatusCommand::toggle_macros);
+    dictionary_action_ = std::make_unique<ConfigAction>(
+        *this, StatusCommand::toggle_dictionary);
     mode_action_->registerAction(
         "unilume-mode", &instance_.userInterfaceManager());
     automatic_mode_action_->registerAction(
@@ -135,11 +214,63 @@ UniLumeAddon::UniLumeAddon(fcitx::Instance &instance)
         "unilume-mode-safe-preedit", &instance_.userInterfaceManager());
     off_mode_action_->registerAction(
         "unilume-mode-off", &instance_.userInterfaceManager());
+    telex_action_->registerAction(
+        "unilume-input-method-telex", &instance_.userInterfaceManager());
+    vni_action_->registerAction(
+        "unilume-input-method-vni", &instance_.userInterfaceManager());
+    viqr_action_->registerAction(
+        "unilume-input-method-viqr", &instance_.userInterfaceManager());
+    utf8_action_->registerAction(
+        "unilume-output-utf8", &instance_.userInterfaceManager());
+    spell_action_->registerAction(
+        "unilume-spell-check", &instance_.userInterfaceManager());
+    macro_action_->registerAction(
+        "unilume-macros", &instance_.userInterfaceManager());
+    dictionary_action_->registerAction(
+        "unilume-dictionary", &instance_.userInterfaceManager());
     mode_menu_->addAction(automatic_mode_action_.get());
     mode_menu_->addAction(direct_mode_action_.get());
     mode_menu_->addAction(safe_preedit_mode_action_.get());
     mode_menu_->addAction(off_mode_action_.get());
+    mode_menu_->addAction(telex_action_.get());
+    mode_menu_->addAction(vni_action_.get());
+    mode_menu_->addAction(viqr_action_.get());
+    mode_menu_->addAction(utf8_action_.get());
+    mode_menu_->addAction(spell_action_.get());
+    mode_menu_->addAction(macro_action_.get());
+    mode_menu_->addAction(dictionary_action_.get());
     mode_action_->setMenu(mode_menu_.get());
+}
+
+std::string UniLumeAddon::subMode(
+    const fcitx::InputMethodEntry &,
+    fcitx::InputContext &input_context)
+{
+    return mode_action_->shortText(&input_context);
+}
+
+std::string UniLumeAddon::subModeIconImpl(
+    const fcitx::InputMethodEntry &,
+    fcitx::InputContext &input_context)
+{
+    return statusIcon(&input_context);
+}
+
+std::string UniLumeAddon::subModeLabelImpl(
+    const fcitx::InputMethodEntry &,
+    fcitx::InputContext &input_context)
+{
+    const InputContextState *state = stateFor(&input_context);
+    if (state &&
+        state->requestedApplicationMode() ==
+            policy::ApplicationMode::off) {
+        return _("Off");
+    }
+    return state &&
+                   state->effectiveInputPath() ==
+                       platform::InputPath::preedit
+               ? "VI*"
+               : "VI";
 }
 
 void UniLumeAddon::activate(const fcitx::InputMethodEntry &entry,
@@ -206,6 +337,21 @@ void UniLumeAddon::setConfigForInputMethod(
     prepared.verified_direct_enabled =
         *configFor(entry).verified_direct_enabled;
     resourcesFor(entry) = std::move(prepared);
+    instance_.inputContextManager().foreach(
+        [this, &entry](fcitx::InputContext *input_context) {
+            const fcitx::InputMethodEntry *active =
+                instance_.inputMethodEntry(input_context);
+            if (!active ||
+                active->uniqueName() != entry.uniqueName()) {
+                return true;
+            }
+            InputContextState *state = stateFor(input_context);
+            if (state) {
+                synchronizeState(entry, *input_context, *state);
+                updateModeActions(input_context);
+            }
+            return true;
+        });
 }
 
 void UniLumeAddon::synchronizeState(
@@ -291,8 +437,71 @@ void UniLumeAddon::updateModeActions(fcitx::InputContext *input_context)
     direct_mode_action_->update(input_context);
     safe_preedit_mode_action_->update(input_context);
     off_mode_action_->update(input_context);
+    telex_action_->update(input_context);
+    vni_action_->update(input_context);
+    viqr_action_->update(input_context);
+    utf8_action_->update(input_context);
+    spell_action_->update(input_context);
+    macro_action_->update(input_context);
+    dictionary_action_->update(input_context);
     input_context->updateUserInterface(
         fcitx::UserInterfaceComponent::StatusArea);
+}
+
+StatusSnapshot UniLumeAddon::statusSnapshotFor(
+    fcitx::InputContext *input_context) const
+{
+    const fcitx::InputMethodEntry *entry =
+        input_context ? instance_.inputMethodEntry(input_context) : nullptr;
+    if (!entry) {
+        return {};
+    }
+    const InputMethodConfig &config = configFor(*entry);
+    return {
+        *config.input_method,
+        *config.spell_check,
+        *config.macro_enabled,
+        *config.dictionary_enabled,
+        !config.macro_file->empty(),
+        !config.dictionary_file->empty(),
+    };
+}
+
+void UniLumeAddon::applyStatusCommand(
+    fcitx::InputContext *input_context,
+    StatusCommand command)
+{
+    const fcitx::InputMethodEntry *entry =
+        input_context ? instance_.inputMethodEntry(input_context) : nullptr;
+    if (!entry) {
+        return;
+    }
+    const std::optional<StatusMutation> mutation =
+        statusMutation(command, statusSnapshotFor(input_context));
+    if (!mutation) {
+        updateModeActions(input_context);
+        return;
+    }
+    fcitx::RawConfig update;
+    update.setValueByPath(mutation->path, mutation->value);
+    setConfigForInputMethod(*entry, update);
+    updateModeActions(input_context);
+}
+
+std::string UniLumeAddon::statusIcon(
+    fcitx::InputContext *input_context) const
+{
+    const InputContextState *state = stateFor(input_context);
+    if (state &&
+        state->requestedApplicationMode() ==
+            policy::ApplicationMode::off) {
+        return "unilume-off";
+    }
+    if (state &&
+        state->effectiveInputPath() == platform::InputPath::preedit) {
+        return "unilume-fallback";
+    }
+    return "unilume";
 }
 
 bool UniLumeAddon::prepareKeymapUpdate(
