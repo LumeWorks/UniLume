@@ -106,6 +106,7 @@ add_executable(unilume_integration_tests
   integration/integration_test_main.cpp
   integration/preedit_fallback_tests.cpp
   integration/transaction_tests.cpp
+  integration/zero_preedit_architecture_tests.cpp
 )
 
 target_link_libraries(unilume_integration_tests PRIVATE
@@ -132,6 +133,8 @@ foreach(suite IN ITEMS
     macro
     burst
     soak-smoke
+    zero-preedit-architecture
+    zero-preedit-soak
 )
   add_test(
     NAME "integration-${suite}"
