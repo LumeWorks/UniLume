@@ -10,6 +10,10 @@
 #include <string>
 #include <unistd.h>
 
+#ifndef UNILUME_CONFIG_FIXTURE_DIR
+#define UNILUME_CONFIG_FIXTURE_DIR "tests/config/fixtures"
+#endif
+
 namespace {
 
 int failures = 0;
@@ -51,6 +55,7 @@ int main()
     expected.spell_check = false;
     expected.modern_tone = true;
     expected.macro_enabled = true;
+    expected.macro_file = "/tmp/đường=macros";
     const std::string encoded = encode(expected);
     const DecodeResult round_trip = decode(encoded);
     expect("round-trip decode", round_trip.ok());
@@ -61,16 +66,23 @@ int main()
     expect("v0 migration version", migration.snapshot.version == schema_version);
     expect("v0 migration input method", migration.snapshot.input_method == InputMethod::vni);
     const DecodeResult v1 = decode(fixture("v1.cfg"));
-    expect("v1 fixture accepted", v1.ok() && !v1.migrated);
+    expect("v1 fixture migrated", v1.ok() && v1.migrated);
     expect("v1 fixture contents", v1.snapshot.input_method == InputMethod::viqr &&
                                     v1.snapshot.macro_enabled);
 
     expect("reject unknown key", !decode("schema_version=1\nunknown=true\n").ok());
     expect("reject duplicate key", !decode("schema_version=1\ninput_method=telex\ninput_method=vni\n").ok());
-    expect("reject future version", !decode("schema_version=2\n").ok());
+    expect("reject future version", !decode("schema_version=3\n").ok());
     expect("reject invalid bool", !decode("schema_version=1\nspell_check=yes\n").ok());
     expect("reject partial config", !decode("schema_version=1\ninput_method=telex\n").ok());
+    expect("reject v2 field in v1",
+           !decode("schema_version=1\nmacro_file=/tmp/macros\n").ok());
     expect("reject corrupt fixture", !decode(fixture("corrupt-unknown.cfg")).ok());
+    Snapshot invalid_path = expected;
+    invalid_path.macro_file = "bad\npath";
+    expect("reject newline in macro path", !validate(invalid_path).empty());
+    invalid_path.macro_file = std::string{"bad"} + static_cast<char>(0xff);
+    expect("reject invalid UTF-8 macro path", !validate(invalid_path).empty());
 
     const std::filesystem::path directory = temporaryDirectory();
     const std::filesystem::path config_path = directory / "config";
@@ -83,12 +95,12 @@ int main()
     expect("load saved config", loaded.disposition == LoadDisposition::loaded);
     expect("saved snapshot", loaded.snapshot == expected);
 
-    std::ofstream(config_path.string() + ".tmp.interrupted") << "schema_version=2\n";
+    std::ofstream(config_path.string() + ".tmp.interrupted") << "schema_version=3\n";
     Store after_interruption(config_path);
     expect("interrupted temporary file ignored",
            after_interruption.load().snapshot == expected);
 
-    std::ofstream(config_path, std::ios::trunc) << "schema_version=1\nunknown=true\n";
+    std::ofstream(config_path, std::ios::trunc) << "schema_version=2\nunknown=true\n";
     const Snapshot before_rejected_reload = after_interruption.active();
     const LoadResult rejected = after_interruption.load();
     expect("corrupt config rejected", rejected.disposition == LoadDisposition::rejected);

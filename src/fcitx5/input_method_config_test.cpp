@@ -32,6 +32,8 @@ int main()
     raw["FreeMarking"] = "False";
     raw["ModernTone"] = "True";
     raw["AutoRestore"] = "False";
+    raw["MacroEnabled"] = "False";
+    raw["MacroFile"] = "/tmp/unilume-macros";
     ok &= expect(loadInputMethodConfig(input_method_config, raw),
                  "valid Fcitx configuration must load");
     ok &= expect(*input_method_config.input_method == ConfigInputMethod::VNI,
@@ -44,7 +46,8 @@ int main()
     ok &= expect(snapshot.input_method == unilume::config::InputMethod::vni &&
                      !snapshot.spell_check && !snapshot.free_marking &&
                      snapshot.modern_tone && !snapshot.auto_restore &&
-                     !snapshot.macro_enabled,
+                     !snapshot.macro_enabled &&
+                     snapshot.macro_file == "/tmp/unilume-macros",
                  "Fcitx config must produce the versioned UniLume snapshot");
 
     fcitx::RawConfig invalid_boolean;
@@ -72,6 +75,11 @@ int main()
                  "unsupported charset must be rejected");
     ok &= expect(*input_method_config.output_charset == ConfigOutputCharset::UTF8,
                  "unsupported charset must not replace UTF8");
+
+    fcitx::RawConfig invalid_macro_path;
+    invalid_macro_path["MacroFile"] = "bad\npath";
+    ok &= expect(!loadInputMethodConfig(input_method_config, invalid_macro_path),
+                 "invalid macro path must be rejected");
 
     fcitx::RawConfig description;
     input_method_config.dumpDescription(description);

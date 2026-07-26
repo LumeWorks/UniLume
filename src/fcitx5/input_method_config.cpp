@@ -26,7 +26,8 @@ bool hasOnlyKnownOptions(const fcitx::RawConfig &source)
     for (const std::string &name : source.subItems()) {
         if (name != "InputMethod" && name != "OutputCharset" &&
             name != "SpellCheck" && name != "FreeMarking" &&
-            name != "ModernTone" && name != "AutoRestore") {
+            name != "ModernTone" && name != "AutoRestore" &&
+            name != "MacroEnabled" && name != "MacroFile") {
             return false;
         }
     }
@@ -43,6 +44,19 @@ UlInputMethod toUlInputMethod(ConfigInputMethod method)
     case ConfigInputMethod::VNI:
         return UL_INPUT_METHOD_VNI;
     case ConfigInputMethod::VIQR:
+        return UL_INPUT_METHOD_VIQR;
+    }
+    return UL_INPUT_METHOD_TELEX;
+}
+
+UlInputMethod toUlInputMethod(config::InputMethod method)
+{
+    switch (method) {
+    case config::InputMethod::telex:
+        return UL_INPUT_METHOD_TELEX;
+    case config::InputMethod::vni:
+        return UL_INPUT_METHOD_VNI;
+    case config::InputMethod::viqr:
         return UL_INPUT_METHOD_VIQR;
     }
     return UL_INPUT_METHOD_TELEX;
@@ -66,11 +80,24 @@ config::Snapshot snapshotFromConfig(const InputMethodConfig &config)
     snapshot.free_marking = *config.free_marking;
     snapshot.modern_tone = *config.modern_tone;
     snapshot.auto_restore = *config.auto_restore;
+    snapshot.macro_enabled = *config.macro_enabled;
+    snapshot.macro_file = *config.macro_file;
     return snapshot;
 }
 
 bool loadInputMethodConfig(InputMethodConfig &destination,
                            const fcitx::RawConfig &source)
+{
+    if (!validateInputMethodConfig(source)) {
+        return false;
+    }
+    // Do not reset omitted fields: Fcitx may submit a partial update from its
+    // configuration UI. Validation above makes every supplied field closed.
+    destination.load(source, false);
+    return true;
+}
+
+bool validateInputMethodConfig(const fcitx::RawConfig &source)
 {
     if (!hasOnlyKnownOptions(source) ||
         !isOneOf(source, "InputMethod", {"Telex", "VNI", "VIQR"}) ||
@@ -78,12 +105,15 @@ bool loadInputMethodConfig(InputMethodConfig &destination,
         !isOneOf(source, "SpellCheck", {"True", "False"}) ||
         !isOneOf(source, "FreeMarking", {"True", "False"}) ||
         !isOneOf(source, "ModernTone", {"True", "False"}) ||
-        !isOneOf(source, "AutoRestore", {"True", "False"})) {
+        !isOneOf(source, "AutoRestore", {"True", "False"}) ||
+        !isOneOf(source, "MacroEnabled", {"True", "False"})) {
         return false;
     }
-    // Do not reset omitted fields: Fcitx may submit a partial update from its
-    // configuration UI. Validation above makes every supplied field closed.
-    destination.load(source, false);
+    if (const std::string *path = source.valueByPath("MacroFile")) {
+        config::Snapshot snapshot = config::defaults();
+        snapshot.macro_file = *path;
+        return config::validate(snapshot).empty();
+    }
     return true;
 }
 

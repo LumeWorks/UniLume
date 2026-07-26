@@ -82,6 +82,12 @@ void DirectCommitController::setOptions(const UlEngineOptions &options)
     engine_.setOptions(options);
 }
 
+void DirectCommitController::setMacros(const macro::Snapshot &snapshot)
+{
+    resetForFocus();
+    engine_.setMacros(snapshot);
+}
+
 const TransactionMetrics &DirectCommitController::metrics() const
 {
     return metrics_;

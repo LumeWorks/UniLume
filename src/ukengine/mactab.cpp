@@ -42,50 +42,21 @@ void CMacroTable::init()
 }
 
 //---------------------------------------------------------------
-char *MacCompareStartMem;
-
-int macCompare(const void *p1, const void *p2)
-{
-  StdVnChar *s1 = (StdVnChar *) ((char *)MacCompareStartMem + ((MacroDef *)p1)->keyOffset);
-  StdVnChar *s2 = (StdVnChar *) ((char *)MacCompareStartMem + ((MacroDef *)p2)->keyOffset);
-
-  int i;
-  for (i=0; s1[i] != 0 && s2[i] != 0; i++) {
-    if (s1[i] > s2[i])
-      return 1;
-    if (s1[i] < s2[i])
-      return -1;
-  }
-  if (s1[i] == 0)
-    return (s2[i] == 0)? 0 : -1;
-  return 1;
-}
-
-//---------------------------------------------------------------
-int macKeyCompare(const void *key, const void *ele)
-{
-  StdVnChar *s1 = (StdVnChar *)key;
-  StdVnChar *s2 = (StdVnChar *) ((char *)MacCompareStartMem + ((MacroDef *)ele)->keyOffset);
-
-  int i;
-  for (i=0; s1[i] != 0 && s2[i] != 0; i++) {
-    if (s1[i] > s2[i])
-      return 1;
-    if (s1[i] < s2[i])
-      return -1;
-  }
-  if (s1[i] == 0)
-    return (s2[i] == 0)? 0 : -1;
-  return 1;
-}
-
 //---------------------------------------------------------------
 const StdVnChar *CMacroTable::lookup(StdVnChar *key)
 {
-  MacCompareStartMem = m_macroMem;
-  MacroDef *p = (MacroDef *)bsearch(key, m_table, m_count, sizeof(MacroDef), macKeyCompare);
-  if (p)
-    return (StdVnChar *)(m_macroMem + p->textOffset);
+  int first = 0;
+  int last = m_count;
+  while (first < last) {
+    const int middle = first + (last - first) / 2;
+    const int comparison = compareKey(key, m_table[middle]);
+    if (comparison == 0)
+      return (StdVnChar *)(m_macroMem + m_table[middle].textOffset);
+    if (comparison < 0)
+      last = middle;
+    else
+      first = middle + 1;
+  }
   return 0;
 }
 
@@ -176,13 +147,51 @@ int CMacroTable::loadFromFile(const char *fname)
             addItem(line, CONV_CHARSET_VIQR);
     }
     fclose(f);
-    MacCompareStartMem = m_macroMem;
-    qsort(m_table, m_count, sizeof(MacroDef), macCompare);
+    sortItems();
     // Convert old version
     if (version != UKMACRO_VERSION_UTF8) {
         writeToFile(fname);
     }
     return 1;
+}
+
+//---------------------------------------------------------------
+int CMacroTable::compareKey(const StdVnChar *key, const MacroDef &entry) const
+{
+  const StdVnChar *stored =
+      (const StdVnChar *)(m_macroMem + entry.keyOffset);
+  int i;
+  for (i=0; key[i] != 0 && stored[i] != 0; i++) {
+    if (key[i] > stored[i])
+      return 1;
+    if (key[i] < stored[i])
+      return -1;
+  }
+  if (key[i] == 0)
+    return (stored[i] == 0)? 0 : -1;
+  return 1;
+}
+
+//---------------------------------------------------------------
+int CMacroTable::compareKeys(const MacroDef &left, const MacroDef &right) const
+{
+  return compareKey(
+      (const StdVnChar *)(m_macroMem + left.keyOffset), right);
+}
+
+//---------------------------------------------------------------
+void CMacroTable::sortItems()
+{
+  for (int i=1; i<m_count; i++) {
+    const MacroDef item = m_table[i];
+    int position = i;
+    while (position > 0 &&
+           compareKeys(item, m_table[position-1]) < 0) {
+      m_table[position] = m_table[position-1];
+      position--;
+    }
+    m_table[position] = item;
+  }
 }
 
 //---------------------------------------------------------------

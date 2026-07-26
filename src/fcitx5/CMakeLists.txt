@@ -16,6 +16,7 @@ target_link_libraries(unilume_fcitx5 PRIVATE
   PkgConfig::FCITX5_CORE
   PkgConfig::FCITX5_CONFIG
   unilume_core
+  unilume_macro
 )
 
 target_include_directories(unilume_fcitx5 PRIVATE
@@ -57,6 +58,7 @@ if(BUILD_TESTING)
     PkgConfig::FCITX5_CONFIG
     unilume_config
     unilume_context
+    unilume_macro
     unilume_sanitizer_options
   )
   target_include_directories(unilume_fcitx5_config_tests PRIVATE

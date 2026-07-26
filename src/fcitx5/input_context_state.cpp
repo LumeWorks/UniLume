@@ -123,6 +123,23 @@ void InputContextState::setOptions(const UlEngineOptions &options)
     options_ = options;
 }
 
+void InputContextState::setMacros(const macro::Snapshot &snapshot,
+                                  std::uint64_t generation)
+{
+    if (generation == macro_generation_) {
+        return;
+    }
+    if (mode_policy_.path() == platform::InputPath::preedit) {
+        commitPendingPreedit();
+    }
+    direct_controller_.setMacros(snapshot);
+    preedit_controller_.setMacros(snapshot);
+    backend_.reset();
+    clearPreedit();
+    mode_policy_.resetForCompositionEnd();
+    macro_generation_ = generation;
+}
+
 void InputContextState::synchronizeMode()
 {
     const platform::InputPath previous = mode_policy_.path();

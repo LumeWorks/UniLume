@@ -124,6 +124,28 @@ add_library(unilume_config STATIC
   src/config/config_store.cpp
 )
 
+add_library(unilume_macro STATIC
+  src/macro/macro_contract.cpp
+  src/macro/macro_store.cpp
+)
+
+target_link_libraries(unilume_macro PUBLIC
+  unilume_engine
+  unilume_sanitizer_options
+)
+
+target_include_directories(unilume_macro
+  PUBLIC src/macro
+  PRIVATE src/vnconv
+)
+
+set_target_properties(unilume_macro PROPERTIES
+  CXX_STANDARD 23
+  CXX_STANDARD_REQUIRED YES
+  CXX_EXTENSIONS NO
+  POSITION_INDEPENDENT_CODE ON
+)
+
 target_link_libraries(unilume_config PRIVATE unilume_sanitizer_options)
 
 target_include_directories(unilume_config PUBLIC src/config)
@@ -148,6 +170,7 @@ add_library(unilume_core STATIC
 target_link_libraries(unilume_core PUBLIC
   unilume_config
   unilume_context
+  unilume_macro
   unilume_sanitizer_options
 )
 

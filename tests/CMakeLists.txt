@@ -54,6 +54,24 @@ set_target_properties(unilume_config_tests PROPERTIES
 
 add_test(NAME config COMMAND unilume_config_tests)
 
+add_executable(unilume_macro_tests
+  macro/macro_tests.cpp
+)
+
+target_link_libraries(unilume_macro_tests PRIVATE
+  unilume_macro
+  unilume_context
+  unilume_sanitizer_options
+)
+
+set_target_properties(unilume_macro_tests PROPERTIES
+  CXX_STANDARD 23
+  CXX_STANDARD_REQUIRED YES
+  CXX_EXTENSIONS NO
+)
+
+add_test(NAME macro COMMAND unilume_macro_tests)
+
 add_library(unilume_integration_test_support STATIC
   integration/integration_fixture.cpp
   integration/test_assertions.cpp
@@ -83,6 +101,7 @@ add_executable(unilume_integration_tests
   integration/duplicate_text_tests.cpp
   integration/immediate_tests.cpp
   integration/input_mode_policy_tests.cpp
+  integration/macro_tests.cpp
   integration/options_tests.cpp
   integration/integration_test_main.cpp
   integration/preedit_fallback_tests.cpp
@@ -110,6 +129,7 @@ foreach(suite IN ITEMS
     browser-input-session
     mode-policy
     options
+    macro
     burst
     soak-smoke
 )

@@ -13,6 +13,10 @@ namespace {
 constexpr std::array<std::string_view, 8> v1_keys{
     "schema_version", "input_method", "output_charset", "spell_check",
     "free_marking", "modern_tone", "auto_restore", "macro_enabled"};
+constexpr std::array<std::string_view, 9> v2_keys{
+    "schema_version", "input_method", "output_charset", "spell_check",
+    "free_marking", "modern_tone", "auto_restore", "macro_enabled",
+    "macro_file"};
 
 bool parseBool(std::string_view value, bool &out)
 {
@@ -25,6 +29,50 @@ bool parseBool(std::string_view value, bool &out)
         return true;
     }
     return false;
+}
+
+bool isValidUtf8(std::string_view text)
+{
+    for (std::size_t offset = 0; offset < text.size();) {
+        const auto lead = static_cast<unsigned char>(text[offset]);
+        std::size_t width = 0;
+        char32_t scalar = 0;
+        if (lead <= 0x7f) {
+            width = 1;
+            scalar = lead;
+        } else if (lead >= 0xc2 && lead <= 0xdf) {
+            width = 2;
+            scalar = lead & 0x1f;
+        } else if (lead >= 0xe0 && lead <= 0xef) {
+            width = 3;
+            scalar = lead & 0x0f;
+        } else if (lead >= 0xf0 && lead <= 0xf4) {
+            width = 4;
+            scalar = lead & 0x07;
+        } else {
+            return false;
+        }
+        if (offset + width > text.size()) {
+            return false;
+        }
+        for (std::size_t index = 1; index < width; ++index) {
+            const auto continuation =
+                static_cast<unsigned char>(text[offset + index]);
+            if ((continuation & 0xc0) != 0x80) {
+                return false;
+            }
+            scalar = (scalar << 6) | (continuation & 0x3f);
+        }
+        if ((width == 3 && scalar < 0x800) ||
+            (width == 4 && scalar < 0x10000) ||
+            scalar > 0x10ffff ||
+            (scalar >= 0xd800 && scalar <= 0xdfff) ||
+            scalar == 0) {
+            return false;
+        }
+        offset += width;
+    }
+    return true;
 }
 
 bool parseInputMethod(std::string_view value, InputMethod &out)
@@ -70,7 +118,7 @@ std::string charsetName(OutputCharset charset)
 
 bool isKnownKey(std::string_view key)
 {
-    for (const auto known : v1_keys) {
+    for (const auto known : v2_keys) {
         if (key == known) {
             return true;
         }
@@ -96,6 +144,12 @@ std::string validate(const Snapshot &snapshot)
     if (charsetName(snapshot.output_charset).empty()) {
         return "unsupported output_charset";
     }
+    if (snapshot.macro_file.find('\r') != std::string::npos ||
+        snapshot.macro_file.find('\n') != std::string::npos ||
+        snapshot.macro_file.find('\0') != std::string::npos ||
+        !isValidUtf8(snapshot.macro_file)) {
+        return "invalid macro_file";
+    }
     return {};
 }
 
@@ -120,7 +174,8 @@ DecodeResult decode(std::string_view text)
         }
         const std::size_t separator = line.find('=');
         if (separator == std::string_view::npos || separator == 0 ||
-            separator + 1 == line.size() || line.find('=', separator + 1) != std::string_view::npos) {
+            (separator + 1 == line.size() &&
+             line.substr(0, separator) != "macro_file")) {
             return {.error = "invalid configuration line"};
         }
         const std::string_view key = line.substr(0, separator);
@@ -154,21 +209,43 @@ DecodeResult decode(std::string_view text)
             return {.error = "invalid auto_restore"};
         } else if (key == "macro_enabled" && !parseBool(value, snapshot.macro_enabled)) {
             return {.error = "invalid macro_enabled"};
+        } else if (key == "macro_file") {
+            snapshot.macro_file = value;
         }
     }
 
     if (seen.empty()) {
         return {.error = "empty configuration"};
     }
-    for (const auto required : v1_keys) {
+    const bool legacy = !explicit_version || snapshot.version == 1;
+    if (legacy && seen.contains("macro_file")) {
+        return {.error = "unknown configuration key for legacy schema: macro_file"};
+    }
+    const auto requireKey = [&](std::string_view required) -> std::string {
         if (required == "schema_version" && !explicit_version) {
-            continue;
+            return {};
         }
         if (!seen.contains(std::string(required))) {
-            return {.error = "missing configuration key: " + std::string(required)};
+            return "missing configuration key: " + std::string(required);
         }
+        return {};
+    };
+    if (legacy) {
+        for (const auto required : v1_keys) {
+            if (const std::string error = requireKey(required); !error.empty()) {
+                return {.error = error};
+            }
+        }
+    } else if (snapshot.version == schema_version) {
+        for (const auto required : v2_keys) {
+            if (const std::string error = requireKey(required); !error.empty()) {
+                return {.error = error};
+            }
+        }
+    } else {
+        return {.error = "unsupported schema version"};
     }
-    if (!explicit_version) {
+    if (legacy) {
         snapshot.version = schema_version;
         const std::string validation = validate(snapshot);
         return validation.empty() ? DecodeResult{snapshot, true, {}}
@@ -192,7 +269,8 @@ std::string encode(const Snapshot &snapshot)
            << "free_marking=" << (snapshot.free_marking ? "true" : "false") << '\n'
            << "modern_tone=" << (snapshot.modern_tone ? "true" : "false") << '\n'
            << "auto_restore=" << (snapshot.auto_restore ? "true" : "false") << '\n'
-           << "macro_enabled=" << (snapshot.macro_enabled ? "true" : "false") << '\n';
+           << "macro_enabled=" << (snapshot.macro_enabled ? "true" : "false") << '\n'
+           << "macro_file=" << snapshot.macro_file << '\n';
     return result.str();
 }
 

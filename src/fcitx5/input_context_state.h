@@ -7,6 +7,7 @@
 #include "fcitx_replacement_backend.h"
 #include "input_mode_policy.h"
 #include "preedit_fallback_controller.h"
+#include "macro_contract.h"
 
 #include <fcitx/inputcontextproperty.h>
 
@@ -24,6 +25,8 @@ public:
     void reset();
     void setInputMethod(UlInputMethod method);
     void setOptions(const UlEngineOptions &options);
+    void setMacros(const macro::Snapshot &snapshot,
+                   std::uint64_t generation);
 
 private:
     void synchronizeMode();
@@ -42,6 +45,7 @@ private:
     DiagnosticTrace diagnostics_;
     UlInputMethod input_method_{UL_INPUT_METHOD_TELEX};
     UlEngineOptions options_{1, 1, 0, 1};
+    std::uint64_t macro_generation_{};
 };
 
 } // namespace unilume::fcitx5
