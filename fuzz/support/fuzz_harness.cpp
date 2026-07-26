@@ -251,15 +251,23 @@ Outcome runTransactions(std::span<const std::uint8_t> input)
           << ':' << metrics.aborted_transactions << ':'
           << metrics.stale_result_count << ':'
           << metrics.duplicate_prevention_count << ':'
-          << metrics.queue_overflow_count;
+          << metrics.queue_overflow_count << ':'
+          << metrics.uncertain_outcome_count << ':'
+          << metrics.fallback_failure_count;
     DeterministicBackend model;
     std::uint64_t previous_sequence = 0;
     for (const auto &event : backend.eventLog()) {
+        const platform::ReplacementStatus replayed =
+            event.kind ==
+                    integration::test::BackendEventKind::fallback_commit
+                ? model.requestFallbackCommit(
+                      event.sequence_id, event.commit_text)
+                : model.requestReplacement(
+                      event.sequence_id,
+                      event.delete_before_cursor,
+                      event.commit_text);
         valid = valid && event.sequence_id >= previous_sequence &&
-                model.requestReplacement(event.sequence_id,
-                                         event.delete_before_cursor,
-                                         event.commit_text) ==
-                    platform::ReplacementStatus::completed;
+                replayed == platform::ReplacementStatus::completed;
         previous_sequence = event.sequence_id;
     }
     valid = valid && metricsValid(controller) && !backend.hasPending() &&

@@ -39,6 +39,9 @@ FCITX_CONFIGURATION(
         this, "DictionaryEnabled", "Enable personal dictionary policy", false};
     fcitx::Option<std::string> dictionary_file{
         this, "DictionaryFile", "Validated personal dictionary", ""};
+    fcitx::Option<bool> verified_direct_enabled{
+        this, "VerifiedDirectEnabled",
+        "Enable capability-gated verified direct replacement", false};
     fcitx::Option<bool> application_policy_enabled{
         this, "ApplicationPolicyEnabled",
         "Enable per-application input policy", false};

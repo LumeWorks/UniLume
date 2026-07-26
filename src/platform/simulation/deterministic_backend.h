@@ -22,6 +22,7 @@ struct BackendProfile {
     bool duplicate_next_callback{};
     bool reorder_next_callback{};
     bool drop_next_callback{};
+    bool refuse_cancel{};
     bool record_event_log{true};
     std::size_t text_reserve_bytes{};
 };
@@ -31,7 +32,13 @@ struct BackendCompletion {
     bool success{};
 };
 
+enum class BackendEventKind {
+    verified_replacement,
+    fallback_commit,
+};
+
 struct BackendEvent {
+    BackendEventKind kind{BackendEventKind::verified_replacement};
     std::uint64_t sequence_id{};
     std::int32_t delete_before_cursor{};
     std::string commit_text;
@@ -47,7 +54,11 @@ public:
         std::uint64_t sequence_id,
         std::int32_t delete_before_cursor,
         std::string_view commit_text) override;
+    platform::ReplacementStatus requestFallbackCommit(
+        std::uint64_t sequence_id,
+        std::string_view commit_text) override;
     bool cancel(std::uint64_t sequence_id) override;
+    void reset() override;
 
     std::vector<BackendCompletion> advance(std::size_t events = 1);
     void injectCompletion(std::uint64_t sequence_id, bool success);

@@ -201,6 +201,8 @@ void UniLumeAddon::setConfigForInputMethod(
         return;
     }
     prepared.configuration = snapshotFromConfig(configFor(entry));
+    prepared.verified_direct_enabled =
+        *configFor(entry).verified_direct_enabled;
     resourcesFor(entry) = std::move(prepared);
 }
 
@@ -217,6 +219,7 @@ void UniLumeAddon::synchronizeState(
     state.setKeymap(resources.keymap_snapshot, resources.keymap_generation);
     state.setDictionary(resources.dictionary_snapshot,
                         resources.dictionary_generation);
+    state.setVerifiedDirectEnabled(resources.verified_direct_enabled);
     const std::string &identity = input_context.program();
     if (!state.applicationPolicyIsCurrent(
             resources.application_policy_generation, identity)) {

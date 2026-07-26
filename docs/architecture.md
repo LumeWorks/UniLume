@@ -48,6 +48,11 @@ a preedit context is never promoted in place. Policy and mode changes cross a
 composition reset barrier. The schema and precedence are documented in
 [application-policy.md](application-policy.md).
 
+The direct backend has a separate no-delete fallback operation, validates the
+live bounded snapshot inside each edit, and fences old frontend generations on
+reset. It is feature-gated during qualification; see
+[verified-direct-backend.md](verified-direct-backend.md).
+
 The production ownership decision is frozen in
 [ADR 0001](adr/0001-composition-ownership.md): `InputContextState` is the sole
 composition owner, a path transition crosses a reset barrier, and no

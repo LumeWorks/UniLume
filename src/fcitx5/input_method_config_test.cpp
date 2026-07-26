@@ -38,6 +38,7 @@ int main()
     raw["KeymapFile"] = "/tmp/unilume-keymap";
     raw["DictionaryEnabled"] = "True";
     raw["DictionaryFile"] = "/tmp/unilume-dictionary";
+    raw["VerifiedDirectEnabled"] = "True";
     raw["ApplicationPolicyEnabled"] = "True";
     raw["ApplicationPolicyFile"] = "/tmp/unilume-application-policy";
     raw["CycleModeHotkey"] = "Control+Alt+u";
@@ -50,6 +51,8 @@ int main()
                      *input_method_config.application_policy_file ==
                          "/tmp/unilume-application-policy",
                  "application policy configuration must load");
+    ok &= expect(*input_method_config.verified_direct_enabled,
+                 "verified direct feature flag must load");
     ok &= expect(*input_method_config.output_charset == ConfigOutputCharset::UTF8,
                  "Fcitx config must retain UTF8");
     ok &= expect(toUlInputMethod(*input_method_config.input_method) == UL_INPUT_METHOD_VNI,
