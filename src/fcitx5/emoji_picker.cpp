@@ -26,11 +26,11 @@ public:
     EmojiCandidateWord(EmojiPicker &picker,
                        std::string glyph,
                        std::string comment)
-        : fcitx::CandidateWord(fcitx::Text(glyph)),
+        : fcitx::CandidateWord(
+              fcitx::Text(glyph + "  " + comment)),
           picker_(picker),
           glyph_(std::move(glyph))
     {
-        setComment(fcitx::Text(std::move(comment)));
     }
 
     void select(fcitx::InputContext *input_context) const override
