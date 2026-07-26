@@ -16,11 +16,13 @@ struct MappedKey;
 
 class InputContextState final : public fcitx::InputContextProperty {
 public:
-    explicit InputContextState(fcitx::InputContext &input_context);
+    explicit InputContextState(fcitx::InputContext &input_context,
+                               UlInputMethod method = UL_INPUT_METHOD_TELEX);
     ~InputContextState();
 
     void keyEvent(fcitx::KeyEvent &event);
     void reset();
+    void setInputMethod(UlInputMethod method);
 
 private:
     void synchronizeMode();
@@ -37,6 +39,7 @@ private:
     core::PreeditFallbackController preedit_controller_;
     platform::InputModePolicy mode_policy_;
     DiagnosticTrace diagnostics_;
+    UlInputMethod input_method_{UL_INPUT_METHOD_TELEX};
 };
 
 } // namespace unilume::fcitx5

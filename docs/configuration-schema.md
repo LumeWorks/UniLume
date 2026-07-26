@@ -63,3 +63,13 @@ v1 deliberately does not expose GUI widgets, Fcitx actions, custom keymaps,
 macro tables, dictionary paths, legacy charsets, hotkeys or app policy. Those
 features are consumers of this contract in their own Issues. The schema does
 not change the UniKey algorithm or its defaults.
+
+## Fcitx5 input-method configuration
+
+The Fcitx5 addon exposes the same method choice per Fcitx input-method entry:
+`Telex`, `VNI`, or `VIQR`. Each Fcitx input context owns separate composing
+state; applying a changed method at the next event forms a composition
+boundary, commits pending preedit text, and resets both controllers before the
+new method is used. The only exposed output charset is `UTF8`. Legacy encodings
+are deliberately rejected until their complete conversion and Fcitx commit
+round-trip have been demonstrated.

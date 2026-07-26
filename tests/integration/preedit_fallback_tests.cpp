@@ -121,6 +121,18 @@ void runPreeditFallbackTests(Assertions &assertions)
     assertions.equal("fallback reset clears preedit", reset.preedit(), "");
     submitText(reset, "aw", committed);
     assertions.equal("fallback reset isolates context", reset.preedit(), "ă");
+
+    core::PreeditFallbackController switching;
+    submitText(switching, "tooi", committed = {});
+    assertions.equal("switch setup keeps Telex preedit", switching.preedit(), "tôi");
+    switching.setInputMethod(UL_INPUT_METHOD_VNI);
+    assertions.equal("switch clears old method composition", switching.preedit(), "");
+    submitText(switching, "a1", committed = {});
+    assertions.equal("switch selects VNI per context", switching.preedit(), "á");
+    switching.setInputMethod(UL_INPUT_METHOD_VIQR);
+    submitText(switching, "a^", committed = {});
+    assertions.equal("switch selects VIQR per context", switching.preedit(), "â");
+    assertions.truth("switched output remains UTF-8", isValidUtf8(switching.preedit()));
 }
 
 } // namespace unilume::integration::test

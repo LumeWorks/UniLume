@@ -61,6 +61,13 @@ void PreeditFallbackController::reset()
     commit_.clear();
 }
 
+void PreeditFallbackController::setInputMethod(UlInputMethod method)
+{
+    engine_.setInputMethod(method);
+    preedit_.clear();
+    commit_.clear();
+}
+
 std::string_view PreeditFallbackController::preedit() const
 {
     return preedit_;
