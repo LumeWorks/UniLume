@@ -77,6 +77,12 @@ void DirectCommitController::resetForFocus()
     ++metrics_.reset_count;
 }
 
+void DirectCommitController::lineBreak()
+{
+    resetForFocus();
+    engine_.lineBreak();
+}
+
 void DirectCommitController::setInputMethod(UlInputMethod method)
 {
     resetForFocus();
@@ -87,6 +93,13 @@ void DirectCommitController::setOptions(const UlEngineOptions &options)
 {
     resetForFocus();
     engine_.setOptions(options);
+}
+
+void DirectCommitController::setTypingOptions(
+    const TypingConvenienceOptions &options)
+{
+    resetForFocus();
+    engine_.setTypingOptions(options);
 }
 
 void DirectCommitController::setMacros(const macro::Snapshot &snapshot)
@@ -136,6 +149,11 @@ SubmissionStatus DirectCommitController::startTransaction(
     const KeyInput &input,
     const KeyResult &result)
 {
+    if (result.require_fallback) {
+        ++metrics_.aborted_transactions;
+        ++metrics_.reset_count;
+        return fallback(input, result.sequence_id);
+    }
     const std::string_view fallback_text =
         input.kind == KeyKind::text ? input.text : std::string_view{};
     if (!transaction_.prepare(

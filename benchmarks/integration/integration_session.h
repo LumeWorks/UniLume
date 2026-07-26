@@ -13,7 +13,8 @@ namespace unilume::integration_benchmark {
 class IntegrationSession {
 public:
     explicit IntegrationSession(
-        integration::test::BackendProfile profile);
+        integration::test::BackendProfile profile,
+        const core::TypingConvenienceOptions &typing_options = {});
 
     void submit(std::string_view key_text);
     void drain();

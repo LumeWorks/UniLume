@@ -14,6 +14,7 @@ enum class MappingStatus {
     ignored,
     submit,
     reset,
+    line_break,
 };
 
 struct MappedKey {

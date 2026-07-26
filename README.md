@@ -86,6 +86,9 @@ Policy theo ứng dụng, bốn mode, menu trạng thái và hotkey được mô
 [docs/application-policy.md](docs/application-policy.md).
 Contract verified direct replacement, feature flag và rollback được mô tả
 trong [docs/verified-direct-backend.md](docs/verified-direct-backend.md).
+Pipeline tiện ích gõ tùy chọn, thứ tự transform và reset contract được mô tả
+trong
+[docs/adr/0003-typing-convenience-pipeline.md](docs/adr/0003-typing-convenience-pipeline.md).
 Kết quả cài user-local và kiểm tra ứng dụng desktop thực tế được ghi tại
 [docs/real-application-validation.md](docs/real-application-validation.md).
 

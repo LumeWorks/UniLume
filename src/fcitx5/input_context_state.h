@@ -31,6 +31,8 @@ public:
     void reset();
     void setInputMethod(UlInputMethod method);
     void setOptions(const UlEngineOptions &options);
+    void setTypingOptions(
+        const core::TypingConvenienceOptions &options);
     void setMacros(const macro::Snapshot &snapshot,
                    std::uint64_t generation);
     void setKeymap(const keymap::Snapshot &snapshot,
@@ -69,6 +71,7 @@ private:
     DiagnosticTrace diagnostics_;
     UlInputMethod input_method_{UL_INPUT_METHOD_TELEX};
     UlEngineOptions options_{1, 1, 0, 1};
+    core::TypingConvenienceOptions typing_options_;
     std::uint64_t macro_generation_{};
     std::uint64_t keymap_generation_{};
     std::uint64_t dictionary_generation_{};

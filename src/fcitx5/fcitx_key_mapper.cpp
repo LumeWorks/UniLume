@@ -40,8 +40,13 @@ MappedKey mapKeyEvent(const fcitx::KeyEvent &event)
         mapped.kind = core::KeyKind::backspace;
         return mapped;
     }
+    if (key.check(FcitxKey_Return)) {
+        mapped.status = MappingStatus::line_break;
+        mapped.kind = core::KeyKind::navigation;
+        return mapped;
+    }
     if (key.isCursorMove() || key.check(FcitxKey_Delete) ||
-        key.check(FcitxKey_Return) || key.check(FcitxKey_Tab)) {
+        key.check(FcitxKey_Tab)) {
         mapped.status = MappingStatus::reset;
         mapped.kind = core::KeyKind::navigation;
         return mapped;

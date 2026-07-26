@@ -83,6 +83,7 @@ project("unilume") {
             "src/core/engine_options.cpp",
             "src/core/preedit_fallback_controller.cpp",
             "src/core/replacement_transaction.cpp",
+            "src/core/typing_pipeline.cpp",
             "src/core/utf8_validation.cpp",
             "src/platform/input_mode_policy.cpp"
         ];
@@ -186,6 +187,7 @@ project("unilume") {
             "tests/integration/options_tests.cpp",
             "tests/integration/preedit_fallback_tests.cpp",
             "tests/integration/transaction_tests.cpp",
+            "tests/integration/typing_pipeline_tests.cpp",
             "tests/integration/zero_preedit_architecture_tests.cpp"
         ];
         includes = ["tests/integration"];

@@ -206,6 +206,7 @@ add_library(unilume_core STATIC
   src/core/engine_options.cpp
   src/core/preedit_fallback_controller.cpp
   src/core/replacement_transaction.cpp
+  src/core/typing_pipeline.cpp
   src/core/utf8_validation.cpp
   src/platform/input_mode_policy.cpp
 )

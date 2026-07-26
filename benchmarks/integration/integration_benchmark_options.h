@@ -13,6 +13,7 @@ struct BenchmarkOptions {
     std::string profile{"all"};
     std::string format{"human"};
     std::filesystem::path output;
+    bool typing_conveniences{};
     bool smoke{};
 };
 

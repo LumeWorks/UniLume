@@ -42,8 +42,19 @@ PreeditAction PreeditFallbackController::submit(const KeyInput &input)
         engine_.reset();
         return {true, commit_, preedit_};
     }
+    if (result.commit_preedit_before) {
+        commitPending({});
+    }
     if (result.reset_context && isWhitespace(input)) {
-        commitPending(result.commit_text);
+        if (!applyEdit(
+                result.delete_before_cursor, result.commit_text)) {
+            commitPending(input.text);
+            engine_.reset();
+            return {true, commit_, preedit_};
+        }
+        if (!result.defer_preedit_commit) {
+            commitPending({});
+        }
         return {true, commit_, preedit_};
     }
     if (!applyEdit(result.delete_before_cursor, result.commit_text)) {
@@ -61,6 +72,13 @@ void PreeditFallbackController::reset()
     commit_.clear();
 }
 
+void PreeditFallbackController::lineBreak()
+{
+    engine_.lineBreak();
+    preedit_.clear();
+    commit_.clear();
+}
+
 void PreeditFallbackController::setInputMethod(UlInputMethod method)
 {
     engine_.setInputMethod(method);
@@ -71,6 +89,14 @@ void PreeditFallbackController::setInputMethod(UlInputMethod method)
 void PreeditFallbackController::setOptions(const UlEngineOptions &options)
 {
     engine_.setOptions(options);
+    preedit_.clear();
+    commit_.clear();
+}
+
+void PreeditFallbackController::setTypingOptions(
+    const TypingConvenienceOptions &options)
+{
+    engine_.setTypingOptions(options);
     preedit_.clear();
     commit_.clear();
 }

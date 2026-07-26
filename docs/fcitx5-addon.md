@@ -77,6 +77,16 @@ The complete lifecycle, feature flag, failure semantics, and rollback contract
 are documented in
 [verified-direct-backend.md](verified-direct-backend.md).
 
+## Optional typing conveniences
+
+Auto-capitalization, word-ending double-space replacement, prose `-- `
+replacement and scoped `w`/bracket shortcuts run through the same per-context
+pipeline in both direct and preedit paths. Prose transforms default off;
+shortcut scope defaults to `Inherited`. Modified shortcuts, URL/email/code
+literal contexts and reset boundaries are never rewritten. See
+[ADR 0003](adr/0003-typing-convenience-pipeline.md) for exact ordering and
+scope semantics.
+
 ## Verification status
 
 Automated:

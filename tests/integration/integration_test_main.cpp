@@ -21,6 +21,7 @@ int main(int argc, char **argv)
         runBrowserInputSessionTests(assertions);
         runInputModePolicyTests(assertions);
         runOptionsTests(assertions);
+        runTypingPipelineTests(assertions);
         runMacroTests(assertions);
         runDictionaryTests(assertions);
         runBurstTests(assertions);
@@ -47,6 +48,8 @@ int main(int argc, char **argv)
             runInputModePolicyTests(assertions);
         } else if (suite == "options") {
             runOptionsTests(assertions);
+        } else if (suite == "typing-pipeline") {
+            runTypingPipelineTests(assertions);
         } else if (suite == "macro") {
             runMacroTests(assertions);
         } else if (suite == "dictionary") {

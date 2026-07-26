@@ -13,6 +13,7 @@ void runTransactionTests(Assertions &assertions);
 void runPreeditFallbackTests(Assertions &assertions);
 void runInputModePolicyTests(Assertions &assertions);
 void runOptionsTests(Assertions &assertions);
+void runTypingPipelineTests(Assertions &assertions);
 void runMacroTests(Assertions &assertions);
 void runDictionaryTests(Assertions &assertions);
 void runBrowserCapabilityTests(Assertions &assertions);

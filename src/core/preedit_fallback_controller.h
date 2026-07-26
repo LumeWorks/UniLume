@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "engine_context.h"
+#include "typing_pipeline.h"
 
 #include <cstdint>
 #include <string>
@@ -23,8 +23,10 @@ public:
 
     PreeditAction submit(const KeyInput &input);
     void reset();
+    void lineBreak();
     void setInputMethod(UlInputMethod method);
     void setOptions(const UlEngineOptions &options);
+    void setTypingOptions(const TypingConvenienceOptions &options);
     void setMacros(const macro::Snapshot &snapshot);
     void setKeymap(const keymap::Snapshot &snapshot);
     void setDictionary(const dictionary::Snapshot &snapshot);
@@ -38,7 +40,7 @@ private:
     static std::size_t previousCharacter(std::string_view text,
                                          std::size_t position);
 
-    EngineContext engine_;
+    TypingPipeline engine_;
     std::string preedit_;
     std::string commit_;
 };

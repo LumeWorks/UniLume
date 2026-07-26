@@ -50,6 +50,17 @@ void InputContextState::keyEvent(fcitx::KeyEvent &event)
         mode_policy_.resetForCompositionEnd();
         return;
     }
+    if (mapped.status == MappingStatus::line_break) {
+        diagnostics_.recordReset(TraceResetReason::navigation);
+        if (mode_policy_.path() == platform::InputPath::preedit) {
+            commitPendingPreedit();
+        }
+        direct_controller_.lineBreak();
+        preedit_controller_.lineBreak();
+        clearPreedit();
+        mode_policy_.resetForCompositionEnd();
+        return;
+    }
     if (mode_policy_.path() == platform::InputPath::preedit &&
         mapped.has_control_modifier) {
         diagnostics_.recordReset(
@@ -125,6 +136,22 @@ void InputContextState::setOptions(const UlEngineOptions &options)
     clearPreedit();
     mode_policy_.resetForCompositionEnd();
     options_ = options;
+}
+
+void InputContextState::setTypingOptions(
+    const core::TypingConvenienceOptions &options)
+{
+    if (options == typing_options_) {
+        return;
+    }
+    if (mode_policy_.path() == platform::InputPath::preedit) {
+        commitPendingPreedit();
+    }
+    direct_controller_.setTypingOptions(options);
+    preedit_controller_.setTypingOptions(options);
+    clearPreedit();
+    mode_policy_.resetForCompositionEnd();
+    typing_options_ = options;
 }
 
 void InputContextState::setMacros(const macro::Snapshot &snapshot,
