@@ -1,0 +1,72 @@
+name: Performance Regression
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  paired-integration:
+    name: paired-integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout candidate
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Materialize baseline
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ -z "$BASE_SHA" ]; then
+            BASE_SHA="$(git rev-parse HEAD^)"
+          fi
+          git worktree add --detach ../unilume-baseline "$BASE_SHA"
+
+      - name: Configure paired Release builds
+        run: |
+          cmake \
+            -S ../unilume-baseline \
+            -B build/performance-baseline \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DUNILUME_BUILD_INTEGRATION_BENCHMARKS=ON
+          cmake \
+            -S . \
+            -B build/performance-candidate \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DUNILUME_BUILD_INTEGRATION_BENCHMARKS=ON
+
+      - name: Build paired integration benchmarks
+        run: |
+          cmake \
+            --build build/performance-baseline \
+            --parallel 2 \
+            --target unilume_integration_benchmark
+          cmake \
+            --build build/performance-candidate \
+            --parallel 2 \
+            --target unilume_integration_benchmark
+
+      - name: Enforce calibrated relative budgets
+        run: |
+          python3 scripts/benchmark/check_integration_regression.py \
+            --baseline build/performance-baseline/benchmarks/unilume_integration_benchmark \
+            --candidate build/performance-candidate/benchmarks/unilume_integration_benchmark \
+            --rounds 5 \
+            --keys 1000000 \
+            --output performance-regression.json
+
+      - name: Upload raw paired result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-regression
+          path: performance-regression.json
+          if-no-files-found: warn

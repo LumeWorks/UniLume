@@ -6,9 +6,9 @@ This document is the preregistered protocol for claims that UniLume is faster
 or more stable than Fcitx5 Lotus. It complements the core and deterministic
 integration benchmarks; neither of those benchmarks may make a Lotus claim.
 
-This protocol is **proposed** for Issue #39. A result is not release evidence
-until the maintainer records approval of this protocol and its SLO gates in the
-issue before collecting the qualifying run.
+Issue #39 established this protocol. A result is release evidence only when
+the raw observations and environment metadata below are retained with the
+qualifying run.
 
 ## Non-negotiable correctness gate
 
@@ -29,11 +29,11 @@ For every scenario UniLume must have all of the following:
 Any correctness failure invalidates a performance claim, even if an aggregate
 metric is faster.
 
-## Proposed SLO gates
+## SLO gates
 
 After the correctness gate passes, the qualifying comparison must show all of:
 
-| Metric | Proposed UniLume requirement |
+| Metric | UniLume requirement |
 | --- | --- |
 | Browser scenario p50 and p95 completion time | At least 5% lower than Lotus in the paired median |
 | Browser scenario throughput | At least 5% higher than Lotus in the paired median |
@@ -98,13 +98,14 @@ python3 scripts/benchmark/compare_fcitx5_desktop.py \
 ```
 
 Run `--preflight` first when setting up a machine. It performs no input-method
-switch or keystroke injection. Result files are local evidence and must include
-the corresponding UniLume and Lotus commit/package versions in the issue.
+switch or keystroke injection. Use `--enforce-slo` for a qualifying run; the
+harness then exits non-zero unless correctness, p50/p95/p99, throughput, CPU,
+and RSS gates all pass. Result files are local evidence and must include the
+corresponding UniLume and Lotus commit/package versions in the issue.
 
-The current UniLume addon exposes Telex only. VNI and VIQR rows become
-qualifying desktop cases after #41 exposes those modes; before then, the
-harness must record them as unsupported rather than silently comparing
-different configurations.
+Telex, VNI, and VIQR must be measured separately with matching configurations.
+The harness rejects an empty method corpus rather than silently comparing
+different modes.
 
 ## Required evidence matrix
 

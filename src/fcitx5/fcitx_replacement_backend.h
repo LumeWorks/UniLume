@@ -3,6 +3,7 @@
 #pragma once
 
 #include "replacement_backend.h"
+#include "verified_surrounding_snapshot.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -47,6 +48,7 @@ private:
     std::uint64_t last_sequence_id_{};
     std::uint64_t generation_{1};
     mutable ReplacementObservation observation_;
+    mutable VerifiedSurroundingTicket verified_ticket_;
 };
 
 } // namespace unilume::fcitx5

@@ -71,7 +71,9 @@ def require_binary(name: str) -> str:
     return path
 
 
-def load_corpus(path: Path, method: str) -> list[Scenario]:
+def load_corpus(
+    path: Path, method: str, selected_names: frozenset[str] = frozenset()
+) -> list[Scenario]:
     scenarios: list[Scenario] = []
     for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
         if not line or line.startswith("#"):
@@ -80,10 +82,17 @@ def load_corpus(path: Path, method: str) -> list[Scenario]:
         if len(fields) != 4:
             raise HarnessError(f"{path}:{line_number}: expected four tab-separated fields")
         scenario = Scenario(*fields)
-        if scenario.method == method:
+        if scenario.method == method and (
+            not selected_names or scenario.name in selected_names
+        ):
             scenarios.append(scenario)
     if not scenarios:
         raise HarnessError(f"{path}: no scenarios for method {method!r}")
+    missing = selected_names.difference(scenario.name for scenario in scenarios)
+    if missing:
+        raise HarnessError(
+            f"{path}: unknown {method} scenario(s): {', '.join(sorted(missing))}"
+        )
     return scenarios
 
 
@@ -154,6 +163,32 @@ def emit_input(window_id: str, encoded: str, delay_milliseconds: int) -> int:
         event_count += 1
         cursor = marker + len("<BS>")
     return event_count
+
+
+def warm_input_path(
+    window_id: str,
+    token: str,
+    delay_milliseconds: int,
+    reset_settle_milliseconds: int,
+    timeout_seconds: float,
+) -> None:
+    """Prime the selected frontend/server before collecting timed samples."""
+    xdotool("windowactivate", "--sync", window_id)
+    xdotool("key", "--window", window_id, "--clearmodifiers", "Escape")
+    time.sleep(reset_settle_milliseconds / 1000.0)
+    xdotool("key", "--window", window_id, "--clearmodifiers", "ctrl+a")
+    xdotool("key", "--window", window_id, "--clearmodifiers", "BackSpace")
+    emit_input(window_id, "a ", delay_milliseconds)
+    xdotool("key", "--window", window_id, "--clearmodifiers", "Escape")
+    time.sleep(reset_settle_milliseconds / 1000.0)
+    xdotool("key", "--window", window_id, "--clearmodifiers", "ctrl+a")
+    xdotool("key", "--window", window_id, "--clearmodifiers", "BackSpace")
+    cleared_title = f"{token}{PROBE_MARKER}"
+    observed = wait_for_title(window_id, cleared_title, timeout_seconds)
+    if observed != cleared_title:
+        raise HarnessError(
+            f"input path did not settle after warm-up: {observed!r}"
+        )
 
 
 def process_snapshot(pid: int) -> tuple[int, int]:
@@ -260,6 +295,7 @@ def paired_summary(samples: Iterable[dict[str, object]]) -> dict[str, object]:
         "candidate_over_reference_completion_ratio": {
             "p50": percentile(ratios, 0.50),
             "p95": percentile(ratios, 0.95),
+            "p99": percentile(ratios, 0.99),
             "mean": statistics.fmean(ratios),
         },
         "candidate_faster_pair_fraction": sum(ratio < 1.0 for ratio in ratios) / len(ratios),
@@ -273,7 +309,9 @@ def preflight(arguments: argparse.Namespace) -> dict[str, object]:
         require_binary(binary)
     if not Path("/proc").exists():
         raise HarnessError("/proc is required for Fcitx5 resource snapshots")
-    scenarios = load_corpus(arguments.corpus, arguments.method)
+    scenarios = load_corpus(
+        arguments.corpus, arguments.method, frozenset(arguments.scenario)
+    )
     title = window_title(arguments.window_id)
     if arguments.token not in title:
         raise HarnessError(
@@ -293,6 +331,7 @@ def preflight(arguments: argparse.Namespace) -> dict[str, object]:
         "corpus_sha256": hashlib.sha256(arguments.corpus.read_bytes()).hexdigest(),
         "method": arguments.method,
         "scenario_count": len(scenarios),
+        "selected_scenarios": sorted(arguments.scenario),
         "window_id": arguments.window_id,
         "window_pid": window_pid,
         "window_executable": str(window_executable.resolve()) if window_executable.exists() else "unknown",
@@ -307,7 +346,9 @@ def compare(arguments: argparse.Namespace) -> dict[str, object]:
     environment = preflight(arguments)
     original_input_method = str(environment["active_input_method"])
     pid = fcitx_pid()
-    scenarios = load_corpus(arguments.corpus, arguments.method)
+    scenarios = load_corpus(
+        arguments.corpus, arguments.method, frozenset(arguments.scenario)
+    )
     schedule: list[tuple[int, str, str]] = []
     randomizer = random.Random(arguments.seed)
     for round_index in range(arguments.rounds):
@@ -318,9 +359,30 @@ def compare(arguments: argparse.Namespace) -> dict[str, object]:
     samples: list[dict[str, object]] = []
     try:
         for round_index, label, input_method in schedule:
+            xdotool("windowactivate", "--sync", arguments.window_id)
             switch_input_method(input_method, arguments.timeout_seconds)
+            time.sleep(arguments.switch_settle_milliseconds / 1000.0)
+            warm_input_path(
+                arguments.window_id,
+                arguments.token,
+                arguments.delay_milliseconds,
+                arguments.reset_settle_milliseconds,
+                arguments.timeout_seconds,
+            )
             for scenario in scenarios:
                 xdotool("windowactivate", "--sync", arguments.window_id)
+                # Reset the input-method composition before clearing the
+                # document. Ctrl+A/Backspace alone only changes application
+                # text and can leak a reference engine's previous token into
+                # the next scenario.
+                xdotool(
+                    "key",
+                    "--window",
+                    arguments.window_id,
+                    "--clearmodifiers",
+                    "Escape",
+                )
+                time.sleep(arguments.reset_settle_milliseconds / 1000.0)
                 xdotool("key", "--window", arguments.window_id, "--clearmodifiers", "ctrl+a")
                 xdotool("key", "--window", arguments.window_id, "--clearmodifiers", "BackSpace")
                 cleared_title = f"{arguments.token}{PROBE_MARKER}"
@@ -361,17 +423,66 @@ def compare(arguments: argparse.Namespace) -> dict[str, object]:
 
     candidate = [sample for sample in samples if sample["side"] == "candidate"]
     reference = [sample for sample in samples if sample["side"] == "reference"]
-    return {
+    result = {
         "schema_version": 1,
         "harness": "compare_fcitx5_desktop.py",
         "environment": environment,
         "seed": arguments.seed,
         "rounds": arguments.rounds,
         "delay_milliseconds": arguments.delay_milliseconds,
+        "switch_settle_milliseconds": arguments.switch_settle_milliseconds,
+        "reset_settle_milliseconds": arguments.reset_settle_milliseconds,
         "candidate": {"input_method": arguments.candidate, "summary": summarize(candidate)},
         "reference": {"input_method": arguments.reference, "summary": summarize(reference)},
         "paired_summary": paired_summary(samples),
         "samples": samples,
+    }
+    result["slo_gate"] = evaluate_slo(
+        result,
+        cpu_noise_seconds=arguments.cpu_noise_seconds,
+        rss_noise_kib=arguments.rss_noise_kib,
+    )
+    return result
+
+
+def evaluate_slo(
+    result: dict[str, object],
+    *,
+    cpu_noise_seconds: float,
+    rss_noise_kib: int,
+) -> dict[str, object]:
+    candidate = result["candidate"]["summary"]  # type: ignore[index]
+    reference = result["reference"]["summary"]  # type: ignore[index]
+    paired_ratios = result["paired_summary"][  # type: ignore[index]
+        "candidate_over_reference_completion_ratio"
+    ]
+    checks = {
+        "candidate_correct": candidate["errors"] == 0,  # type: ignore[index]
+        "reference_correct": reference["errors"] == 0,  # type: ignore[index]
+        "p50_at_least_5_percent_lower":
+            paired_ratios["p50"] <= 0.95,
+        "p95_at_least_5_percent_lower":
+            paired_ratios["p95"] <= 0.95,
+        "p99_at_least_5_percent_lower":
+            paired_ratios["p99"] <= 0.95,
+        "throughput_at_least_5_percent_higher":
+            candidate["keys_per_second"] >= reference["keys_per_second"] * 1.05,  # type: ignore[index]
+        "cpu_within_noise":
+            candidate["fcitx_cpu_seconds"]  # type: ignore[index]
+            <= reference["fcitx_cpu_seconds"] + cpu_noise_seconds,  # type: ignore[index]
+        "rss_within_noise":
+            candidate["fcitx_rss_delta_kib"]["max"]  # type: ignore[index]
+            <= reference["fcitx_rss_delta_kib"]["max"] + rss_noise_kib,  # type: ignore[index]
+    }
+    return {
+        "thresholds": {
+            "latency_improvement_fraction": 0.05,
+            "throughput_improvement_fraction": 0.05,
+            "cpu_noise_seconds": cpu_noise_seconds,
+            "rss_noise_kib": rss_noise_kib,
+        },
+        "checks": checks,
+        "overall_pass": all(checks.values()),
     }
 
 
@@ -383,13 +494,38 @@ def parser() -> argparse.ArgumentParser:
     argument_parser.add_argument("--window-id", required=True, help="X11 id of the focused comparison probe")
     argument_parser.add_argument("--token", required=True, help="unique hash token in the probe page URL")
     argument_parser.add_argument("--method", default="telex", choices=("telex", "vni", "viqr"))
+    argument_parser.add_argument(
+        "--scenario",
+        action="append",
+        default=[],
+        help="run only this named corpus scenario; repeat for multiple scenarios",
+    )
     argument_parser.add_argument("--corpus", type=Path, default=root / "benchmarks/comparison/fcitx5-e2e.tsv")
     argument_parser.add_argument("--rounds", type=int, default=5)
     argument_parser.add_argument("--seed", type=int, default=39)
     argument_parser.add_argument("--delay-milliseconds", type=int, default=1)
+    argument_parser.add_argument(
+        "--switch-settle-milliseconds",
+        type=int,
+        default=100,
+        help="settling interval after selecting an input method",
+    )
+    argument_parser.add_argument(
+        "--reset-settle-milliseconds",
+        type=int,
+        default=50,
+        help="settling interval after resetting an input-method composition",
+    )
     argument_parser.add_argument("--timeout-seconds", type=float, default=5.0)
+    argument_parser.add_argument("--cpu-noise-seconds", type=float, default=0.05)
+    argument_parser.add_argument("--rss-noise-kib", type=int, default=64)
     argument_parser.add_argument("--output", type=Path, help="write raw JSON result")
     argument_parser.add_argument("--preflight", action="store_true", help="validate the host without changing Fcitx5 state")
+    argument_parser.add_argument(
+        "--enforce-slo",
+        action="store_true",
+        help="return non-zero unless all correctness, latency, throughput and resource gates pass",
+    )
     return argument_parser
 
 
@@ -397,7 +533,14 @@ def main() -> int:
     arguments = parser().parse_args()
     if arguments.rounds < 5:
         raise HarnessError("at least five paired rounds are required")
-    if arguments.delay_milliseconds < 0 or arguments.timeout_seconds <= 0:
+    if (
+        arguments.delay_milliseconds < 0
+        or arguments.switch_settle_milliseconds < 0
+        or arguments.reset_settle_milliseconds < 0
+        or arguments.timeout_seconds <= 0
+        or arguments.cpu_noise_seconds < 0
+        or arguments.rss_noise_kib < 0
+    ):
         raise HarnessError("delay must be non-negative and timeout must be positive")
     result = preflight(arguments) if arguments.preflight else compare(arguments)
     encoded = json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
@@ -405,6 +548,12 @@ def main() -> int:
         arguments.output.write_text(encoded, encoding="utf-8")
     else:
         sys.stdout.write(encoded)
+    if (
+        arguments.enforce_slo
+        and not arguments.preflight
+        and not result["slo_gate"]["overall_pass"]
+    ):
+        return 3
     return 0
 
 

@@ -4,6 +4,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 
 namespace fcitx {
 class SurroundingText;
@@ -27,5 +28,29 @@ struct SurroundingSnapshotValidation {
     bool surrounding_capability,
     const fcitx::SurroundingText &surrounding,
     std::int32_t delete_before_cursor);
+
+// A single-use ticket avoids validating the same immutable Fcitx snapshot
+// twice in one synchronous key event. Metadata matching prevents reuse after
+// Fcitx replaces the snapshot; consuming the ticket prevents cross-event
+// reuse when storage happens to be recycled.
+class VerifiedSurroundingTicket {
+public:
+    [[nodiscard]] const SurroundingSnapshotValidation &prepare(
+        bool surrounding_capability,
+        const fcitx::SurroundingText &surrounding);
+    [[nodiscard]] std::optional<SurroundingSnapshotValidation> consume(
+        bool surrounding_capability,
+        const fcitx::SurroundingText &surrounding,
+        std::int32_t delete_before_cursor);
+    void clear();
+
+private:
+    SurroundingSnapshotValidation validation_;
+    const char *text_data_{};
+    std::size_t cursor_{};
+    std::size_t anchor_{};
+    bool native_valid_{};
+    bool ready_{};
+};
 
 } // namespace unilume::fcitx5

@@ -76,6 +76,7 @@ private:
     std::uint64_t keymap_generation_{};
     std::uint64_t dictionary_generation_{};
     bool verified_direct_enabled_{};
+    bool direct_replacement_available_{};
     policy::ApplicationMode policy_mode_{
         policy::ApplicationMode::safe_preedit};
     policy::ResolutionSource policy_source_{
