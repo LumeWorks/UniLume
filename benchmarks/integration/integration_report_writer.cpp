@@ -26,7 +26,13 @@ void writeHuman(const IntegrationReport &report, std::ostream &output)
                << " p95=" << result.latency.p95_ns
                << " p99=" << result.latency.p99_ns
                << " mean=" << result.latency.mean_ns
-               << " drift=" << result.latency_drift_percent << "%\n"
+               << " mean_drift=" << result.latency_drift_percent
+               << "% p99_drift=" << result.p99_latency_drift_percent
+               << "% p99_growth="
+               << result.p99_latency_growth_detected << '\n'
+               << "  process_cpu_seconds=" << result.process_cpu_seconds
+               << " utilization="
+               << result.process_cpu_utilization_percent << "%\n"
                << "  queue max=" << result.max_queue_depth
                << " final=" << result.final_queue_depth
                << " pending=" << result.pending_transaction << '\n'
@@ -40,6 +46,17 @@ void writeHuman(const IntegrationReport &report, std::ostream &output)
                << " peak=" << result.rss.maximum_kib
                << " linear_growth="
                << result.rss.linear_growth_detected << '\n'
+               << "  file_descriptors initial="
+               << result.open_file_descriptors.initial
+               << " final=" << result.open_file_descriptors.final
+               << " max=" << result.open_file_descriptors.maximum
+               << " linear_growth="
+               << result.open_file_descriptors.linear_growth_detected << '\n'
+               << "  threads initial=" << result.threads.initial
+               << " final=" << result.threads.final
+               << " max=" << result.threads.maximum
+               << " linear_growth="
+               << result.threads.linear_growth_detected << '\n'
                << "  checksum=" << result.checksum
                << " errors=" << result.errors
                << " lost=" << result.lost_events
@@ -84,6 +101,14 @@ void writeJson(const IntegrationReport &report, std::ostream &output)
         writeLatency(result.latency, output);
         output << ",\"latency_drift_percent\":"
                << result.latency_drift_percent
+               << ",\"p99_latency_drift_percent\":"
+               << result.p99_latency_drift_percent
+               << ",\"p99_latency_growth_detected\":"
+               << (result.p99_latency_growth_detected ? "true" : "false")
+               << ",\"process_cpu_seconds\":"
+               << result.process_cpu_seconds
+               << ",\"process_cpu_utilization_percent\":"
+               << result.process_cpu_utilization_percent
                << ",\"max_queue_depth\":" << result.max_queue_depth
                << ",\"final_queue_depth\":" << result.final_queue_depth
                << ",\"pending_transaction\":"
@@ -117,7 +142,39 @@ void writeJson(const IntegrationReport &report, std::ostream &output)
                    << ",\"current_kib\":"
                    << result.rss.checkpoints[checkpoint].current_kib << '}';
         }
-        output << "]},\"checksum\":" << result.checksum
+        output << "]},\"open_file_descriptors\":{\"initial\":"
+               << result.open_file_descriptors.initial
+               << ",\"final\":" << result.open_file_descriptors.final
+               << ",\"maximum\":"
+               << result.open_file_descriptors.maximum
+               << ",\"linear_growth_detected\":"
+               << (result.open_file_descriptors.linear_growth_detected
+                       ? "true"
+                       : "false")
+               << "},\"threads\":{\"initial\":"
+               << result.threads.initial
+               << ",\"final\":" << result.threads.final
+               << ",\"maximum\":" << result.threads.maximum
+               << ",\"linear_growth_detected\":"
+               << (result.threads.linear_growth_detected ? "true" : "false")
+               << "},\"stability_checkpoints\":[";
+        for (std::size_t checkpoint = 0;
+             checkpoint < result.stability_checkpoints.size();
+             ++checkpoint) {
+            if (checkpoint != 0) {
+                output << ',';
+            }
+            const StabilityCheckpoint &point =
+                result.stability_checkpoints[checkpoint];
+            output << "{\"keys\":" << point.keys
+                   << ",\"current_rss_kib\":" << point.current_rss_kib
+                   << ",\"open_file_descriptors\":"
+                   << point.open_file_descriptors
+                   << ",\"threads\":" << point.threads
+                   << ",\"p99_latency_ns\":"
+                   << point.p99_latency_ns << '}';
+        }
+        output << "],\"checksum\":" << result.checksum
                << ",\"errors\":" << result.errors << '}';
     }
     output << "]}\n";

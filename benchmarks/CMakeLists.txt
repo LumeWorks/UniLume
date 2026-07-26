@@ -146,6 +146,7 @@ endif()
 if(UNILUME_BUILD_INTEGRATION_BENCHMARKS)
   add_executable(unilume_integration_benchmark
     core/checksum.cpp
+    core/process_resource_reader.cpp
     core/rss_reader.cpp
     core/statistics.cpp
     core/system_metadata.cpp

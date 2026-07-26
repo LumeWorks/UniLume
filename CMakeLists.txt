@@ -17,6 +17,7 @@ include(cmake/UniLumeVersion.cmake)
 
 option(UNILUME_ENABLE_ASAN "Enable AddressSanitizer for UniLume targets" OFF)
 option(UNILUME_ENABLE_UBSAN "Enable UndefinedBehaviorSanitizer for UniLume targets" OFF)
+option(UNILUME_ENABLE_TSAN "Enable ThreadSanitizer for UniLume targets" OFF)
 option(UNILUME_BUILD_BENCHMARKS "Build UniLume core benchmarks" OFF)
 option(UNILUME_BUILD_INTEGRATION_BENCHMARKS
   "Build UniLume adapter integration benchmarks" OFF)
@@ -25,7 +26,13 @@ option(UNILUME_BUILD_FUZZERS "Build Clang libFuzzer targets" OFF)
 
 add_library(unilume_sanitizer_options INTERFACE)
 
-if(UNILUME_ENABLE_ASAN OR UNILUME_ENABLE_UBSAN)
+if(UNILUME_ENABLE_ASAN AND UNILUME_ENABLE_TSAN)
+  message(FATAL_ERROR
+    "AddressSanitizer and ThreadSanitizer cannot be enabled together"
+  )
+endif()
+
+if(UNILUME_ENABLE_ASAN OR UNILUME_ENABLE_UBSAN OR UNILUME_ENABLE_TSAN)
   if(NOT CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     message(FATAL_ERROR
       "UniLume sanitizers require a GCC- or Clang-compatible compiler"
@@ -38,6 +45,9 @@ if(UNILUME_ENABLE_ASAN OR UNILUME_ENABLE_UBSAN)
   endif()
   if(UNILUME_ENABLE_UBSAN)
     list(APPEND _unilume_sanitizers undefined)
+  endif()
+  if(UNILUME_ENABLE_TSAN)
+    list(APPEND _unilume_sanitizers thread)
   endif()
   list(JOIN _unilume_sanitizers "," _unilume_sanitizer_list)
 

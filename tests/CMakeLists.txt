@@ -33,6 +33,23 @@ set_target_properties(unilume_engine_tests PROPERTIES
 
 add_test(NAME engine COMMAND unilume_engine_tests)
 
+add_executable(unilume_engine_allocation_failure_tests
+  engine/allocation_failure_tests.cpp
+)
+target_link_libraries(unilume_engine_allocation_failure_tests PRIVATE
+  unilume_context
+  unilume_sanitizer_options
+)
+set_target_properties(unilume_engine_allocation_failure_tests PROPERTIES
+  CXX_STANDARD 23
+  CXX_STANDARD_REQUIRED YES
+  CXX_EXTENSIONS NO
+)
+add_test(
+  NAME engine-allocation-failure
+  COMMAND unilume_engine_allocation_failure_tests
+)
+
 add_executable(unilume_config_tests
   config/config_tests.cpp
 )
@@ -185,6 +202,7 @@ add_executable(unilume_integration_tests
   integration/options_tests.cpp
   integration/integration_test_main.cpp
   integration/preedit_fallback_tests.cpp
+  integration/stability_recovery_tests.cpp
   integration/transaction_tests.cpp
   integration/typing_pipeline_tests.cpp
   integration/zero_preedit_architecture_tests.cpp
@@ -216,6 +234,7 @@ foreach(suite IN ITEMS
     dictionary
     burst
     soak-smoke
+    stability-recovery
     zero-preedit-architecture
     zero-preedit-soak
 )

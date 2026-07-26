@@ -26,6 +26,7 @@ int main(int argc, char **argv)
         runDictionaryTests(assertions);
         runBurstTests(assertions);
         runSoakSmokeTests(assertions);
+        runStabilityRecoveryTests(assertions);
         runZeroPreeditArchitectureTests(assertions);
         runZeroPreeditSoakTests(assertions);
     } else {
@@ -58,6 +59,8 @@ int main(int argc, char **argv)
             runBurstTests(assertions);
         } else if (suite == "soak-smoke") {
             runSoakSmokeTests(assertions);
+        } else if (suite == "stability-recovery") {
+            runStabilityRecoveryTests(assertions);
         } else if (suite == "zero-preedit-architecture") {
             runZeroPreeditArchitectureTests(assertions);
         } else if (suite == "zero-preedit-soak") {

@@ -123,6 +123,27 @@ per-key logging.
 
 ## Soak method and limitations
 
+The repeatable release-candidate gate is
+`scripts/benchmark/soak_fcitx5_desktop.py`. It verifies every probe result,
+samples Fcitx RSS/high-water RSS, FD and thread counts, measures active and
+idle CPU, checks checkpoint latency drift, and restarts Fcitx at a fixed
+interval to exercise addon reload/reconnect. Qualifying mode refuses durations
+below eight hours:
+
+```sh
+python3 scripts/benchmark/soak_fcitx5_desktop.py \
+  --candidate unilume \
+  --window-id "$PROBE_WINDOW" \
+  --token "$PROBE_TOKEN" \
+  --duration-hours 8 \
+  --restart-interval-hours 2 \
+  --output unilume-desktop-soak.json
+```
+
+A short `--smoke-seconds 60` run validates the harness but is explicitly
+recorded as non-qualifying. Reports contain scenario identifiers and
+correctness flags, never expected or observed typed text.
+
 The real-application soak alternates focus between controlled Chrome and
 Firefox textareas, replaces the complete corpus, verifies the exact resulting
 title, and samples the Fcitx process RSS, high-water RSS, and CPU. RSS is

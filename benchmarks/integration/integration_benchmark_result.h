@@ -11,6 +11,21 @@
 
 namespace unilume::integration_benchmark {
 
+struct ResourceCountMetrics {
+    std::size_t initial{};
+    std::size_t final{};
+    std::size_t maximum{};
+    bool linear_growth_detected{};
+};
+
+struct StabilityCheckpoint {
+    std::size_t keys{};
+    std::uint64_t current_rss_kib{};
+    std::size_t open_file_descriptors{};
+    std::size_t threads{};
+    double p99_latency_ns{};
+};
+
 struct IntegrationResult {
     std::string name;
     std::uint64_t total_keys{};
@@ -18,6 +33,10 @@ struct IntegrationResult {
     double keys_per_second{};
     benchmark::LatencyStatistics latency;
     double latency_drift_percent{};
+    double p99_latency_drift_percent{};
+    bool p99_latency_growth_detected{};
+    double process_cpu_seconds{};
+    double process_cpu_utilization_percent{};
     std::uint64_t checksum{};
     std::uint64_t errors{};
     std::uint64_t lost_events{};
@@ -33,6 +52,9 @@ struct IntegrationResult {
     std::uint64_t queue_overflow_count{};
     bool pending_transaction{};
     benchmark::RssMetrics rss;
+    ResourceCountMetrics open_file_descriptors;
+    ResourceCountMetrics threads;
+    std::vector<StabilityCheckpoint> stability_checkpoints;
 };
 
 struct IntegrationReport {
