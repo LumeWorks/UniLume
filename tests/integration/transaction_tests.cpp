@@ -68,6 +68,28 @@ void runTransactionTests(Assertions &assertions)
         "focus reset isolates pending text", focus.output(), "ttiếng");
     assertions.truth(
         "focus reset recorded", focus.metrics().reset_count != 0);
+
+    IntegrationFixture active_focus{{.delay_events = 10}};
+    active_focus.type("as");
+    assertions.truth(
+        "focus regression starts active transaction",
+        active_focus.metrics().active_transaction);
+    assertions.truth(
+        "focus regression backend is pending",
+        active_focus.backend().hasPending());
+    active_focus.focusChange();
+    assertions.truth(
+        "focus reset clears active metric",
+        !active_focus.metrics().active_transaction);
+    assertions.equal(
+        "focus reset clears queue", active_focus.metrics().queue_depth, 0);
+    assertions.truth(
+        "focus reset clears transaction state",
+        active_focus.controller().transactionState() ==
+            core::TransactionState::idle);
+    assertions.truth(
+        "focus reset cancels backend request",
+        !active_focus.backend().hasPending());
 }
 
 } // namespace unilume::integration::test

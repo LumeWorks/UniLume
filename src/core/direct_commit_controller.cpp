@@ -66,6 +66,7 @@ void DirectCommitController::resetForFocus()
     queue_head_ = 0;
     queue_size_ = 0;
     updateQueueMetrics();
+    metrics_.active_transaction = false;
     engine_.reset();
     ++metrics_.reset_count;
 }
