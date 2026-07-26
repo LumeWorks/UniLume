@@ -33,6 +33,27 @@ set_target_properties(unilume_engine_tests PROPERTIES
 
 add_test(NAME engine COMMAND unilume_engine_tests)
 
+add_executable(unilume_config_tests
+  config/config_tests.cpp
+)
+
+target_link_libraries(unilume_config_tests PRIVATE
+  unilume_config
+  unilume_sanitizer_options
+)
+
+target_compile_definitions(unilume_config_tests PRIVATE
+  UNILUME_CONFIG_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/config/fixtures"
+)
+
+set_target_properties(unilume_config_tests PROPERTIES
+  CXX_STANDARD 23
+  CXX_STANDARD_REQUIRED YES
+  CXX_EXTENSIONS NO
+)
+
+add_test(NAME config COMMAND unilume_config_tests)
+
 add_library(unilume_integration_test_support STATIC
   integration/integration_fixture.cpp
   integration/test_assertions.cpp
