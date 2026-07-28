@@ -6,33 +6,33 @@ inside an existing native Wayland session, injects real key events through the
 compositor seat, and reads the exact bytes a real Wayland client received. A
 compile check or a manual checklist is deliberately not accepted as evidence.
 
-Key injection uses the ``zwp_virtual_keyboard_v1`` protocol through ``wtype``.
-Compositors that do not implement that protocol cannot be driven from inside
-the session, and the harness refuses to report a result for them rather than
-substituting ``uinput``, which issue #58 places out of scope because it would
-mask native-path behaviour.
+Key injection uses the compositor's own supported test boundary:
+``zwp_virtual_keyboard_v1`` through ``wtype`` for wlroots, XTEST into the
+outer window of nested KWin, or Mutter's RemoteDesktop session. None is an
+alternate UniLume text backend, and the harness never substitutes ``uinput``.
 
-Exact output extraction uses a terminal client whose pty is placed in raw mode
-so the line discipline never erases a byte on the application's behalf. A
-Backspace that UniLume failed to consume therefore surfaces as a literal
-delete byte and fails the comparison instead of being silently absorbed.
+Exact output extraction uses either a terminal client whose pty is placed in
+raw mode or a native GTK entry probe that records live and committed UTF-8.
 """
 
 from __future__ import annotations
 
 import argparse
 import hashlib
+import http.server
 import importlib.util
 import json
 import os
 import re
+import secrets
 import shutil
 import subprocess
 import sys
+import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Sequence
+from typing import Protocol, Sequence
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
@@ -73,6 +73,8 @@ CLIENT_READY_TIMEOUT_SECONDS = 20.0
 CLIENT_POLL_SECONDS = 0.02
 SOAK_SAMPLE_SECONDS = 5.0
 DIAGNOSTIC_WAIT_SECONDS = 5.0
+MAX_PROBE_REPORT_BYTES = 1024 * 1024
+MAX_RETAINED_SOAK_FAILURES = 100
 
 # wtype treats a leading dash as an option, so a corpus chunk that begins with
 # one could silently become a flag instead of typed text.
@@ -88,6 +90,10 @@ READINESS_PROBE = {
     "vni": ("a6", "â"),
     "viqr": ("a^", "â"),
 }
+
+KEYSYM_BACKSPACE = 0xFF08
+KEYSYM_RETURN = 0xFF0D
+KEYSYM_ESCAPE = 0xFF1B
 
 
 class QualificationError(HarnessError):
@@ -210,6 +216,229 @@ def wtype_arguments(encoded: str, delay_milliseconds: int) -> list[str]:
     return arguments
 
 
+def xdotool_arguments(
+    encoded: str, delay_milliseconds: int, window: str
+) -> list[list[str]]:
+    """Build ordered XTEST commands for a nested compositor host window."""
+    commands = [["xdotool", "windowfocus", "--sync", window]]
+    for kind, value in split_input(encoded):
+        if kind == "text":
+            if not value.isascii():
+                raise QualificationError(
+                    f"corpus input must be ASCII keystrokes, not composed text: {value!r}"
+                )
+            command = ["xdotool", "type", "--clearmodifiers"]
+            if delay_milliseconds > 0:
+                command.extend(["--delay", str(delay_milliseconds)])
+            command.extend(["--", value])
+            commands.append(command)
+        else:
+            commands.append(
+                ["xdotool", "key", "--clearmodifiers", "BackSpace"]
+            )
+    return commands
+
+
+class Injector(Protocol):
+    description: str
+
+    def __enter__(self) -> "Injector": ...
+
+    def __exit__(
+        self, _type: object, _value: object, _traceback: object
+    ) -> None: ...
+
+    def inject(self, encoded: str, delay_milliseconds: int) -> int: ...
+
+    def commit_boundary(self) -> None: ...
+
+    def prepare_client(self) -> None: ...
+
+
+class WtypeInjector:
+    description = "zwp_virtual_keyboard_v1 via wtype"
+
+    def __enter__(self) -> "WtypeInjector":
+        return self
+
+    def __exit__(
+        self, _type: object, _value: object, _traceback: object
+    ) -> None:
+        return None
+
+    def _run(self, arguments: list[str]) -> None:
+        completed = subprocess.run(
+            arguments,
+            check=False,
+            text=True,
+            capture_output=True,
+            timeout=_SHARED.COMMAND_TIMEOUT_SECONDS,
+        )
+        if completed.returncode != 0:
+            raise QualificationError(
+                "wtype could not inject through the compositor seat: "
+                f"{completed.stderr.strip()}"
+            )
+
+    def inject(self, encoded: str, delay_milliseconds: int) -> int:
+        self._run(wtype_arguments(encoded, delay_milliseconds))
+        return time.monotonic_ns()
+
+    def commit_boundary(self) -> None:
+        self._run(["wtype", "-k", "Return"])
+
+    def prepare_client(self) -> None:
+        return None
+
+
+class XdotoolInjector:
+    description = "XTEST into the nested compositor host window"
+
+    def __init__(self, window: str) -> None:
+        self.window = window
+
+    def __enter__(self) -> "XdotoolInjector":
+        return self
+
+    def __exit__(
+        self, _type: object, _value: object, _traceback: object
+    ) -> None:
+        return None
+
+    @staticmethod
+    def _run(arguments: list[str]) -> None:
+        completed = subprocess.run(
+            arguments,
+            check=False,
+            text=True,
+            capture_output=True,
+            timeout=_SHARED.COMMAND_TIMEOUT_SECONDS,
+        )
+        if completed.returncode != 0:
+            raise QualificationError(
+                "xdotool could not inject into the nested compositor: "
+                f"{completed.stderr.strip()}"
+            )
+
+    def inject(self, encoded: str, delay_milliseconds: int) -> int:
+        for arguments in xdotool_arguments(
+            encoded, delay_milliseconds, self.window
+        ):
+            self._run(arguments)
+        return time.monotonic_ns()
+
+    def commit_boundary(self) -> None:
+        self._run(["xdotool", "windowfocus", "--sync", self.window])
+        self._run(["xdotool", "key", "--clearmodifiers", "Return"])
+
+    def prepare_client(self) -> None:
+        self._run(["xdotool", "windowfocus", "--sync", self.window])
+
+
+class MutterRemoteDesktopInjector:
+    description = "org.gnome.Mutter.RemoteDesktop keyboard session"
+
+    def __init__(self) -> None:
+        self.connection: object | None = None
+        self.session_path = ""
+
+    def __enter__(self) -> "MutterRemoteDesktopInjector":
+        try:
+            from gi.repository import Gio, GLib
+        except (ImportError, ValueError) as error:
+            raise QualificationError(
+                "Mutter injection requires Python GObject introspection"
+            ) from error
+        self.Gio = Gio
+        self.GLib = GLib
+        self.connection = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+        result = self.connection.call_sync(
+            "org.gnome.Mutter.RemoteDesktop",
+            "/org/gnome/Mutter/RemoteDesktop",
+            "org.gnome.Mutter.RemoteDesktop",
+            "CreateSession",
+            None,
+            GLib.VariantType.new("(o)"),
+            Gio.DBusCallFlags.NONE,
+            -1,
+            None,
+        )
+        self.session_path = result.unpack()[0]
+        self._call("Start")
+        return self
+
+    def __exit__(
+        self, _type: object, _value: object, _traceback: object
+    ) -> None:
+        if self.connection is not None and self.session_path:
+            try:
+                self._call("Stop")
+            except Exception:
+                pass
+        self.connection = None
+
+    def _call(self, method: str, parameters: object | None = None) -> None:
+        if self.connection is None:
+            raise QualificationError("Mutter RemoteDesktop session is not active")
+        self.connection.call_sync(
+            "org.gnome.Mutter.RemoteDesktop",
+            self.session_path,
+            "org.gnome.Mutter.RemoteDesktop.Session",
+            method,
+            parameters,
+            None,
+            self.Gio.DBusCallFlags.NONE,
+            -1,
+            None,
+        )
+
+    def _keysym(self, keysym: int) -> None:
+        parameters_type = "(ub)"
+        self._call(
+            "NotifyKeyboardKeysym",
+            self.GLib.Variant(parameters_type, (keysym, True)),
+        )
+        self._call(
+            "NotifyKeyboardKeysym",
+            self.GLib.Variant(parameters_type, (keysym, False)),
+        )
+
+    def inject(self, encoded: str, delay_milliseconds: int) -> int:
+        for kind, value in split_input(encoded):
+            keysyms = (
+                [ord(character) for character in value]
+                if kind == "text"
+                else [KEYSYM_BACKSPACE]
+            )
+            for keysym in keysyms:
+                self._keysym(keysym)
+                if delay_milliseconds > 0:
+                    time.sleep(delay_milliseconds / 1000)
+        return time.monotonic_ns()
+
+    def commit_boundary(self) -> None:
+        self._keysym(KEYSYM_RETURN)
+
+    def prepare_client(self) -> None:
+        # A headless Mutter session has no keyboard seat until the remote
+        # desktop session starts. The first harmless key establishes focus;
+        # Escape also closes the shell overview if it was shown at startup.
+        self._keysym(KEYSYM_ESCAPE)
+        time.sleep(CLIENT_POLL_SECONDS)
+
+
+def create_injector(arguments: argparse.Namespace) -> Injector:
+    if arguments.injector == "wtype":
+        return WtypeInjector()
+    if arguments.injector == "xdotool":
+        if not arguments.xdotool_window:
+            raise QualificationError(
+                "--xdotool-window is required for the xdotool injector"
+            )
+        return XdotoolInjector(arguments.xdotool_window)
+    return MutterRemoteDesktopInjector()
+
+
 class TerminalClient:
     """Own a native Wayland terminal whose received bytes are captured exactly.
 
@@ -286,46 +515,287 @@ class TerminalClient:
         """
         return self.raw().rstrip("\r\n")
 
-    def wait_for(self, expected: str, timeout_seconds: float) -> tuple[str, int]:
+    def visible_text(self) -> str:
+        return self.text()
+
+    def wait_for(
+        self, expected: str, timeout_seconds: float, visible: bool = False
+    ) -> tuple[str, int]:
         """Settle on the client's received text and report the settle time."""
         deadline = time.monotonic() + timeout_seconds
         while time.monotonic() < deadline:
-            current = self.text()
+            current = self.visible_text() if visible else self.text()
             if current == expected:
                 return current, time.monotonic_ns()
             time.sleep(CLIENT_POLL_SECONDS)
-        return self.text(), time.monotonic_ns()
+        current = self.visible_text() if visible else self.text()
+        return current, time.monotonic_ns()
 
 
-def inject(encoded: str, delay_milliseconds: int) -> int:
-    completed = subprocess.run(
-        wtype_arguments(encoded, delay_milliseconds),
-        check=False,
-        text=True,
-        capture_output=True,
-        timeout=_SHARED.COMMAND_TIMEOUT_SECONDS,
-    )
-    if completed.returncode != 0:
+class GtkProbeClient(TerminalClient):
+    """Own a native GTK3 entry with exact committed and visible state."""
+
+    def __init__(self, capture: Path, log: Path) -> None:
+        super().__init__("python3", capture, log)
+        self.state = capture.with_suffix(".state")
+
+    def __enter__(self) -> "GtkProbeClient":
+        self.capture.write_bytes(b"")
+        self.state.write_text("", encoding="utf-8")
+        marker = self.capture.with_suffix(".ready")
+        marker.unlink(missing_ok=True)
+        probe = REPOSITORY_ROOT / "scripts" / "test" / "wayland_gtk3_probe.py"
+        with self.log.open("wb") as log_stream:
+            self.process = subprocess.Popen(
+                [
+                    sys.executable,
+                    str(probe),
+                    "--capture",
+                    str(self.capture),
+                    "--state",
+                    str(self.state),
+                    "--ready",
+                    str(marker),
+                ],
+                stdout=log_stream,
+                stderr=subprocess.STDOUT,
+            )
+        deadline = time.monotonic() + CLIENT_READY_TIMEOUT_SECONDS
+        while time.monotonic() < deadline:
+            if marker.exists():
+                return self
+            if self.process.poll() is not None:
+                raise QualificationError(
+                    "the GTK3 probe exited before becoming ready: "
+                    f"{self.log.read_text(encoding='utf-8', errors='replace').strip()}"
+                )
+            time.sleep(CLIENT_POLL_SECONDS)
         raise QualificationError(
-            f"wtype could not inject through the compositor seat: "
-            f"{completed.stderr.strip()}"
+            "the GTK3 probe did not become ready within "
+            f"{CLIENT_READY_TIMEOUT_SECONDS:.0f}s"
         )
-    return time.monotonic_ns()
+
+    def visible_text(self) -> str:
+        return self.state.read_text(encoding="utf-8")
 
 
-def inject_commit_boundary() -> None:
-    """Force any pending preedit to commit with a real Return key."""
-    completed = subprocess.run(
-        ["wtype", "-k", "Return"],
-        check=False,
-        text=True,
-        capture_output=True,
-        timeout=_SHARED.COMMAND_TIMEOUT_SECONDS,
-    )
-    if completed.returncode != 0:
+class BrowserProbeState:
+    """Synchronize exact values reported by the real browser document."""
+
+    def __init__(self, token: str) -> None:
+        self.token = token
+        self.condition = threading.Condition()
+        self.visible: str | None = None
+        self.committed: str | None = None
+
+    def record(self, token: str, kind: str, value: str) -> None:
+        if token != self.token or kind not in ("visible", "committed"):
+            raise ValueError("invalid browser probe report")
+        with self.condition:
+            setattr(self, kind, value)
+            self.condition.notify_all()
+
+    def clear_commit(self) -> None:
+        with self.condition:
+            self.committed = None
+
+    def wait_for(
+        self, kind: str, expected: str, timeout_seconds: float
+    ) -> tuple[str, int]:
+        deadline = time.monotonic() + timeout_seconds
+        with self.condition:
+            while getattr(self, kind) != expected:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    return getattr(self, kind) or "", time.monotonic_ns()
+                self.condition.wait(remaining)
+            return expected, time.monotonic_ns()
+
+
+class BrowserProbeClient(TerminalClient):
+    """Own a native Wayland browser and extract document values over loopback."""
+
+    def __init__(
+        self,
+        capture: Path,
+        log: Path,
+        browser: str,
+        browser_arguments: Sequence[str],
+    ) -> None:
+        super().__init__(browser, capture, log)
+        self.browser_arguments = list(browser_arguments)
+        self.token = secrets.token_hex(16)
+        self.state = BrowserProbeState(self.token)
+        self.server: http.server.ThreadingHTTPServer | None = None
+        self.server_thread: threading.Thread | None = None
+
+    def __enter__(self) -> "BrowserProbeClient":
+        state = self.state
+        page = (
+            REPOSITORY_ROOT
+            / "tests"
+            / "manual-apps"
+            / "wayland-browser-probe.html"
+        ).read_bytes()
+
+        class Handler(http.server.BaseHTTPRequestHandler):
+            protocol_version = "HTTP/1.1"
+
+            def do_GET(self) -> None:
+                if self.path.partition("?")[0] != "/":
+                    self.send_error(404)
+                    return
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Content-Length", str(len(page)))
+                self.end_headers()
+                self.wfile.write(page)
+
+            def do_POST(self) -> None:
+                try:
+                    length = int(self.headers.get("Content-Length", "0"))
+                except ValueError:
+                    length = 0
+                if (
+                    self.path != "/report"
+                    or not 0 < length <= MAX_PROBE_REPORT_BYTES
+                ):
+                    self.send_error(400)
+                    return
+                try:
+                    report = json.loads(self.rfile.read(length).decode("utf-8"))
+                    token = report["token"]
+                    kind = report["kind"]
+                    value = report["value"]
+                    if not all(
+                        isinstance(item, str) for item in (token, kind, value)
+                    ):
+                        raise TypeError
+                    state.record(token, kind, value)
+                except (
+                    json.JSONDecodeError,
+                    KeyError,
+                    TypeError,
+                    UnicodeDecodeError,
+                    ValueError,
+                ):
+                    self.send_error(400)
+                    return
+                self.send_response(204)
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+
+            def log_message(self, _format: str, *_arguments: object) -> None:
+                return None
+
+        self.server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        self.server_thread = threading.Thread(
+            target=self.server.serve_forever, daemon=True
+        )
+        self.server_thread.start()
+        port = self.server.server_address[1]
+        url = f"http://127.0.0.1:{port}/?token={self.token}"
+        environment = os.environ.copy()
+        environment.pop("DISPLAY", None)
+        executable = Path(self.terminal).name.lower()
+        launch_arguments = list(self.browser_arguments)
+        if "chrome" in executable or "chromium" in executable:
+            defaults = [
+                "--ozone-platform=wayland",
+                "--enable-wayland-ime",
+                "--no-first-run",
+                "--no-default-browser-check",
+                f"--user-data-dir={self.capture.parent / 'browser-profile'}",
+            ]
+            launch_arguments = [
+                argument
+                for argument in defaults
+                if not any(
+                    existing.startswith(argument.partition("=")[0])
+                    for existing in launch_arguments
+                )
+            ] + launch_arguments
+        elif "firefox" in executable:
+            environment["MOZ_ENABLE_WAYLAND"] = "1"
+            if not any(
+                argument in ("-profile", "--profile")
+                for argument in launch_arguments
+            ):
+                launch_arguments.extend(
+                    [
+                        "--no-remote",
+                        "--profile",
+                        str(self.capture.parent / "browser-profile"),
+                    ]
+                )
+        with self.log.open("wb") as log_stream:
+            self.process = subprocess.Popen(
+                [self.terminal, *launch_arguments, url],
+                env=environment,
+                stdout=log_stream,
+                stderr=subprocess.STDOUT,
+            )
+        observed, _ = self.state.wait_for(
+            "visible", "", CLIENT_READY_TIMEOUT_SECONDS
+        )
+        if observed == "" and self.state.visible is not None:
+            return self
+        if self.process.poll() is not None:
+            detail = self.log.read_text(encoding="utf-8", errors="replace")
+            raise QualificationError(
+                f"{self.terminal} exited before its probe was ready: "
+                f"{detail.strip()}"
+            )
         raise QualificationError(
-            f"wtype could not inject the commit boundary: {completed.stderr.strip()}"
+            f"{self.terminal} did not load its native Wayland probe within "
+            f"{CLIENT_READY_TIMEOUT_SECONDS:.0f}s"
         )
+
+    def __exit__(self, _type: object, _value: object, _traceback: object) -> None:
+        super().__exit__(_type, _value, _traceback)
+        if self.server is not None:
+            self.server.shutdown()
+            self.server.server_close()
+        if self.server_thread is not None:
+            self.server_thread.join()
+
+    def reset(self) -> None:
+        visible, _ = self.state.wait_for("visible", "", 1.0)
+        if visible != "":
+            raise QualificationError(
+                f"browser probe did not clear after commit: {visible!r}"
+            )
+        self.state.clear_commit()
+
+    def text(self) -> str:
+        return self.state.committed or ""
+
+    def visible_text(self) -> str:
+        return self.state.visible or ""
+
+    def wait_for(
+        self, expected: str, timeout_seconds: float, visible: bool = False
+    ) -> tuple[str, int]:
+        return self.state.wait_for(
+            "visible" if visible else "committed",
+            expected,
+            timeout_seconds,
+        )
+
+
+def create_client(
+    arguments: argparse.Namespace, capture: Path, log: Path
+) -> TerminalClient:
+    if arguments.client == "gtk3-probe":
+        return GtkProbeClient(capture, log)
+    if arguments.client == "browser-probe":
+        return BrowserProbeClient(
+            capture,
+            log,
+            arguments.browser,
+            arguments.browser_argument,
+        )
+    return TerminalClient(arguments.terminal, capture, log)
 
 
 def select_input_method(name: str, timeout_seconds: float) -> None:
@@ -353,7 +823,10 @@ def select_input_method(name: str, timeout_seconds: float) -> None:
 
 
 def verify_engine_in_path(
-    client: TerminalClient, method: str, timeout_seconds: float
+    client: TerminalClient,
+    injector: Injector,
+    method: str,
+    timeout_seconds: float,
 ) -> None:
     """Prove the engine transforms keystrokes before measuring anything.
 
@@ -364,9 +837,9 @@ def verify_engine_in_path(
         raise QualificationError(f"no readiness probe defined for method {method!r}")
     encoded, expected = READINESS_PROBE[method]
     client.reset()
-    inject(encoded, 0)
+    injector.inject(encoded, 0)
     # Send the boundary too, so a preedit fallback still proves the engine ran.
-    inject_commit_boundary()
+    injector.commit_boundary()
     observed, _ = client.wait_for(expected, timeout_seconds)
     if observed != expected:
         raise QualificationError(
@@ -376,25 +849,36 @@ def verify_engine_in_path(
         )
 
 
-def compositor_identity() -> dict[str, str]:
+def compositor_identity(
+    compositor_override: str = "",
+    version_override: str = "",
+) -> dict[str, str]:
     """Name the running compositor without trusting a single hint."""
     desktop = os.environ.get("XDG_CURRENT_DESKTOP", "")
     session = os.environ.get("XDG_SESSION_DESKTOP", "")
-    detected = "unknown"
-    version = "unknown"
-    for candidate in sorted(WLROOTS_COMPOSITORS) + ["kwin_wayland", "gnome-shell"]:
-        if candidate in (desktop.lower(), session.lower()) or (
-            os.environ.get(f"{candidate.upper()}SOCK")
-        ):
-            detected = candidate
-            break
+    detected = compositor_override or "unknown"
+    version = version_override or "unknown"
+    if detected == "unknown":
+        for candidate in sorted(WLROOTS_COMPOSITORS) + [
+            "kwin_wayland",
+            "gnome-shell",
+        ]:
+            if candidate in (desktop.lower(), session.lower()) or (
+                os.environ.get(f"{candidate.upper()}SOCK")
+            ):
+                detected = candidate
+                break
     if detected == "unknown":
         for candidate in ("sway", "kwin_wayland", "gnome-shell", "river", "labwc"):
             completed = run(["pgrep", "-x", candidate], check=False)
             if completed.returncode == 0:
                 detected = candidate
                 break
-    if detected != "unknown" and shutil.which(detected) is not None:
+    if (
+        version == "unknown"
+        and detected != "unknown"
+        and shutil.which(detected) is not None
+    ):
         completed = run([detected, "--version"], check=False)
         text = (completed.stdout or completed.stderr).strip()
         match = re.search(r"\d+\.\d+(?:\.\d+)?", text)
@@ -417,25 +901,68 @@ def preflight(arguments: argparse.Namespace) -> dict[str, object]:
         raise QualificationError(
             f"XDG_SESSION_TYPE={session_type!r} is not a native Wayland session"
         )
-    for binary in ("wtype", arguments.terminal, "fcitx5", "fcitx5-remote", "pgrep"):
+    binaries = ["fcitx5", "fcitx5-remote", "pgrep"]
+    if arguments.client == "terminal":
+        binaries.append(arguments.terminal)
+    elif arguments.client == "browser-probe":
+        binaries.append(arguments.browser)
+    if arguments.injector in ("wtype", "xdotool"):
+        binaries.append(arguments.injector)
+    for binary in binaries:
         require_binary(binary)
     if not Path("/proc").exists():
         raise QualificationError("/proc is required for Fcitx5 resource snapshots")
     scenarios = load_corpus(
         arguments.corpus, arguments.method, frozenset(arguments.scenario)
     )
-    identity = compositor_identity()
+    identity = compositor_identity(
+        arguments.compositor, arguments.compositor_version
+    )
     environment: dict[str, object] = {
         "schema_version": 1,
         "session": session_type or "wayland",
         "wayland_display": os.environ.get("WAYLAND_DISPLAY"),
-        "xwayland_display": os.environ.get("DISPLAY") or "none",
-        "injection_protocol": "zwp_virtual_keyboard_v1",
-        "extraction": f"{arguments.terminal} raw-mode pty capture",
+        "host_display": (
+            os.environ.get("DISPLAY") or "none"
+            if arguments.injector == "xdotool"
+            else "none"
+        ),
+        "xwayland_display": (
+            "not-probed"
+            if arguments.injector == "xdotool"
+            else os.environ.get("DISPLAY") or "none"
+        ),
+        "injection_protocol": create_injector(arguments).description,
+        "extraction": (
+            f"{arguments.terminal} raw-mode pty capture"
+            if arguments.client == "terminal"
+            else (
+                "native browser loopback exact-output probe"
+                if arguments.client == "browser-probe"
+                else "native GTK3 entry exact-output probe"
+            )
+        ),
         "fcitx_version": command_text(["fcitx5", "--version"]),
         "fcitx_package_version": package_version("fcitx5"),
-        "terminal": arguments.terminal,
-        "terminal_package_version": package_version(arguments.terminal),
+        "client": arguments.client,
+        "browser": (
+            arguments.browser
+            if arguments.client == "browser-probe"
+            else None
+        ),
+        "browser_version": (
+            command_text([arguments.browser, "--version"])
+            if arguments.client == "browser-probe"
+            else None
+        ),
+        "terminal": (
+            arguments.terminal if arguments.client == "terminal" else None
+        ),
+        "terminal_package_version": (
+            package_version(arguments.terminal)
+            if arguments.client == "terminal"
+            else None
+        ),
         "active_input_method": active_input_method(),
         "corpus": str(arguments.corpus),
         "corpus_sha256": hashlib.sha256(arguments.corpus.read_bytes()).hexdigest(),
@@ -464,8 +991,20 @@ def process_snapshot(pid: int) -> dict[str, int]:
     return values
 
 
+def linear_growth(values: Sequence[int], material: int) -> bool:
+    """Detect sustained resource growth, not one allocator high-water mark."""
+    if len(values) < 6 or values[-1] <= values[0] + material:
+        return False
+    increases = sum(
+        current > previous
+        for previous, current in zip(values, values[1:])
+    )
+    return increases * 5 >= (len(values) - 1) * 4
+
+
 def observe_scenario(
     client: TerminalClient,
+    injector: Injector,
     scenario: Scenario,
     delay_milliseconds: int,
     timeout_seconds: float,
@@ -480,9 +1019,13 @@ def observe_scenario(
     result says so rather than reporting an indistinguishable pass.
     """
     client.reset()
-    last_input_ns = inject(scenario.encoded_input, delay_milliseconds)
-    before_boundary, _ = client.wait_for(scenario.expected, preedit_settle_seconds)
-    inject_commit_boundary()
+    last_input_ns = injector.inject(
+        scenario.encoded_input, delay_milliseconds
+    )
+    before_boundary, _ = client.wait_for(
+        scenario.expected, preedit_settle_seconds, visible=True
+    )
+    injector.commit_boundary()
     observed, settled_ns = client.wait_for(scenario.expected, timeout_seconds)
     return ObservedScenario(
         name=scenario.name,
@@ -544,14 +1087,28 @@ def as_samples(observations: Sequence[ObservedScenario]) -> list[dict[str, objec
     ]
 
 
+def failure_samples(
+    observations: Sequence[ObservedScenario],
+    limit: int = MAX_RETAINED_SOAK_FAILURES,
+) -> list[dict[str, object]]:
+    """Retain bounded exact failures so a long soak remains diagnosable."""
+    return [
+        sample
+        for sample in as_samples(observations)
+        if not sample["correct"]
+    ][:limit]
+
+
 def run_corpus(
     client: TerminalClient,
+    injector: Injector,
     scenarios: Sequence[Scenario],
     arguments: argparse.Namespace,
 ) -> list[ObservedScenario]:
     return [
         observe_scenario(
             client,
+            injector,
             scenario,
             arguments.delay_milliseconds,
             arguments.timeout_seconds,
@@ -563,6 +1120,7 @@ def run_corpus(
 
 def run_burst(
     client: TerminalClient,
+    injector: Injector,
     scenarios: Sequence[Scenario],
     arguments: argparse.Namespace,
     delay_milliseconds: int,
@@ -574,6 +1132,7 @@ def run_burst(
             observations.append(
                 observe_scenario(
                     client,
+                    injector,
                     scenario,
                     delay_milliseconds,
                     arguments.timeout_seconds,
@@ -585,6 +1144,7 @@ def run_burst(
 
 def run_stress(
     client: TerminalClient,
+    injector: Injector,
     scenarios: Sequence[Scenario],
     arguments: argparse.Namespace,
 ) -> list[ObservedScenario]:
@@ -600,6 +1160,7 @@ def run_stress(
             observations.append(
                 observe_scenario(
                     client,
+                    injector,
                     scenario,
                     0,
                     arguments.timeout_seconds,
@@ -611,6 +1172,7 @@ def run_stress(
 
 def run_soak(
     client: TerminalClient,
+    injector: Injector,
     scenarios: Sequence[Scenario],
     arguments: argparse.Namespace,
     pid: int,
@@ -627,6 +1189,7 @@ def run_soak(
             observations.append(
                 observe_scenario(
                     client,
+                    injector,
                     scenario,
                     arguments.delay_milliseconds,
                     arguments.timeout_seconds,
@@ -640,17 +1203,23 @@ def run_soak(
                 next_sample = time.monotonic() + SOAK_SAMPLE_SECONDS
     samples.append(process_snapshot(pid))
     rss = [sample["rss_kib"] for sample in samples]
+    threads = [sample["threads"] for sample in samples]
     return {
         "requested_seconds": arguments.soak_seconds,
         "qualifying": arguments.soak_seconds >= arguments.qualifying_soak_seconds,
         "summary": summarize(observations),
+        "failures": failure_samples(observations),
+        "retained_failure_limit": MAX_RETAINED_SOAK_FAILURES,
         "resource_samples": len(samples),
         "rss_kib": {"first": rss[0], "last": rss[-1], "max": max(rss)},
         "rss_growth_kib": rss[-1] - rss[0],
+        "rss_linear_growth": linear_growth(rss, 1024),
         "threads": {
-            "first": samples[0]["threads"],
-            "last": samples[-1]["threads"],
+            "first": threads[0],
+            "last": threads[-1],
+            "max": max(threads),
         },
+        "threads_linear_growth": linear_growth(threads, 0),
     }
 
 
@@ -761,6 +1330,12 @@ def evaluate(result: dict[str, object]) -> dict[str, object]:
     if soak is not None:
         checks["soak_correct"] = soak["summary"]["errors"] == 0  # type: ignore[index]
         checks["soak_qualifying_duration"] = bool(soak["qualifying"])  # type: ignore[index]
+        checks["soak_rss_not_linear"] = not bool(  # type: ignore[index]
+            soak.get("rss_linear_growth", True)  # type: ignore[union-attr]
+        )
+        checks["soak_threads_not_linear"] = not bool(  # type: ignore[index]
+            soak.get("threads_linear_growth", True)  # type: ignore[union-attr]
+        )
     unmet = sorted(name for name, passed in checks.items() if not passed)
     return {
         "checks": checks,
@@ -788,24 +1363,36 @@ def qualify(arguments: argparse.Namespace) -> dict[str, object]:
     arguments.work_directory.mkdir(parents=True, exist_ok=True)
 
     try:
-        with TerminalClient(arguments.terminal, capture, log) as client:
+        with create_injector(arguments) as injector, create_client(
+            arguments, capture, log
+        ) as client:
             # Select the input method only once a real client owns the focus,
             # then prove the engine is actually transforming keystrokes.
+            injector.prepare_client()
             select_input_method(arguments.input_method, arguments.timeout_seconds)
             verify_engine_in_path(
-                client, arguments.method, arguments.timeout_seconds
+                client,
+                injector,
+                arguments.method,
+                arguments.timeout_seconds,
             )
-            corpus_observations = run_corpus(client, scenarios, arguments)
+            corpus_observations = run_corpus(
+                client, injector, scenarios, arguments
+            )
             burst_observations = run_burst(
-                client, scenarios, arguments, arguments.burst_delay_milliseconds
+                client,
+                injector,
+                scenarios,
+                arguments,
+                arguments.burst_delay_milliseconds,
             )
             stress_observations = (
-                run_stress(client, scenarios, arguments)
+                run_stress(client, injector, scenarios, arguments)
                 if arguments.stress_rounds > 0
                 else []
             )
             soak = (
-                run_soak(client, scenarios, arguments, pid)
+                run_soak(client, injector, scenarios, arguments, pid)
                 if arguments.soak_seconds > 0
                 else None
             )
@@ -874,7 +1461,38 @@ def parse_arguments(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--method", default="telex")
     parser.add_argument("--scenario", action="append", default=[])
     parser.add_argument("--input-method", default="unilume")
+    parser.add_argument(
+        "--compositor",
+        default="",
+        help="explicit compositor process name for isolated package roots",
+    )
+    parser.add_argument(
+        "--compositor-version",
+        default="",
+        help="explicit version when the compositor binary is outside PATH",
+    )
+    parser.add_argument(
+        "--injector",
+        choices=("wtype", "xdotool", "mutter-remote-desktop"),
+        default="wtype",
+    )
+    parser.add_argument(
+        "--xdotool-window",
+        help="outer X11 window ID for a nested compositor",
+    )
+    parser.add_argument(
+        "--client",
+        choices=("terminal", "gtk3-probe", "browser-probe"),
+        default="terminal",
+    )
     parser.add_argument("--terminal", default="foot")
+    parser.add_argument("--browser", default="google-chrome")
+    parser.add_argument(
+        "--browser-argument",
+        action="append",
+        default=[],
+        help="argument passed to the controlled browser; repeat as needed",
+    )
     parser.add_argument("--delay-milliseconds", type=int, default=10)
     parser.add_argument("--burst-rounds", type=int, default=10)
     parser.add_argument(

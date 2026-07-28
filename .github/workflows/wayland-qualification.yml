@@ -10,6 +10,11 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      soak_seconds:
+        description: Wall-clock soak duration per compositor
+        required: false
+        default: "0"
 
 permissions:
   contents: read
@@ -31,16 +36,14 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install --yes shellcheck
-          shellcheck scripts/test/wayland_qualification_session.sh
+          shellcheck \
+            scripts/test/nested_wayland_qualification_session.sh \
+            scripts/test/wayland_qualification_session.sh
 
   wlroots-qualification:
     name: wlroots native Wayland qualification
     runs-on: ubuntu-latest
-    timeout-minutes: 25
-    # The burst gate is currently blocked by issue #86, so this job records
-    # evidence without failing the build. Remove continue-on-error once #86 is
-    # fixed, so a regression in the Wayland path breaks CI again.
-    continue-on-error: true
+    timeout-minutes: 50
 
     steps:
       - name: Checkout repository
@@ -77,6 +80,7 @@ jobs:
 
       - name: Qualify a disposable wlroots session
         env:
+          SOAK_SECONDS: ${{ inputs.soak_seconds || '0' }}
           UNILUME_WAYLAND_LOG_DIR: ${{ runner.temp }}/wayland-logs
         run: |
           status=0
@@ -84,6 +88,7 @@ jobs:
             "$RUNNER_TEMP/unilume-wayland" \
             --burst-rounds 3 \
             --stress-rounds 2 \
+            --soak-seconds "$SOAK_SECONDS" \
             --output "$RUNNER_TEMP/wlroots-sway.json" || status=$?
           echo "harness exit status: $status"
           if [ -f "$RUNNER_TEMP/wlroots-sway.json" ]; then
@@ -103,5 +108,79 @@ jobs:
           name: wayland-qualification-wlroots
           path: |
             ${{ runner.temp }}/wlroots-sway.json
+            ${{ runner.temp }}/wayland-logs
+          if-no-files-found: warn
+
+  nested-compositor-qualification:
+    name: ${{ matrix.family }} native Wayland qualification
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - family: kwin
+            compositor_packages: kwin-wayland xdotool x11-utils xvfb
+          - family: mutter
+            compositor_packages: gnome-shell gir1.2-gtk-3.0 python3-gi
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Fcitx5 and the native compositor stack
+        env:
+          COMPOSITOR_PACKAGES: ${{ matrix.compositor_packages }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes \
+            dbus-x11 \
+            fcitx5 \
+            fcitx5-frontend-gtk3 \
+            fcitx5-modules-dev \
+            gettext \
+            gir1.2-gtk-3.0 \
+            libfcitx5config-dev \
+            libfcitx5core-dev \
+            locales \
+            mesa-utils \
+            pkg-config \
+            $COMPOSITOR_PACKAGES
+
+      - name: Generate the locales the addon tests require
+        run: |
+          sudo localedef -i en_US -f UTF-8 en_US.UTF-8
+          sudo localedef -i vi_VN -f UTF-8 vi_VN.UTF-8
+
+      - name: Build and install the Fcitx5 addon
+        run: |
+          cmake -S . -B build/fcitx5 \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DUNILUME_BUILD_FCITX5_ADDON=ON
+          cmake --build build/fcitx5 --parallel 2
+          cmake --install build/fcitx5 --prefix "$RUNNER_TEMP/unilume-wayland"
+
+      - name: Qualify the native direct path
+        env:
+          COMPOSITOR_FAMILY: ${{ matrix.family }}
+          SOAK_SECONDS: ${{ inputs.soak_seconds || '0' }}
+          UNILUME_WAYLAND_LOG_DIR: ${{ runner.temp }}/wayland-logs
+        run: |
+          ./scripts/test/nested_wayland_qualification_session.sh \
+            "$RUNNER_TEMP/unilume-wayland" \
+            "$COMPOSITOR_FAMILY" \
+            --burst-rounds 3 \
+            --stress-rounds 2 \
+            --soak-seconds "$SOAK_SECONDS" \
+            --output \
+              "$RUNNER_TEMP/wayland-$COMPOSITOR_FAMILY.json"
+
+      - name: Upload the qualification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wayland-qualification-${{ matrix.family }}
+          path: |
+            ${{ runner.temp }}/wayland-${{ matrix.family }}.json
             ${{ runner.temp }}/wayland-logs
           if-no-files-found: warn

@@ -8,7 +8,7 @@ checklist for the compositors that cannot be driven from inside a session.
 
 ## Current status
 
-**wlroots measured automatically; KWin and Mutter still interactive.**
+**wlroots, KWin and Mutter are measured automatically.**
 
 An automated harness now qualifies a native Wayland session by injecting real
 key events and reading the exact bytes a real Wayland client received. The
@@ -16,9 +16,9 @@ current evidence is:
 
 | Compositor family | Compositor | Evidence | Verdict |
 | --- | --- | --- | --- |
-| wlroots | sway 1.9 (headless backend) | automated, exact output | corpus passes; burst blocked by [#86](https://github.com/dismonjames/UniLume/issues/86) |
-| KWin | — | not runnable from inside a session | not claimed |
-| Mutter | — | not runnable from inside a session | not claimed |
+| wlroots | sway 1.9 (headless backend) | native terminal, exact output | corpus, 1 ms burst and unpaced stress pass |
+| KWin | KWin 6.3.6 (nested X11 backend) | native GTK3, exact output | direct corpus and 1 ms burst pass |
+| Mutter | GNOME Shell/Mutter 48.7 (headless virtual monitor) | native GTK3, exact output | direct corpus and 1 ms burst pass |
 
 Earlier work under #47 ran real Firefox, Chrome and VS Code/Electron Wayland
 clients inside an isolated KWin 6.3.6 virtual compositor with Fcitx 5.1.12, and
@@ -44,8 +44,23 @@ cmake --install build/fcitx5 --prefix /tmp/ul-prefix
 `scripts/test/wayland_qualification_session.sh` builds a disposable wlroots
 session: a headless sway compositor, a private D-Bus session, a private Fcitx
 profile and a private addon directory. It never touches the operator's desktop.
+`scripts/test/nested_wayland_qualification_session.sh` does the same for KWin
+and Mutter:
+
+```sh
+./scripts/test/nested_wayland_qualification_session.sh \
+  /tmp/ul-prefix kwin --burst-rounds 5 --output /tmp/kwin.json
+./scripts/test/nested_wayland_qualification_session.sh \
+  /tmp/ul-prefix mutter --burst-rounds 5 --output /tmp/mutter.json
+```
+
 To qualify a compositor you are already running, invoke
 `scripts/test/qualify_wayland_compositor.py` directly inside that session.
+The same harness can launch a browser with `--client browser-probe --browser
+google-chrome`. It removes `DISPLAY` from the browser environment, forces the
+native Wayland Chromium IME path, and obtains live and committed textarea
+values through a token-authenticated loopback endpoint. A visual inspection or
+window title is not accepted as output evidence.
 
 The pure decision logic has unit coverage that needs no compositor:
 
@@ -57,14 +72,20 @@ python3 -B tests/wayland/qualify_wayland_compositor_test.py
 
 > [!NOTE]
 > **Injection.** Key events are delivered through `zwp_virtual_keyboard_v1`
-> using `wtype`. Only compositors that implement that protocol can be driven
-> from inside the session.
+> using `wtype` on wlroots. A nested KWin session receives XTEST at its outer
+> compositor window, then delivers normal seat events to its native Wayland
+> clients. Mutter receives keysyms through its compositor-owned
+> `org.gnome.Mutter.RemoteDesktop.Session`. Neither nested path is a UniLume
+> backend, and neither uses `uinput`.
 
 > [!NOTE]
-> **Extraction.** A `foot` terminal runs `cat` with the pty in `-icanon -echo`,
+> **Extraction.** On wlroots, a `foot` terminal runs `cat` with the pty in
+> `-icanon -echo`,
 > so the kernel line discipline neither echoes nor erases. A Backspace that
 > UniLume failed to consume therefore surfaces as a literal delete byte and
 > fails the comparison instead of being silently absorbed by the terminal.
+> KWin and Mutter use a native GTK3 entry probe that records its live state
+> before Return and its exact committed UTF-8 after Return.
 
 The harness refuses to report a result unless the session is really native
 Wayland, and it verifies that the engine actually transforms keystrokes before
@@ -96,17 +117,16 @@ so the addon cannot report a backend it did not actually use.
 
 ## Known limitations of this environment
 
-1. **KWin and Mutter cannot be qualified from inside a session.** Neither
-   implements `zwp_virtual_keyboard_v1`, deliberately, so injected key events
-   have no transport. They must be driven at the kernel level or tested
-   interactively.
-2. **`uinput` is not used.** Issue #58 places it out of scope because a
+1. **`uinput` is not used.** Issue #58 places it out of scope because a
    kernel-level injection path would mask native-path behaviour, so the harness
    fails loudly instead of substituting it.
-3. **Terminal clients do not provide surrounding text.** With `foot`, the
+2. **Terminal clients do not provide surrounding text.** With `foot`, the
    direct replacement path is correctly ineligible and the diagnostic trace
-   records the `unavailable` capability gate. Qualifying the zero-preedit path
-   itself needs a client that provides surrounding text.
+   records the `unavailable` capability gate. The GTK probe provides validated
+   surrounding text and qualifies direct replacement separately.
+3. **One run claims one compositor and client.** The evidence JSON records the
+   exact family, version, injector and extraction client. It is not evidence
+   for an untested application or compositor version.
 
 ## Environment check script
 
@@ -126,11 +146,9 @@ echo "Fcitx5 version:  $(fcitx5 --version 2>/dev/null || echo not found)"
 
 ## Manual validation checklist
 
-This checklist covers what the automated harness cannot reach: the KWin and
-Mutter families, and the graphical applications that provide surrounding text
-and therefore exercise the direct zero-preedit path. Where a case is already
-covered automatically for wlroots, prefer the harness, because it compares exact
-output rather than appearance.
+This checklist covers graphical application families beyond the controlled
+GTK probe. Where a case is already covered automatically, prefer the harness,
+because it compares exact output rather than appearance.
 
 Each item below must be tested on a native Wayland session (not XWayland).
 The tester should use the user-local install procedure from
@@ -267,47 +285,63 @@ Pass/fail for each on native Wayland:
 
 ### wlroots, sway 1.9, native Wayland
 
-Recorded with `scripts/test/wayland_qualification_session.sh` at UniLume
-`d353d423e024c27a95c347af09bbf7638bfa9ae3`. Environment: Ubuntu 24.04.4,
+Recorded with `scripts/test/wayland_qualification_session.sh` after the
+transactional preedit fix in #86. Environment: Ubuntu 24.04.4,
 Fcitx 5.1.7 `waylandim`, foot 1.16.2 `+ime`, no XWayland, Telex.
 
 | Phase | Observations | Errors | Defects |
 | --- | --- | --- | --- |
 | `corpus` (10 ms/key) | 6 | 0 | none |
-| `burst` (1 ms/key) | 30 | 2 | 2 lost |
-| `stress` (no delay) | 18 | 0 | none |
-| `soak` (120 s) | 154 | 0 | none |
+| `burst` (1 ms/key) | 18 | 0 | none |
+| `stress` (no delay) | 12 | 0 | none |
 
 Backend path: the client observed the **preedit fallback**, and the addon's
 diagnostic trace independently reported `preedit`, so the two agree. The
 capability gate `unavailable` was recorded 64 times, which is correct because a
 terminal does not provide surrounding text.
 
-Resource behaviour over the soak was clean: RSS 33780 KiB at both the first and
-last sample, zero growth, thread count stable at 4, and no backend failures.
+The client and diagnostic trace both reported `preedit`. There were zero
+backend failures. The earlier lost-segment reproduction is retained in #86;
+its real wlroots retest now passes and the CI job is no longer
+`continue-on-error`.
 
-The soak is recorded as **non-qualifying** because this document requires at
-least 30 minutes and the run was 120 seconds.
+### KWin 6.3.6 and Mutter 48.7, native Wayland GTK3
 
-### Blocking finding
+Both isolated Debian 13.6 runs used Fcitx 5.1.12, the same six-scenario corpus,
+the native GTK3 exact-output probe, and capability-gated direct replacement.
 
-The `burst` phase failed its gate. Two of 30 observations lost one already
-committed word, twice identically:
+| Family | Phase | Observations | Errors | Defects | Observed path |
+| --- | --- | ---: | ---: | --- | --- |
+| KWin | corpus (10 ms/key) | 6 | 0 | none | direct |
+| KWin | burst (1 ms/key) | 6 | 0 | none | direct |
+| Mutter | corpus (10 ms/key) | 6 | 0 | none | direct |
+| Mutter | burst (1 ms/key) | 6 | 0 | none | direct |
 
-```text
-scenario: natural_phrase
-expected: 'tôi đang gõ tiếng việt'
-observed: 'đang gõ tiếng việt'
-```
+For every row the client-observed path and UniLume diagnostic path agree.
+There were no backend failures, stale results, uncertain outcomes, lost
+characters, duplicates or reordered output.
 
-With the input method switched off, the same corpus injected at unbounded speed
-arrived intact in five consecutive runs, so the loss is not a virtual-keyboard
-or compositor transport artifact. Every incident counter in the diagnostic
-bundle nevertheless stayed at zero across 4105 events, so the current
-diagnostics cannot attribute this loss class.
+### Chromium native Wayland blocker
 
-Tracked as [#86](https://github.com/dismonjames/UniLume/issues/86) and
-deliberately not fixed alongside the harness.
+The controlled browser probe found a blocking direct-path defect on Google
+Chrome 150.0.7871.114 under the same Debian 13.6 / KWin 6.3.6 / Fcitx 5.1.12
+environment. At 10 ms/key, five of six scenarios were exact and the Backspace
+scenario produced `tiếng` instead of `tiến`. At 1 ms/key, only one of six
+scenarios was exact; examples include `tiếng Vieệt` instead of `tiếng Việt`
+and `asf` instead of `à`. The diagnostic bundle recorded the direct path with
+zero backend failures, stale results or uncertain outcomes, so this is not
+classified as an injector or browser-extraction failure.
+
+The root fix and real-browser regression are tracked by #90. Issue #58 remains
+open until that blocker passes and Firefox/Electron/Qt coverage is complete.
+
+The first automated 30-minute direct-path soaks also found one corrupted
+observation among 15,801 on KWin and four among 9,674 on Mutter, despite clean
+corpus, burst and stress phases and stable RSS/thread counts. The wlroots
+preedit-path soak passed. The long-run direct blocker is tracked by #91.
+Qualification reports now retain a bounded list of exact soak failures instead
+of only an aggregate count, so its retest can identify the concrete sequence
+without allowing an unbounded artifact.
 
 ## Implementation gaps (Wayland)
 
