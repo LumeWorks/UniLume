@@ -74,6 +74,7 @@ CLIENT_POLL_SECONDS = 0.02
 SOAK_SAMPLE_SECONDS = 5.0
 DIAGNOSTIC_WAIT_SECONDS = 5.0
 MAX_PROBE_REPORT_BYTES = 1024 * 1024
+MAX_RETAINED_SOAK_FAILURES = 100
 
 # wtype treats a leading dash as an option, so a corpus chunk that begins with
 # one could silently become a flag instead of typed text.
@@ -1086,6 +1087,18 @@ def as_samples(observations: Sequence[ObservedScenario]) -> list[dict[str, objec
     ]
 
 
+def failure_samples(
+    observations: Sequence[ObservedScenario],
+    limit: int = MAX_RETAINED_SOAK_FAILURES,
+) -> list[dict[str, object]]:
+    """Retain bounded exact failures so a long soak remains diagnosable."""
+    return [
+        sample
+        for sample in as_samples(observations)
+        if not sample["correct"]
+    ][:limit]
+
+
 def run_corpus(
     client: TerminalClient,
     injector: Injector,
@@ -1195,6 +1208,8 @@ def run_soak(
         "requested_seconds": arguments.soak_seconds,
         "qualifying": arguments.soak_seconds >= arguments.qualifying_soak_seconds,
         "summary": summarize(observations),
+        "failures": failure_samples(observations),
+        "retained_failure_limit": MAX_RETAINED_SOAK_FAILURES,
         "resource_samples": len(samples),
         "rss_kib": {"first": rss[0], "last": rss[-1], "max": max(rss)},
         "rss_growth_kib": rss[-1] - rss[0],

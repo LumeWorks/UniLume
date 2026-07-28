@@ -335,6 +335,14 @@ classified as an injector or browser-extraction failure.
 The root fix and real-browser regression are tracked by #90. Issue #58 remains
 open until that blocker passes and Firefox/Electron/Qt coverage is complete.
 
+The first automated 30-minute direct-path soaks also found one corrupted
+observation among 15,801 on KWin and four among 9,674 on Mutter, despite clean
+corpus, burst and stress phases and stable RSS/thread counts. The wlroots
+preedit-path soak passed. The long-run direct blocker is tracked by #91.
+Qualification reports now retain a bounded list of exact soak failures instead
+of only an aggregate count, so its retest can identify the concrete sequence
+without allowing an unbounded artifact.
+
 ## Implementation gaps (Wayland)
 
 If the tester encounters any of the following, record the environment and skip

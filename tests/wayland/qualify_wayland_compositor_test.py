@@ -216,6 +216,18 @@ class SummaryTest(unittest.TestCase):
         with self.assertRaises(HARNESS.QualificationError):
             HARNESS.summarize([])
 
+    def test_soak_failures_are_exact_and_bounded(self) -> None:
+        rows = [
+            observation("correct", "tiếng", "tiếng"),
+            observation("first", "tiếng", "tieêng"),
+            observation("second", "Việt", "Vieệt"),
+        ]
+        failures = HARNESS.failure_samples(rows, limit=1)
+        self.assertEqual(len(failures), 1)
+        self.assertEqual(failures[0]["scenario"], "first")
+        self.assertEqual(failures[0]["expected"], "tiếng")
+        self.assertEqual(failures[0]["observed"], "tieêng")
+
     def test_resource_growth_requires_a_material_sustained_trend(self) -> None:
         self.assertTrue(
             HARNESS.linear_growth([1000, 1300, 1600, 1900, 2200, 2500], 1024)
