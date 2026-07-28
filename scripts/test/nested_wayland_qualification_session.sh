@@ -183,6 +183,14 @@ dbus-run-session -- sh -eu -c '
     export GDK_BACKEND=wayland
     export GTK_IM_MODULE=fcitx
 
+    # Own the Fcitx D-Bus name before GNOME services can auto-activate a
+    # competing instance. The GTK frontend does not require the compositor
+    # socket at startup; the controlled client is launched only after both
+    # Fcitx and Mutter are ready.
+    fcitx5 -D --disable=waylandim,xcb,xim,fcitx4frontend,ibusfrontend \
+      >"$work/fcitx.log" 2>&1 &
+    fcitx_pid=$!
+
     gnome-shell \
       --headless \
       --wayland \
@@ -209,9 +217,6 @@ dbus-run-session -- sh -eu -c '
       exit 1
     fi
 
-    fcitx5 -D --disable=waylandim,xcb,xim,fcitx4frontend,ibusfrontend \
-      >"$work/fcitx.log" 2>&1 &
-    fcitx_pid=$!
     injector_args="--injector mutter-remote-desktop"
     client_args="--client gtk3-probe"
   fi
