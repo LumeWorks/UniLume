@@ -139,12 +139,18 @@ hiệu lực.
 
 ## Ghi công
 
+### Nguồn gốc & Dự án kế thừa
+
 - Phạm Kim Long — tác giả UniKey và UniKey Input Engine.
 - Nhóm x-unikey cùng các cộng tác viên được liệt kê trong [AUTHORS.md](AUTHORS.md).
 - Hidetoshi Tajima và X11R6 Xi18n Implementation Group — IMdkit.
 
-UniKey là tên của dự án gốc và chỉ được dùng ở đây để ghi công, mô tả nguồn
-gốc kỹ thuật hoặc giữ tương thích API.
+UniKey là tên của dự án gốc và chỉ được dùng ở đây để ghi công, mô tả nguồn gốc kỹ thuật hoặc giữ tương thích API.
+
+### Đội ngũ phát triển UniLume (Developers)
+
+- [dismonjames](https://github.com/dismonjames) — Lead Developer
+- [hnrie](https://github.com/hnrie) — Developer
 
 ## Roadmap ngắn
 
@@ -164,4 +170,11 @@ Nếu UniLume mang lại giá trị cho bạn, bạn có thể ủng hộ nhà p
   <br>
   <sub><i>Cảm ơn sự hỗ trợ và đồng hành của bạn dành cho UniLume! ❤️</i></sub>
 </p>
+
+### Bảng vinh danh nhà ủng hộ (Supporters)
+
+*Chưa có lượt ủng hộ nào. Hãy là người đầu tiên đóng góp và xuất hiện tại đây!*
+
+<!-- Cập nhật danh sách nhà ủng hộ tại đây -->
+
 

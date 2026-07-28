@@ -20,6 +20,6 @@ endorsement of, or responsibility for UniLume.
 
 ## UniLume
 
-No individual UniLume contributors are listed yet. Git history is the source
-of truth for future contributions; do not add names without their work or
-consent.
+- **dismonjames** ([@dismonjames](https://github.com/dismonjames)) — Project lead and core developer.
+- **hnrie** ([@hnrie](https://github.com/hnrie)) — Developer.
+
