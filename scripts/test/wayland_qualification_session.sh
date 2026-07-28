@@ -38,7 +38,21 @@ if [ -z "$fcitx_libdir" ]; then
 fi
 
 work=$(mktemp -d)
-trap 'rm -rf -- "$work"' EXIT HUP INT TERM
+# The disposable session is removed on exit, which would also discard the
+# compositor and Fcitx logs that explain a failure. Set UNILUME_WAYLAND_LOG_DIR
+# to retain copies, which is how CI keeps a failed run diagnosable.
+save_logs() {
+  [ -n "${UNILUME_WAYLAND_LOG_DIR:-}" ] || return 0
+  mkdir -p "$UNILUME_WAYLAND_LOG_DIR" 2>/dev/null || return 0
+  for name in sway.log fcitx.log; do
+    [ -f "$work/$name" ] && cp "$work/$name" "$UNILUME_WAYLAND_LOG_DIR/$name"
+  done
+  [ -f "$work/results/client.log" ] &&
+    cp "$work/results/client.log" "$UNILUME_WAYLAND_LOG_DIR/client.log"
+  return 0
+}
+
+trap 'save_logs; rm -rf -- "$work"' EXIT HUP INT TERM
 mkdir -p "$work/runtime" "$work/config/fcitx5" "$work/data" "$work/results"
 chmod 700 "$work/runtime"
 
@@ -112,6 +126,7 @@ dbus-run-session -- sh -eu -c '
   done
   if [ "$ready" -ne 1 ]; then
     cat "$work/fcitx.log" >&2
+    cat "$work/sway.log" >&2
     echo "the UniLume addon did not load in the isolated Fcitx instance" >&2
     exit 1
   fi

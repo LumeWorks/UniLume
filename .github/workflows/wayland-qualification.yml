@@ -76,17 +76,32 @@ jobs:
           cmake --install build/fcitx5 --prefix "$RUNNER_TEMP/unilume-wayland"
 
       - name: Qualify a disposable wlroots session
+        env:
+          UNILUME_WAYLAND_LOG_DIR: ${{ runner.temp }}/wayland-logs
         run: |
+          status=0
           ./scripts/test/wayland_qualification_session.sh \
             "$RUNNER_TEMP/unilume-wayland" \
             --burst-rounds 3 \
             --stress-rounds 2 \
-            --output "$RUNNER_TEMP/wlroots-sway.json"
+            --output "$RUNNER_TEMP/wlroots-sway.json" || status=$?
+          echo "harness exit status: $status"
+          if [ -f "$RUNNER_TEMP/wlroots-sway.json" ]; then
+            echo "--- verdict ---"
+            python3 -c 'import json,sys; \
+              print(json.dumps(json.load(open(sys.argv[1]))["qualification"], indent=2))' \
+              "$RUNNER_TEMP/wlroots-sway.json"
+          else
+            echo "no result file was produced; the run failed before measuring"
+          fi
+          exit "$status"
 
       - name: Upload the qualification evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: wayland-qualification-wlroots
-          path: ${{ runner.temp }}/wlroots-sway.json
+          path: |
+            ${{ runner.temp }}/wlroots-sway.json
+            ${{ runner.temp }}/wayland-logs
           if-no-files-found: warn
