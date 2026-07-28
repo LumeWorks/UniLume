@@ -22,7 +22,9 @@ jobs:
           fetch-depth: 0
 
       - name: Test desktop comparison harness
-        run: python3 -B tests/benchmark/compare_fcitx5_desktop_test.py
+        run: |
+          python3 -B tests/benchmark/compare_fcitx5_desktop_test.py
+          python3 -B tests/benchmark/soak_fcitx5_desktop_test.py
 
       - name: Materialize baseline
         env:
