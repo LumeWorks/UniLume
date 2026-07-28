@@ -155,8 +155,9 @@ UniKey là tên của dự án gốc và chỉ được dùng ở đây để gh
 ### Trợ lý AI (AI Assistants)
 
 - **Antigravity** (Google DeepMind) — AI Pair Programmer
-- **Codex** (OpenAI) — AI Coding Assistant
+- **Codex** (OpenAI) — AI Pair Programmer
 - **Claude** (Anthropic) — AI Coding Assistant
+
 
 
 ## Roadmap ngắn
