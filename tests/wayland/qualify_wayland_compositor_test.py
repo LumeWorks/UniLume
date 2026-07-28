@@ -101,6 +101,28 @@ class InjectionArgumentTest(unittest.TestCase):
         with self.assertRaises(HARNESS.QualificationError):
             HARNESS.wtype_arguments("tiếng", 10)
 
+    def test_xdotool_targets_the_nested_compositor_in_order(self) -> None:
+        self.assertEqual(
+            HARNESS.xdotool_arguments("ab<BS>", 1, "0x200000"),
+            [
+                ["xdotool", "windowfocus", "--sync", "0x200000"],
+                [
+                    "xdotool",
+                    "type",
+                    "--clearmodifiers",
+                    "--delay",
+                    "1",
+                    "--",
+                    "ab",
+                ],
+                ["xdotool", "key", "--clearmodifiers", "BackSpace"],
+            ],
+        )
+
+    def test_xdotool_refuses_composed_input(self) -> None:
+        with self.assertRaises(HARNESS.QualificationError):
+            HARNESS.xdotool_arguments("tiếng", 1, "0x200000")
+
 
 class DiagnosticBundleTest(unittest.TestCase):
     def test_missing_bundle_reports_why_it_is_unavailable(self) -> None:
@@ -175,6 +197,14 @@ class SummaryTest(unittest.TestCase):
     def test_empty_observation_set_is_refused(self) -> None:
         with self.assertRaises(HARNESS.QualificationError):
             HARNESS.summarize([])
+
+    def test_resource_growth_requires_a_material_sustained_trend(self) -> None:
+        self.assertTrue(
+            HARNESS.linear_growth([1000, 1300, 1600, 1900, 2200, 2500], 1024)
+        )
+        self.assertFalse(
+            HARNESS.linear_growth([1000, 2500, 1500, 2200, 1600, 2000], 1024)
+        )
 
 
 def result_template(**overrides: object) -> dict[str, object]:
@@ -261,11 +291,27 @@ class QualificationVerdictTest(unittest.TestCase):
                 soak={
                     "qualifying": False,
                     "summary": {"errors": 0, "defects": {}},
+                    "rss_linear_growth": False,
+                    "threads_linear_growth": False,
                 }
             )
         )
         self.assertFalse(verdict["overall_pass"])
         self.assertIn("soak_qualifying_duration", verdict["unmet"])
+
+    def test_qualifying_soak_rejects_linear_resource_growth(self) -> None:
+        verdict = HARNESS.evaluate(
+            result_template(
+                soak={
+                    "qualifying": True,
+                    "summary": {"errors": 0, "defects": {}},
+                    "rss_linear_growth": True,
+                    "threads_linear_growth": False,
+                }
+            )
+        )
+        self.assertFalse(verdict["overall_pass"])
+        self.assertIn("soak_rss_not_linear", verdict["unmet"])
         self.assertNotIn("soak_correct", verdict["unmet"])
 
 
