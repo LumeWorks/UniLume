@@ -75,6 +75,11 @@ SOAK_SAMPLE_SECONDS = 5.0
 DIAGNOSTIC_WAIT_SECONDS = 5.0
 MAX_PROBE_REPORT_BYTES = 1024 * 1024
 MAX_RETAINED_SOAK_FAILURES = 100
+FIREFOX_QUALIFICATION_PREFERENCES = (
+    'user_pref("browser.aboutwelcome.enabled", false);\n'
+    'user_pref("browser.shell.checkDefaultBrowser", false);\n'
+    'user_pref("datareporting.policy.dataSubmissionEnabled", false);\n'
+)
 
 # wtype treats a leading dash as an option, so a corpus chunk that begins with
 # one could silently become a flag instead of typed text.
@@ -612,6 +617,20 @@ class BrowserProbeState:
             return expected, time.monotonic_ns()
 
 
+def prepare_firefox_profile(profile: Path) -> None:
+    """Create a deterministic disposable profile before Firefox starts.
+
+    Firefox's ``--profile`` option selects an existing profile directory; it
+    does not provide Chromium's create-on-demand ``--user-data-dir`` contract.
+    Starting against a missing directory can leave the browser in first-run
+    UI without ever navigating to the controlled probe URL.
+    """
+    profile.mkdir(parents=True, exist_ok=True)
+    (profile / "user.js").write_text(
+        FIREFOX_QUALIFICATION_PREFERENCES, encoding="utf-8"
+    )
+
+
 class BrowserProbeClient(TerminalClient):
     """Own a native Wayland browser and extract document values over loopback."""
 
@@ -717,6 +736,10 @@ class BrowserProbeClient(TerminalClient):
             ] + launch_arguments
         elif "firefox" in executable:
             environment["MOZ_ENABLE_WAYLAND"] = "1"
+            environment["GTK_IM_MODULE"] = "fcitx"
+            environment["XMODIFIERS"] = "@im=fcitx"
+            profile = self.capture.parent / "browser-profile"
+            prepare_firefox_profile(profile)
             if not any(
                 argument in ("-profile", "--profile")
                 for argument in launch_arguments
@@ -725,7 +748,7 @@ class BrowserProbeClient(TerminalClient):
                     [
                         "--no-remote",
                         "--profile",
-                        str(self.capture.parent / "browser-profile"),
+                        str(profile),
                     ]
                 )
         with self.log.open("wb") as log_stream:
