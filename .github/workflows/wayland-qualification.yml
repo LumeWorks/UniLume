@@ -36,7 +36,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install --yes shellcheck
-          shellcheck scripts/test/wayland_qualification_session.sh
+          shellcheck \
+            scripts/test/nested_wayland_qualification_session.sh \
+            scripts/test/wayland_qualification_session.sh
 
   wlroots-qualification:
     name: wlroots native Wayland qualification
@@ -137,6 +139,7 @@ jobs:
             fcitx5-frontend-gtk3 \
             fcitx5-modules-dev \
             gettext \
+            gir1.2-gtk-3.0 \
             libfcitx5config-dev \
             libfcitx5core-dev \
             locales \
