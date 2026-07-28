@@ -40,6 +40,34 @@ void runPreeditFallbackTests(Assertions &assertions)
     assertions.equal("fallback commits at boundary", committed, "tôi ");
     assertions.equal("fallback clears after boundary", telex.preedit(), "");
 
+    core::PreeditFallbackController transactional{
+        UL_INPUT_METHOD_TELEX,
+        core::PreeditCommitPolicy::composition_boundary};
+    submitText(
+        transactional,
+        "tooi ddang gox tieengs vieetj",
+        committed = {});
+    assertions.equal(
+        "transactional fallback emits no intermediate word commits",
+        committed,
+        "");
+    assertions.equal(
+        "transactional fallback retains the exact phrase in one preedit",
+        transactional.preedit(),
+        "tôi đang gõ tiếng việt");
+    for (std::size_t index = 0;
+         index < 1024 && committed.empty();
+         ++index) {
+        submitText(transactional, "a ", committed);
+    }
+    assertions.truth(
+        "transactional fallback bounds the client preedit",
+        !committed.empty() && committed.size() >= 2048);
+    assertions.equal(
+        "transactional fallback starts a fresh preedit after the bound",
+        transactional.preedit(),
+        "");
+
     core::PreeditFallbackController editing;
     submitText(editing, "tieengs", committed = {});
     const core::PreeditAction backspace = editing.submit({

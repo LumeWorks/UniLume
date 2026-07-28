@@ -7,6 +7,8 @@
 namespace unilume::core {
 namespace {
 
+constexpr std::size_t maximum_transactional_preedit_bytes = 2048;
+
 bool isWhitespace(const KeyInput &input)
 {
     return input.kind == KeyKind::text &&
@@ -17,8 +19,11 @@ bool isWhitespace(const KeyInput &input)
 
 } // namespace
 
-PreeditFallbackController::PreeditFallbackController(UlInputMethod method)
-    : engine_(method)
+PreeditFallbackController::PreeditFallbackController(
+    UlInputMethod method,
+    PreeditCommitPolicy commit_policy)
+    : engine_(method),
+      commit_policy_(commit_policy)
 {
 }
 
@@ -52,7 +57,9 @@ PreeditAction PreeditFallbackController::submit(const KeyInput &input)
             engine_.reset();
             return {true, commit_, preedit_};
         }
-        if (!result.defer_preedit_commit) {
+        if (!result.defer_preedit_commit &&
+            (commit_policy_ == PreeditCommitPolicy::word_boundary ||
+             preedit_.size() >= maximum_transactional_preedit_bytes)) {
             commitPending({});
         }
         return {true, commit_, preedit_};

@@ -16,7 +16,7 @@ The retained and exported fields are deliberately closed:
 | monotonic diagnostic/backend sequence | typed or committed text |
 | direct/preedit/off path | preedit or surrounding text |
 | closed capability state | clipboard or selection content |
-| queue depth and reset reason | application/window identity |
+| queue depth, reset reason and preedit handoff count | application/window identity |
 | stale, uncertain, fallback and backend-failure counters | file contents, config values or hotkeys |
 | coarse duration bucket | hostname, username or environment dump |
 | UniLume/Fcitx version, kernel release and closed session type | arbitrary metadata strings |
@@ -58,6 +58,10 @@ The bundle distinguishes:
 
 - `capability_loss`: direct replacement became ineligible and the context
   crossed a reset barrier;
+- `preedit_handoff`: a complete client preedit was submitted for commit.
+  Fcitx does not expose an application acknowledgement for this operation, so
+  the count proves the handoff was attempted, not that the application applied
+  it;
 - `fallback`: the triggering key took the raw no-delete fallback;
 - `stale_result`: an old or duplicate completion was rejected;
 - `uncertain_outcome`: cancellation could not prove whether a request applied;

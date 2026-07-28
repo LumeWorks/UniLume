@@ -114,6 +114,7 @@ int main()
         trace.beginEvent());
     trace.recordReset(TraceResetReason::capability_loss);
     trace.recordModeChange(true, false);
+    trace.recordPreeditHandoff(false);
 
     static constexpr std::string_view canary =
         "typed-secret user@example.com token=ABCD1234";
@@ -125,11 +126,12 @@ int main()
     }
     const DiagnosticSnapshot snapshot = trace.snapshot();
     ok &= expect(
-        snapshot.total_events == 1'000'010 &&
+        snapshot.total_events == 1'000'011 &&
             snapshot.retained_events == 64,
         "ring must retain only its fixed capacity");
     ok &= expect(
         snapshot.fallback_events == 1 &&
+            snapshot.preedit_handoffs == 1 &&
             snapshot.stale_events == 1 &&
             snapshot.uncertain_events == 1 &&
             snapshot.backend_failures == 1 &&
@@ -159,6 +161,8 @@ int main()
         "bundle must not contain typed, preedit, or secret content");
     ok &= expect(
         bundle.find("\"fallbacks\":1") != std::string::npos &&
+            bundle.find("\"preedit_handoffs\":1") !=
+                std::string::npos &&
             bundle.find("\"stale_results\":1") != std::string::npos &&
             bundle.find("\"uncertain_outcomes\":1") !=
                 std::string::npos &&

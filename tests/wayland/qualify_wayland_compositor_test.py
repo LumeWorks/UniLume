@@ -118,6 +118,7 @@ class DiagnosticBundleTest(unittest.TestCase):
             "unilume_version": "0.1.0-rc1",
             "fcitx_version": "5.1.7",
             "total_events": 3,
+            "preedit_handoffs": 2,
             "fallbacks": 1,
             "backend_failures": 0,
             "capability_losses": 1,
@@ -133,6 +134,7 @@ class DiagnosticBundleTest(unittest.TestCase):
             bundle = HARNESS.read_diagnostic_bundle(path, wait_seconds=0)
         self.assertTrue(bundle["available"])
         self.assertEqual(bundle["session"], "wayland")
+        self.assertEqual(bundle["preedit_handoffs"], 2)
         self.assertEqual(bundle["observed_paths"], {"direct": 2, "preedit": 1})
         self.assertEqual(bundle["observed_capability_gates"], {"unavailable": 1})
 
