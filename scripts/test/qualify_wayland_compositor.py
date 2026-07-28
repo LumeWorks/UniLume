@@ -19,13 +19,16 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import http.server
 import importlib.util
 import json
 import os
 import re
+import secrets
 import shutil
 import subprocess
 import sys
+import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -70,6 +73,7 @@ CLIENT_READY_TIMEOUT_SECONDS = 20.0
 CLIENT_POLL_SECONDS = 0.02
 SOAK_SAMPLE_SECONDS = 5.0
 DIAGNOSTIC_WAIT_SECONDS = 5.0
+MAX_PROBE_REPORT_BYTES = 1024 * 1024
 
 # wtype treats a leading dash as an option, so a corpus chunk that begins with
 # one could silently become a flag instead of typed text.
@@ -574,11 +578,222 @@ class GtkProbeClient(TerminalClient):
         return self.state.read_text(encoding="utf-8")
 
 
+class BrowserProbeState:
+    """Synchronize exact values reported by the real browser document."""
+
+    def __init__(self, token: str) -> None:
+        self.token = token
+        self.condition = threading.Condition()
+        self.visible: str | None = None
+        self.committed: str | None = None
+
+    def record(self, token: str, kind: str, value: str) -> None:
+        if token != self.token or kind not in ("visible", "committed"):
+            raise ValueError("invalid browser probe report")
+        with self.condition:
+            setattr(self, kind, value)
+            self.condition.notify_all()
+
+    def clear_commit(self) -> None:
+        with self.condition:
+            self.committed = None
+
+    def wait_for(
+        self, kind: str, expected: str, timeout_seconds: float
+    ) -> tuple[str, int]:
+        deadline = time.monotonic() + timeout_seconds
+        with self.condition:
+            while getattr(self, kind) != expected:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    return getattr(self, kind) or "", time.monotonic_ns()
+                self.condition.wait(remaining)
+            return expected, time.monotonic_ns()
+
+
+class BrowserProbeClient(TerminalClient):
+    """Own a native Wayland browser and extract document values over loopback."""
+
+    def __init__(
+        self,
+        capture: Path,
+        log: Path,
+        browser: str,
+        browser_arguments: Sequence[str],
+    ) -> None:
+        super().__init__(browser, capture, log)
+        self.browser_arguments = list(browser_arguments)
+        self.token = secrets.token_hex(16)
+        self.state = BrowserProbeState(self.token)
+        self.server: http.server.ThreadingHTTPServer | None = None
+        self.server_thread: threading.Thread | None = None
+
+    def __enter__(self) -> "BrowserProbeClient":
+        state = self.state
+        page = (
+            REPOSITORY_ROOT
+            / "tests"
+            / "manual-apps"
+            / "wayland-browser-probe.html"
+        ).read_bytes()
+
+        class Handler(http.server.BaseHTTPRequestHandler):
+            protocol_version = "HTTP/1.1"
+
+            def do_GET(self) -> None:
+                if self.path.partition("?")[0] != "/":
+                    self.send_error(404)
+                    return
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Content-Length", str(len(page)))
+                self.end_headers()
+                self.wfile.write(page)
+
+            def do_POST(self) -> None:
+                try:
+                    length = int(self.headers.get("Content-Length", "0"))
+                except ValueError:
+                    length = 0
+                if (
+                    self.path != "/report"
+                    or not 0 < length <= MAX_PROBE_REPORT_BYTES
+                ):
+                    self.send_error(400)
+                    return
+                try:
+                    report = json.loads(self.rfile.read(length).decode("utf-8"))
+                    token = report["token"]
+                    kind = report["kind"]
+                    value = report["value"]
+                    if not all(
+                        isinstance(item, str) for item in (token, kind, value)
+                    ):
+                        raise TypeError
+                    state.record(token, kind, value)
+                except (
+                    json.JSONDecodeError,
+                    KeyError,
+                    TypeError,
+                    UnicodeDecodeError,
+                    ValueError,
+                ):
+                    self.send_error(400)
+                    return
+                self.send_response(204)
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+
+            def log_message(self, _format: str, *_arguments: object) -> None:
+                return None
+
+        self.server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        self.server_thread = threading.Thread(
+            target=self.server.serve_forever, daemon=True
+        )
+        self.server_thread.start()
+        port = self.server.server_address[1]
+        url = f"http://127.0.0.1:{port}/?token={self.token}"
+        environment = os.environ.copy()
+        environment.pop("DISPLAY", None)
+        executable = Path(self.terminal).name.lower()
+        launch_arguments = list(self.browser_arguments)
+        if "chrome" in executable or "chromium" in executable:
+            defaults = [
+                "--ozone-platform=wayland",
+                "--enable-wayland-ime",
+                "--no-first-run",
+                "--no-default-browser-check",
+                f"--user-data-dir={self.capture.parent / 'browser-profile'}",
+            ]
+            launch_arguments = [
+                argument
+                for argument in defaults
+                if not any(
+                    existing.startswith(argument.partition("=")[0])
+                    for existing in launch_arguments
+                )
+            ] + launch_arguments
+        elif "firefox" in executable:
+            environment["MOZ_ENABLE_WAYLAND"] = "1"
+            if not any(
+                argument in ("-profile", "--profile")
+                for argument in launch_arguments
+            ):
+                launch_arguments.extend(
+                    [
+                        "--no-remote",
+                        "--profile",
+                        str(self.capture.parent / "browser-profile"),
+                    ]
+                )
+        with self.log.open("wb") as log_stream:
+            self.process = subprocess.Popen(
+                [self.terminal, *launch_arguments, url],
+                env=environment,
+                stdout=log_stream,
+                stderr=subprocess.STDOUT,
+            )
+        observed, _ = self.state.wait_for(
+            "visible", "", CLIENT_READY_TIMEOUT_SECONDS
+        )
+        if observed == "" and self.state.visible is not None:
+            return self
+        if self.process.poll() is not None:
+            detail = self.log.read_text(encoding="utf-8", errors="replace")
+            raise QualificationError(
+                f"{self.terminal} exited before its probe was ready: "
+                f"{detail.strip()}"
+            )
+        raise QualificationError(
+            f"{self.terminal} did not load its native Wayland probe within "
+            f"{CLIENT_READY_TIMEOUT_SECONDS:.0f}s"
+        )
+
+    def __exit__(self, _type: object, _value: object, _traceback: object) -> None:
+        super().__exit__(_type, _value, _traceback)
+        if self.server is not None:
+            self.server.shutdown()
+            self.server.server_close()
+        if self.server_thread is not None:
+            self.server_thread.join()
+
+    def reset(self) -> None:
+        visible, _ = self.state.wait_for("visible", "", 1.0)
+        if visible != "":
+            raise QualificationError(
+                f"browser probe did not clear after commit: {visible!r}"
+            )
+        self.state.clear_commit()
+
+    def text(self) -> str:
+        return self.state.committed or ""
+
+    def visible_text(self) -> str:
+        return self.state.visible or ""
+
+    def wait_for(
+        self, expected: str, timeout_seconds: float, visible: bool = False
+    ) -> tuple[str, int]:
+        return self.state.wait_for(
+            "visible" if visible else "committed",
+            expected,
+            timeout_seconds,
+        )
+
+
 def create_client(
     arguments: argparse.Namespace, capture: Path, log: Path
 ) -> TerminalClient:
     if arguments.client == "gtk3-probe":
         return GtkProbeClient(capture, log)
+    if arguments.client == "browser-probe":
+        return BrowserProbeClient(
+            capture,
+            log,
+            arguments.browser,
+            arguments.browser_argument,
+        )
     return TerminalClient(arguments.terminal, capture, log)
 
 
@@ -688,6 +903,8 @@ def preflight(arguments: argparse.Namespace) -> dict[str, object]:
     binaries = ["fcitx5", "fcitx5-remote", "pgrep"]
     if arguments.client == "terminal":
         binaries.append(arguments.terminal)
+    elif arguments.client == "browser-probe":
+        binaries.append(arguments.browser)
     if arguments.injector in ("wtype", "xdotool"):
         binaries.append(arguments.injector)
     for binary in binaries:
@@ -718,11 +935,25 @@ def preflight(arguments: argparse.Namespace) -> dict[str, object]:
         "extraction": (
             f"{arguments.terminal} raw-mode pty capture"
             if arguments.client == "terminal"
-            else "native GTK3 entry exact-output probe"
+            else (
+                "native browser loopback exact-output probe"
+                if arguments.client == "browser-probe"
+                else "native GTK3 entry exact-output probe"
+            )
         ),
         "fcitx_version": command_text(["fcitx5", "--version"]),
         "fcitx_package_version": package_version("fcitx5"),
         "client": arguments.client,
+        "browser": (
+            arguments.browser
+            if arguments.client == "browser-probe"
+            else None
+        ),
+        "browser_version": (
+            command_text([arguments.browser, "--version"])
+            if arguments.client == "browser-probe"
+            else None
+        ),
         "terminal": (
             arguments.terminal if arguments.client == "terminal" else None
         ),
@@ -1236,10 +1467,17 @@ def parse_arguments(argv: Sequence[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--client",
-        choices=("terminal", "gtk3-probe"),
+        choices=("terminal", "gtk3-probe", "browser-probe"),
         default="terminal",
     )
     parser.add_argument("--terminal", default="foot")
+    parser.add_argument("--browser", default="google-chrome")
+    parser.add_argument(
+        "--browser-argument",
+        action="append",
+        default=[],
+        help="argument passed to the controlled browser; repeat as needed",
+    )
     parser.add_argument("--delay-milliseconds", type=int, default=10)
     parser.add_argument("--burst-rounds", type=int, default=10)
     parser.add_argument(

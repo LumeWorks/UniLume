@@ -56,6 +56,11 @@ and Mutter:
 
 To qualify a compositor you are already running, invoke
 `scripts/test/qualify_wayland_compositor.py` directly inside that session.
+The same harness can launch a browser with `--client browser-probe --browser
+google-chrome`. It removes `DISPLAY` from the browser environment, forces the
+native Wayland Chromium IME path, and obtains live and committed textarea
+values through a token-authenticated loopback endpoint. A visual inspection or
+window title is not accepted as output evidence.
 
 The pure decision logic has unit coverage that needs no compositor:
 
@@ -315,6 +320,20 @@ the native GTK3 exact-output probe, and capability-gated direct replacement.
 For every row the client-observed path and UniLume diagnostic path agree.
 There were no backend failures, stale results, uncertain outcomes, lost
 characters, duplicates or reordered output.
+
+### Chromium native Wayland blocker
+
+The controlled browser probe found a blocking direct-path defect on Google
+Chrome 150.0.7871.114 under the same Debian 13.6 / KWin 6.3.6 / Fcitx 5.1.12
+environment. At 10 ms/key, five of six scenarios were exact and the Backspace
+scenario produced `tiếng` instead of `tiến`. At 1 ms/key, only one of six
+scenarios was exact; examples include `tiếng Vieệt` instead of `tiếng Việt`
+and `asf` instead of `à`. The diagnostic bundle recorded the direct path with
+zero backend failures, stale results or uncertain outcomes, so this is not
+classified as an injector or browser-extraction failure.
+
+The root fix and real-browser regression are tracked by #90. Issue #58 remains
+open until that blocker passes and Firefox/Electron/Qt coverage is complete.
 
 ## Implementation gaps (Wayland)
 

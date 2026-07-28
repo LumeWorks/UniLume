@@ -1,0 +1,40 @@
+<!-- SPDX-License-Identifier: GPL-2.0-or-later -->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>UniLume native Wayland browser probe</title>
+</head>
+<body>
+  <label for="probe">UniLume controlled input probe</label>
+  <textarea id="probe" autofocus></textarea>
+  <script>
+    const parameters = new URLSearchParams(window.location.search);
+    const token = parameters.get("token");
+    const probe = document.querySelector("#probe");
+
+    const report = (kind, value) => fetch("/report", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({token, kind, value}),
+    });
+
+    probe.addEventListener("input", () => report("visible", probe.value));
+    probe.addEventListener("keydown", event => {
+      if (event.key !== "Enter") {
+        return;
+      }
+      event.preventDefault();
+      const value = probe.value;
+      report("committed", value).then(() => {
+        probe.value = "";
+        return report("visible", "");
+      });
+    });
+    window.addEventListener("load", () => {
+      probe.focus();
+      report("visible", "");
+    });
+  </script>
+</body>
+</html>

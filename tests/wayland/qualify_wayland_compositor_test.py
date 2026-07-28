@@ -124,6 +124,24 @@ class InjectionArgumentTest(unittest.TestCase):
             HARNESS.xdotool_arguments("tiếng", 1, "0x200000")
 
 
+class BrowserProbeStateTest(unittest.TestCase):
+    def test_visible_and_committed_values_are_independent(self) -> None:
+        state = HARNESS.BrowserProbeState("controlled-token")
+        state.record("controlled-token", "visible", "tiếng Việt")
+        observed, settled_ns = state.wait_for("visible", "tiếng Việt", 0)
+        self.assertEqual(observed, "tiếng Việt")
+        self.assertGreater(settled_ns, 0)
+        state.record("controlled-token", "committed", "tiếng Việt")
+        state.clear_commit()
+        self.assertIsNone(state.committed)
+        self.assertEqual(state.visible, "tiếng Việt")
+
+    def test_wrong_token_is_rejected(self) -> None:
+        state = HARNESS.BrowserProbeState("controlled-token")
+        with self.assertRaises(ValueError):
+            state.record("other-token", "visible", "")
+
+
 class DiagnosticBundleTest(unittest.TestCase):
     def test_missing_bundle_reports_why_it_is_unavailable(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
