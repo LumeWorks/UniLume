@@ -18,7 +18,8 @@ from pathlib import Path
 
 from compare_fcitx5_desktop import (
     HarnessError,
-    PROBE_MARKER,
+    ProbeReportServer,
+    XTestInjector,
     active_input_method,
     emit_input,
     fcitx_pid,
@@ -27,7 +28,6 @@ from compare_fcitx5_desktop import (
     preflight,
     run,
     switch_input_method,
-    wait_for_title,
     warm_input_path,
     xdotool,
 )
@@ -86,16 +86,29 @@ def latency_growth(values: list[int]) -> tuple[float, bool]:
 
 
 def restart_fcitx(previous_pid: int, timeout_seconds: float) -> int:
-    completed = run(["fcitx5", "-rd"], check=False)
-    if completed.returncode != 0:
-        raise HarnessError(
-            f"Fcitx5 restart failed: {completed.stderr.strip()}"
+    try:
+        completed = subprocess.run(
+            ["fcitx5", "-rd"],
+            check=False,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=timeout_seconds,
         )
+    except subprocess.TimeoutExpired as error:
+        raise HarnessError("Fcitx5 restart command timed out") from error
+    if completed.returncode != 0:
+        raise HarnessError(f"Fcitx5 restart failed ({completed.returncode})")
     deadline = time.monotonic() + timeout_seconds
     while time.monotonic() < deadline:
         try:
             pid = fcitx_pid()
-            if pid != previous_pid:
+            ready = run(["fcitx5-remote", "-n"], check=False)
+            if (
+                pid != previous_pid
+                and ready.returncode == 0
+                and ready.stdout.strip()
+            ):
                 return pid
         except (HarnessError, ValueError):
             pass
@@ -134,119 +147,128 @@ def run_soak(arguments: argparse.Namespace) -> dict[str, object]:
     restarts = 0
 
     try:
-        switch_input_method(arguments.candidate, arguments.timeout_seconds)
-        warm_input_path(
-            arguments.window_id,
-            arguments.token,
-            arguments.delay_milliseconds,
-            arguments.reset_settle_milliseconds,
-            arguments.timeout_seconds,
-        )
-        initial = process_snapshot(pid)
-        while time.monotonic() < deadline:
-            for scenario in scenarios:
-                if time.monotonic() >= deadline:
-                    break
-                xdotool("windowactivate", "--sync", arguments.window_id)
-                xdotool(
-                    "key",
-                    "--window",
-                    arguments.window_id,
-                    "--clearmodifiers",
-                    "Escape",
-                )
-                time.sleep(arguments.reset_settle_milliseconds / 1000.0)
-                xdotool(
-                    "key",
-                    "--window",
-                    arguments.window_id,
-                    "--clearmodifiers",
-                    "ctrl+a",
-                )
-                xdotool(
-                    "key",
-                    "--window",
-                    arguments.window_id,
-                    "--clearmodifiers",
-                    "BackSpace",
-                )
-                cleared = f"{arguments.token}{PROBE_MARKER}"
-                if (
-                    wait_for_title(
+        with (
+            ProbeReportServer(arguments.report_port) as report_server,
+            XTestInjector() as injector,
+        ):
+            switch_input_method(arguments.candidate, arguments.timeout_seconds)
+            warm_input_path(
+                arguments.window_id,
+                arguments.token,
+                arguments.delay_milliseconds,
+                arguments.reset_settle_milliseconds,
+                arguments.timeout_seconds,
+                injector,
+                report_server.state,
+            )
+            initial = process_snapshot(pid)
+            while time.monotonic() < deadline:
+                for scenario in scenarios:
+                    if time.monotonic() >= deadline:
+                        break
+                    xdotool("windowactivate", "--sync", arguments.window_id)
+                    xdotool(
+                        "key",
+                        "--window",
                         arguments.window_id,
-                        cleared,
-                        arguments.timeout_seconds,
+                        "--clearmodifiers",
+                        "Escape",
                     )
-                    != cleared
-                ):
-                    raise HarnessError(
-                        f"probe did not clear before {scenario.name}"
-                    )
-                before = process_snapshot(pid)
-                started = time.monotonic_ns()
-                key_events += emit_input(
-                    arguments.window_id,
-                    scenario.encoded_input,
-                    arguments.delay_milliseconds,
-                )
-                expected = f"{arguments.token}{PROBE_MARKER}{scenario.expected}"
-                correct = (
-                    wait_for_title(
+                    time.sleep(arguments.reset_settle_milliseconds / 1000.0)
+                    xdotool(
+                        "key",
+                        "--window",
                         arguments.window_id,
-                        expected,
-                        arguments.timeout_seconds,
+                        "--clearmodifiers",
+                        "ctrl+a",
                     )
-                    == expected
-                )
-                latency = time.monotonic_ns() - started
-                after = process_snapshot(pid)
-                latencies.append(latency)
-                errors += not correct
+                    xdotool(
+                        "key",
+                        "--window",
+                        arguments.window_id,
+                        "--clearmodifiers",
+                        "BackSpace",
+                    )
+                    if (
+                        report_server.state.wait_for(
+                            arguments.token,
+                            "",
+                            arguments.timeout_seconds,
+                        )
+                        != ""
+                    ):
+                        raise HarnessError(
+                            f"probe did not clear before {scenario.name}"
+                        )
+                    before = process_snapshot(pid)
+                    started = time.monotonic_ns()
+                    scenario_events, _ = emit_input(
+                        injector,
+                        scenario.encoded_input,
+                        arguments.delay_milliseconds,
+                    )
+                    key_events += scenario_events
+                    correct = (
+                        report_server.state.wait_for(
+                            arguments.token,
+                            scenario.expected,
+                            arguments.timeout_seconds,
+                        )
+                        == scenario.expected
+                    )
+                    latency = time.monotonic_ns() - started
+                    after = process_snapshot(pid)
+                    latencies.append(latency)
+                    errors += not correct
 
-                idle_before = after
-                time.sleep(arguments.idle_seconds)
-                idle_after = process_snapshot(pid)
-                idle_cpu = (
-                    idle_after["cpu_ticks"] - idle_before["cpu_ticks"]
-                ) / ticks_per_second
-                idle_utilization = (
-                    idle_cpu / arguments.idle_seconds * 100.0
-                    if arguments.idle_seconds
-                    else 0.0
-                )
-                checkpoints.append(
-                    {
-                        "elapsed_seconds": time.time() - started_wall,
-                        "cycle": cycles,
-                        "scenario": scenario.name,
-                        "correct": correct,
-                        "completion_ns": latency,
-                        "rss_kib": after["rss_kib"],
-                        "peak_rss_kib": after["peak_rss_kib"],
-                        "file_descriptors": after["file_descriptors"],
-                        "threads": after["threads"],
-                        "active_cpu_seconds": (
-                            after["cpu_ticks"] - before["cpu_ticks"]
-                        ) / ticks_per_second,
-                        "idle_cpu_utilization_percent": idle_utilization,
-                    }
-                )
-            cycles += 1
-            if time.monotonic() >= next_restart:
-                pid = restart_fcitx(pid, arguments.timeout_seconds)
-                restarts += 1
-                switch_input_method(
-                    arguments.candidate,
-                    arguments.timeout_seconds,
-                )
-                warm_input_path(
-                    arguments.window_id,
-                    arguments.token,
-                    arguments.delay_milliseconds,
-                    arguments.reset_settle_milliseconds,
-                    arguments.timeout_seconds,
-                )
-                next_restart += arguments.restart_interval_hours * 3600.0
+                    idle_before = after
+                    time.sleep(arguments.idle_seconds)
+                    idle_after = process_snapshot(pid)
+                    idle_cpu = (
+                        idle_after["cpu_ticks"] - idle_before["cpu_ticks"]
+                    ) / ticks_per_second
+                    idle_utilization = (
+                        idle_cpu / arguments.idle_seconds * 100.0
+                        if arguments.idle_seconds
+                        else 0.0
+                    )
+                    checkpoints.append(
+                        {
+                            "elapsed_seconds": time.time() - started_wall,
+                            "cycle": cycles,
+                            "scenario": scenario.name,
+                            "correct": correct,
+                            "completion_ns": latency,
+                            "rss_kib": after["rss_kib"],
+                            "peak_rss_kib": after["peak_rss_kib"],
+                            "file_descriptors": after["file_descriptors"],
+                            "threads": after["threads"],
+                            "active_cpu_seconds": (
+                                after["cpu_ticks"] - before["cpu_ticks"]
+                            ) / ticks_per_second,
+                            "idle_cpu_utilization_percent": idle_utilization,
+                        }
+                    )
+                cycles += 1
+                if time.monotonic() >= next_restart:
+                    pid = restart_fcitx(pid, arguments.timeout_seconds)
+                    restarts += 1
+                    switch_input_method(
+                        arguments.candidate,
+                        arguments.timeout_seconds,
+                    )
+                    warm_input_path(
+                        arguments.window_id,
+                        arguments.token,
+                        arguments.delay_milliseconds,
+                        arguments.reset_settle_milliseconds,
+                        arguments.timeout_seconds,
+                        injector,
+                        report_server.state,
+                    )
+                    next_restart += (
+                        arguments.restart_interval_hours * 3600.0
+                    )
     finally:
         if original_input_method:
             restored = run(
@@ -362,6 +384,12 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--switch-settle-milliseconds", type=int, default=100)
     result.add_argument("--reset-settle-milliseconds", type=int, default=50)
     result.add_argument("--timeout-seconds", type=float, default=5.0)
+    result.add_argument(
+        "--report-port",
+        type=int,
+        default=38491,
+        help="loopback port used by the browser probe",
+    )
     result.add_argument("--output", type=Path, required=True)
     return result
 
@@ -379,6 +407,7 @@ def main() -> int:
         or arguments.restart_interval_hours < 0
         or arguments.idle_seconds <= 0
         or arguments.idle_cpu_budget_percent < 0
+        or not 1 <= arguments.report_port <= 65535
     ):
         raise HarnessError("durations and resource budgets are invalid")
     result = run_soak(arguments)

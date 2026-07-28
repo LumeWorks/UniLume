@@ -144,11 +144,14 @@ A short `--smoke-seconds 60` run validates the harness but is explicitly
 recorded as non-qualifying. Reports contain scenario identifiers and
 correctness flags, never expected or observed typed text.
 
-The real-application soak alternates focus between controlled Chrome and
-Firefox textareas, replaces the complete corpus, verifies the exact resulting
-title, and samples the Fcitx process RSS, high-water RSS, and CPU. RSS is
-process-level because UniLume is an in-process addon; it is not an allocation
-count for UniLume alone.
+Each real-application soak targets one controlled browser textarea. Run
+separate qualifications for Chrome and Firefox when both frontends are part of
+the release gate. The harness replaces the complete corpus, verifies the exact
+application-observed value through a loopback report endpoint, and samples the
+Fcitx process RSS, high-water RSS, and CPU. Pass the same non-default port to
+the probe page as `?reportPort=PORT` and to the harness as
+`--report-port=PORT`. RSS is process-level because UniLume is an in-process
+addon; it is not an allocation count for UniLume alone.
 
 The accepted run lasted 1,800 seconds and completed 69 focus cycles
 (138 verified application runs) with no output error. Fcitx RSS started at
