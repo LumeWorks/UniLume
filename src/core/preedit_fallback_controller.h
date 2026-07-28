@@ -16,10 +16,17 @@ struct PreeditAction {
     std::string_view preedit_text;
 };
 
+enum class PreeditCommitPolicy : std::uint8_t {
+    word_boundary,
+    composition_boundary,
+};
+
 class PreeditFallbackController {
 public:
     explicit PreeditFallbackController(
-        UlInputMethod method = UL_INPUT_METHOD_TELEX);
+        UlInputMethod method = UL_INPUT_METHOD_TELEX,
+        PreeditCommitPolicy commit_policy =
+            PreeditCommitPolicy::word_boundary);
 
     PreeditAction submit(const KeyInput &input);
     void reset();
@@ -43,6 +50,7 @@ private:
     TypingPipeline engine_;
     std::string preedit_;
     std::string commit_;
+    PreeditCommitPolicy commit_policy_;
 };
 
 } // namespace unilume::core

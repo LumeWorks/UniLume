@@ -66,6 +66,7 @@ struct DiagnosticSnapshot {
     std::uint64_t retained_events{};
     std::uint64_t reset_events{};
     std::uint64_t mode_changes{};
+    std::uint64_t preedit_handoffs{};
     std::uint64_t fallback_events{};
     std::uint64_t stale_events{};
     std::uint64_t uncertain_events{};
@@ -85,6 +86,7 @@ public:
         key,
         reset,
         mode_change,
+        preedit_handoff,
     };
 
     DiagnosticTrace();
@@ -106,6 +108,7 @@ public:
         std::uint64_t started_at_ns);
     void recordReset(TraceResetReason reason);
     void recordModeChange(bool preedit, bool surrounding_available);
+    void recordPreeditHandoff(bool surrounding_available);
 
     // Rendering and file export are explicit cold-path operations. Event
     // methods accept no text, clipboard, application identity or surrounding
@@ -154,6 +157,7 @@ private:
     std::uint64_t total_events_{};
     std::uint64_t reset_events_{};
     std::uint64_t mode_changes_{};
+    std::uint64_t preedit_handoffs_{};
     std::uint64_t fallback_events_{};
     std::uint64_t stale_events_{};
     std::uint64_t uncertain_events_{};

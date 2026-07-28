@@ -68,6 +68,8 @@ const char *eventKindName(DiagnosticTrace::EventKind kind)
         return "reset";
     case DiagnosticTrace::EventKind::mode_change:
         return "mode_change";
+    case DiagnosticTrace::EventKind::preedit_handoff:
+        return "preedit_handoff";
     }
     return "unknown";
 }
@@ -360,6 +362,33 @@ void DiagnosticTrace::recordModeChange(
     });
 }
 
+void DiagnosticTrace::recordPreeditHandoff(
+    bool surrounding_available)
+{
+    if (!enabled_) {
+        return;
+    }
+    ++preedit_handoffs_;
+    append({
+        0,
+        0,
+        0,
+        reset_events_,
+        0,
+        0,
+        0,
+        EventKind::preedit_handoff,
+        TracePath::preedit,
+        surrounding_available ? TraceCapability::ready
+                              : TraceCapability::unavailable,
+        TraceError::none,
+        TraceDurationBucket::under_1_us,
+        TraceResetReason::none,
+        0,
+        true,
+    });
+}
+
 DiagnosticSnapshot DiagnosticTrace::snapshot() const
 {
     return {
@@ -367,6 +396,7 @@ DiagnosticSnapshot DiagnosticTrace::snapshot() const
         size_,
         reset_events_,
         mode_changes_,
+        preedit_handoffs_,
         fallback_events_,
         stale_events_,
         uncertain_events_,
@@ -393,6 +423,7 @@ std::string DiagnosticTrace::renderBundle() const
         << ",\"retained_events\":" << size_
         << ",\"resets\":" << reset_events_
         << ",\"mode_changes\":" << mode_changes_
+        << ",\"preedit_handoffs\":" << preedit_handoffs_
         << ",\"fallbacks\":" << fallback_events_
         << ",\"stale_results\":" << stale_events_
         << ",\"uncertain_outcomes\":" << uncertain_events_
@@ -556,6 +587,7 @@ void DiagnosticTrace::flush() const
         << " retained_events=" << size_
         << " resets=" << reset_events_
         << " mode_changes=" << mode_changes_
+        << " preedit_handoffs=" << preedit_handoffs_
         << " fallbacks=" << fallback_events_
         << " stale=" << stale_events_
         << " uncertain=" << uncertain_events_

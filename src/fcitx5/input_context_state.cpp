@@ -17,7 +17,9 @@ InputContextState::InputContextState(fcitx::InputContext &input_context,
     : input_context_(input_context),
       backend_(input_context),
       direct_controller_(backend_, method),
-      preedit_controller_(method),
+      preedit_controller_(
+          method,
+          core::PreeditCommitPolicy::composition_boundary),
       input_method_(method)
 {
 }
@@ -359,6 +361,8 @@ void InputContextState::handlePreeditEvent(
     const core::PreeditAction action =
         preedit_controller_.submit(mapped.input());
     if (!action.commit_text.empty()) {
+        diagnostics_.recordPreeditHandoff(
+            direct_replacement_available_);
         input_context_.commitString(std::string(action.commit_text));
     }
     if (preedit_controller_.preedit().empty()) {
@@ -378,6 +382,8 @@ void InputContextState::commitPendingPreedit()
 {
     const std::string_view pending = preedit_controller_.preedit();
     if (!pending.empty()) {
+        diagnostics_.recordPreeditHandoff(
+            direct_replacement_available_);
         input_context_.commitString(std::string(pending));
     }
     preedit_controller_.reset();

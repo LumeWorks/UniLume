@@ -696,6 +696,7 @@ def read_diagnostic_bundle(
         "unilume_version": bundle.get("unilume_version"),
         "fcitx_version": bundle.get("fcitx_version"),
         "total_events": bundle.get("total_events"),
+        "preedit_handoffs": bundle.get("preedit_handoffs"),
         "fallbacks": bundle.get("fallbacks"),
         "stale_results": bundle.get("stale_results"),
         "uncertain_outcomes": bundle.get("uncertain_outcomes"),
