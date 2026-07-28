@@ -116,7 +116,8 @@ commit-only, không bật hybrid) trong
 [docs/composition-span-research.md](docs/composition-span-research.md) và
 [docs/stable-prefix.md](docs/stable-prefix.md).
 
-Xác thực Wayland và checklist kiểm tra thủ công trong
+Xác thực Wayland, harness qualification tự động cho họ wlroots và checklist
+kiểm tra thủ công cho KWin/Mutter trong
 [docs/wayland-validation.md](docs/wayland-validation.md).
 
 ## Nguồn gốc và giấy phép

@@ -165,8 +165,10 @@ the capability analysis and input-path policy state machine. Wayland or other
 environments may produce different capability signals and are not yet
 verified.
 
-Wayland has not been tested. See `docs/wayland-validation.md` for the manual
-validation checklist and environment-check script.
+Native Wayland is qualified automatically on the wlroots family only; KWin and
+Mutter are not claimed. See `docs/wayland-validation.md` for the measured
+results, the automated harness, the manual checklist for the remaining
+compositors and the environment-check script.
 
 The addon exposes Telex, VNI, and VIQR plus the four verified behavior options
 documented in [unikey-options.md](unikey-options.md). UTF-8 remains the only
