@@ -1,0 +1,107 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+name: Wayland Qualification
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  harness-logic:
+    name: Harness decision logic
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run qualification harness unit tests
+        run: python3 -B tests/wayland/qualify_wayland_compositor_test.py
+
+      - name: Lint the disposable session script
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes shellcheck
+          shellcheck scripts/test/wayland_qualification_session.sh
+
+  wlroots-qualification:
+    name: wlroots native Wayland qualification
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    # The burst gate is currently blocked by issue #86, so this job records
+    # evidence without failing the build. Remove continue-on-error once #86 is
+    # fixed, so a regression in the Wayland path breaks CI again.
+    continue-on-error: true
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Fcitx5, a headless compositor and the injection tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes \
+            dbus-x11 \
+            fcitx5 \
+            fcitx5-modules-dev \
+            foot \
+            gettext \
+            libfcitx5config-dev \
+            libfcitx5core-dev \
+            locales \
+            pkg-config \
+            sway \
+            wtype
+
+      - name: Generate the locales the addon tests require
+        run: |
+          sudo localedef -i en_US -f UTF-8 en_US.UTF-8
+          sudo localedef -i vi_VN -f UTF-8 vi_VN.UTF-8
+
+      - name: Build and install the Fcitx5 addon
+        run: |
+          cmake -S . -B build/fcitx5 \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DUNILUME_BUILD_FCITX5_ADDON=ON
+          cmake --build build/fcitx5 --parallel 2
+          cmake --install build/fcitx5 --prefix "$RUNNER_TEMP/unilume-wayland"
+
+      - name: Qualify a disposable wlroots session
+        env:
+          UNILUME_WAYLAND_LOG_DIR: ${{ runner.temp }}/wayland-logs
+        run: |
+          status=0
+          ./scripts/test/wayland_qualification_session.sh \
+            "$RUNNER_TEMP/unilume-wayland" \
+            --burst-rounds 3 \
+            --stress-rounds 2 \
+            --output "$RUNNER_TEMP/wlroots-sway.json" || status=$?
+          echo "harness exit status: $status"
+          if [ -f "$RUNNER_TEMP/wlroots-sway.json" ]; then
+            echo "--- verdict ---"
+            python3 -c 'import json,sys; \
+              print(json.dumps(json.load(open(sys.argv[1]))["qualification"], indent=2))' \
+              "$RUNNER_TEMP/wlroots-sway.json"
+          else
+            echo "no result file was produced; the run failed before measuring"
+          fi
+          exit "$status"
+
+      - name: Upload the qualification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wayland-qualification-wlroots
+          path: |
+            ${{ runner.temp }}/wlroots-sway.json
+            ${{ runner.temp }}/wayland-logs
+          if-no-files-found: warn
