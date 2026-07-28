@@ -152,6 +152,13 @@ UniKey là tên của dự án gốc và chỉ được dùng ở đây để gh
 - [dismonjames](https://github.com/dismonjames) — Lead Developer
 - [hnrie](https://github.com/hnrie) — Developer
 
+### Trợ lý AI (AI Assistants)
+
+- **Antigravity** (Google DeepMind) — AI Pair Programmer
+- **Codex** (OpenAI) — AI Coding Assistant
+- **Claude** (Anthropic) — AI Coding Assistant
+
+
 ## Roadmap ngắn
 
 1. Xác minh provenance và giấy phép các file kế thừa chưa có header.

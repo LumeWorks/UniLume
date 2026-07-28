@@ -22,4 +22,6 @@ endorsement of, or responsibility for UniLume.
 
 - **dismonjames** ([@dismonjames](https://github.com/dismonjames)) — Project lead and core developer.
 - **hnrie** ([@hnrie](https://github.com/hnrie)) — Developer.
+- **Antigravity** (Google DeepMind), **Codex** (OpenAI), **Claude** (Anthropic) — AI pair programming assistants.
+
 
