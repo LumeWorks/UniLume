@@ -160,7 +160,7 @@ Chi tiết xem [docs/roadmap.md](docs/roadmap.md).
 Nếu UniLume mang lại giá trị cho bạn, bạn có thể ủng hộ nhà phát triển để duy trì và hoàn thiện dự án thông qua mã QR bên dưới:
 
 <p align="center">
-  <img src="img/ungho.png" alt="Mã QR ủng hộ UniLume" width="220" />
+  <img src="img/ungho.png" alt="Mã QR ủng hộ UniLume" width="320" />
   <br>
   <sub><i>Cảm ơn sự hỗ trợ và đồng hành của bạn dành cho UniLume! ❤️</i></sub>
 </p>
