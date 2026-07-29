@@ -33,11 +33,16 @@ Automated locks:
 | SurroundingText | Path |
 | --- | --- |
 | Available and trustworthy | Direct zero-preedit (`DirectCommitController`) |
-| Unavailable / untrusted | Full client preedit for the current word (`PreeditFallbackController`), commit on word/composition boundary |
+| Unavailable / untrusted | Full client preedit for the current transactional composition (`PreeditFallbackController`) |
 
 Word-boundary commit already shortens underline relative to multi-word
 preedit. Mid-word commit would require a proven mutable-span oracle the
 legacy engine does not expose.
+
+For asynchronous transports that retain multiple words in one transactional
+preedit, boundary Backspace is handled inside that uncommitted preedit with
+bounded active-word replay. It never deletes or recalls committed application
+text; see [composition-span-research.md](composition-span-research.md#61-backspace-inside-transactional-client-preedit).
 
 ## Oracle contract (fail-closed for commit-only)
 

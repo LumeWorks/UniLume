@@ -55,6 +55,78 @@ void runPreeditFallbackTests(Assertions &assertions)
         "transactional fallback retains the exact phrase in one preedit",
         transactional.preedit(),
         "tôi đang gõ tiếng việt");
+
+    core::PreeditFallbackController boundary_editing{
+        UL_INPUT_METHOD_TELEX,
+        core::PreeditCommitPolicy::composition_boundary};
+    submitText(boundary_editing, "ee  ", committed = {});
+    const core::KeyInput backspace_input{
+        core::KeyKind::backspace,
+        {},
+        false,
+        false,
+        false,
+    };
+    assertions.truth(
+        "transactional fallback handles repeated boundary backspace",
+        boundary_editing.submit(backspace_input).handled &&
+            boundary_editing.submit(backspace_input).handled);
+    assertions.equal(
+        "transactional boundary backspace restores the active word",
+        boundary_editing.preedit(),
+        "ê");
+    submitText(boundary_editing, "s", committed);
+    assertions.equal(
+        "transactional boundary restore preserves Telex state",
+        boundary_editing.preedit(),
+        "ế");
+    assertions.truth(
+        "transactional restored word still handles composed backspace",
+        boundary_editing.submit(backspace_input).handled);
+    assertions.equal(
+        "transactional restored backspace removes the composed character",
+        boundary_editing.preedit(),
+        "");
+
+    macro::Snapshot boundary_macros;
+    boundary_macros.enabled = true;
+    boundary_macros.entries = {{"sig", "xin chào"}};
+    core::PreeditFallbackController expanded_boundary{
+        UL_INPUT_METHOD_TELEX,
+        core::PreeditCommitPolicy::composition_boundary};
+    expanded_boundary.setMacros(boundary_macros);
+    submitText(expanded_boundary, "sig ", committed = {});
+    assertions.truth(
+        "transactional macro boundary handles backspace",
+        expanded_boundary.submit(backspace_input).handled);
+    assertions.equal(
+        "transactional macro boundary deletes only the space",
+        expanded_boundary.preedit(),
+        "xin chào");
+    assertions.truth(
+        "detached macro expansion keeps handling backspace",
+        expanded_boundary.submit(backspace_input).handled);
+    assertions.equal(
+        "detached macro expansion deletes one Unicode character",
+        expanded_boundary.preedit(),
+        "xin chà");
+    const core::PreeditAction after_expansion =
+        expanded_boundary.submit({
+            core::KeyKind::text,
+            "x",
+            false,
+            false,
+            false,
+        });
+    assertions.equal(
+        "detached expansion commits before new composition",
+        after_expansion.commit_text,
+        "xin chà");
+    assertions.equal(
+        "new composition does not retain detached preedit state",
+        after_expansion.preedit_text,
+        "x");
+
     for (std::size_t index = 0;
          index < 1024 && committed.empty();
          ++index) {

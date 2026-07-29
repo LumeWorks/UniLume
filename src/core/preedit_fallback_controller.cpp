@@ -37,8 +37,29 @@ PreeditAction PreeditFallbackController::submit(const KeyInput &input)
         return {};
     }
 
+    if (detached_preedit_) {
+        if (input.kind == KeyKind::backspace) {
+            if (preedit_.empty()) {
+                detached_preedit_ = false;
+                return {};
+            }
+            preedit_.erase(previousCharacter(preedit_, preedit_.size()));
+            if (preedit_.empty()) {
+                detached_preedit_ = false;
+            }
+            return {true, commit_, preedit_};
+        }
+        commitPending({});
+        engine_.reset();
+    }
+
     const KeyResult result = engine_.process(input);
     if (!result.handled) {
+        if (input.kind == KeyKind::backspace &&
+            commit_policy_ == PreeditCommitPolicy::composition_boundary &&
+            restoreBeforeBoundary()) {
+            return {true, commit_, preedit_};
+        }
         return {};
     }
     if (result.require_fallback) {
@@ -61,6 +82,11 @@ PreeditAction PreeditFallbackController::submit(const KeyInput &input)
             (commit_policy_ == PreeditCommitPolicy::word_boundary ||
              preedit_.size() >= maximum_transactional_preedit_bytes)) {
             commitPending({});
+        } else if (commit_policy_ ==
+                   PreeditCommitPolicy::composition_boundary) {
+            boundaries_.push_back({token_start_, std::move(token_inputs_)});
+            token_inputs_.clear();
+            token_start_ = preedit_.size();
         }
         return {true, commit_, preedit_};
     }
@@ -68,6 +94,13 @@ PreeditAction PreeditFallbackController::submit(const KeyInput &input)
         commitPending(input.kind == KeyKind::text ? input.text
                                                   : std::string_view{});
         engine_.reset();
+    } else if (result.reset_context &&
+               commit_policy_ == PreeditCommitPolicy::composition_boundary) {
+        boundaries_.push_back({token_start_, std::move(token_inputs_)});
+        token_inputs_.clear();
+        token_start_ = preedit_.size();
+    } else {
+        record(input);
     }
     return {true, commit_, preedit_};
 }
@@ -77,6 +110,7 @@ void PreeditFallbackController::reset()
     engine_.reset();
     preedit_.clear();
     commit_.clear();
+    clearEditingState();
 }
 
 void PreeditFallbackController::lineBreak()
@@ -84,6 +118,7 @@ void PreeditFallbackController::lineBreak()
     engine_.lineBreak();
     preedit_.clear();
     commit_.clear();
+    clearEditingState();
 }
 
 void PreeditFallbackController::setInputMethod(UlInputMethod method)
@@ -91,6 +126,7 @@ void PreeditFallbackController::setInputMethod(UlInputMethod method)
     engine_.setInputMethod(method);
     preedit_.clear();
     commit_.clear();
+    clearEditingState();
 }
 
 void PreeditFallbackController::setOptions(const UlEngineOptions &options)
@@ -98,6 +134,7 @@ void PreeditFallbackController::setOptions(const UlEngineOptions &options)
     engine_.setOptions(options);
     preedit_.clear();
     commit_.clear();
+    clearEditingState();
 }
 
 void PreeditFallbackController::setTypingOptions(
@@ -106,6 +143,7 @@ void PreeditFallbackController::setTypingOptions(
     engine_.setTypingOptions(options);
     preedit_.clear();
     commit_.clear();
+    clearEditingState();
 }
 
 void PreeditFallbackController::setMacros(const macro::Snapshot &snapshot)
@@ -113,6 +151,7 @@ void PreeditFallbackController::setMacros(const macro::Snapshot &snapshot)
     engine_.setMacros(snapshot);
     preedit_.clear();
     commit_.clear();
+    clearEditingState();
 }
 
 void PreeditFallbackController::setKeymap(const keymap::Snapshot &snapshot)
@@ -120,6 +159,7 @@ void PreeditFallbackController::setKeymap(const keymap::Snapshot &snapshot)
     engine_.setKeymap(snapshot);
     preedit_.clear();
     commit_.clear();
+    clearEditingState();
 }
 
 void PreeditFallbackController::setDictionary(
@@ -128,6 +168,7 @@ void PreeditFallbackController::setDictionary(
     engine_.setDictionary(snapshot);
     preedit_.clear();
     commit_.clear();
+    clearEditingState();
 }
 
 std::string_view PreeditFallbackController::preedit() const
@@ -139,21 +180,101 @@ bool PreeditFallbackController::applyEdit(
     std::int32_t delete_before_cursor,
     std::string_view commit_text)
 {
+    return applyEdit(preedit_, delete_before_cursor, commit_text);
+}
+
+bool PreeditFallbackController::applyEdit(
+    std::string &text,
+    std::int32_t delete_before_cursor,
+    std::string_view commit_text)
+{
     if (delete_before_cursor < 0) {
         return false;
     }
-    std::size_t position = preedit_.size();
+    std::size_t position = text.size();
     for (std::int32_t count = 0;
          count < delete_before_cursor;
          ++count) {
         if (position == 0) {
             return false;
         }
-        position = previousCharacter(preedit_, position);
+        position = previousCharacter(text, position);
     }
-    preedit_.erase(position);
-    preedit_.append(commit_text);
+    text.erase(position);
+    text.append(commit_text);
     return true;
+}
+
+KeyInput PreeditFallbackController::StoredInput::view() const
+{
+    return {kind, text, shift_pressed, caps_lock_on, has_control_modifier};
+}
+
+bool PreeditFallbackController::restoreBeforeBoundary()
+{
+    if (boundaries_.empty() || preedit_.empty()) {
+        return false;
+    }
+
+    BoundaryCheckpoint checkpoint = std::move(boundaries_.back());
+    boundaries_.pop_back();
+    preedit_.erase(previousCharacter(preedit_, preedit_.size()));
+
+    // A transactional preedit can contain several completed words even
+    // though the engine only retains the active word. Replay that word's
+    // owned inputs after deleting the boundary so tone/backspace behavior is
+    // identical to the state immediately before the boundary.
+    engine_.reset();
+    std::string replayed;
+    bool replay_ok = true;
+    for (const StoredInput &stored : checkpoint.token_inputs) {
+        const KeyResult result = engine_.process(stored.view());
+        if (!result.handled || result.require_fallback ||
+            result.reset_context || result.commit_preedit_before ||
+            !applyEdit(replayed,
+                       result.delete_before_cursor,
+                       result.commit_text)) {
+            replay_ok = false;
+            break;
+        }
+    }
+
+    if (replay_ok && checkpoint.token_start <= preedit_.size() &&
+        preedit_.substr(checkpoint.token_start) == replayed) {
+        token_start_ = checkpoint.token_start;
+        token_inputs_ = std::move(checkpoint.token_inputs);
+        detached_preedit_ = false;
+        return true;
+    }
+
+    // Macro and convenience expansion can make the visible token differ from
+    // raw replay. Keep editing the owned UTF-8 preedit locally, then hand it
+    // off atomically before accepting new composition input.
+    engine_.reset();
+    token_inputs_.clear();
+    boundaries_.clear();
+    token_start_ = preedit_.size();
+    detached_preedit_ = true;
+    return true;
+}
+
+void PreeditFallbackController::record(const KeyInput &input)
+{
+    token_inputs_.push_back({
+        input.kind,
+        std::string(input.text),
+        input.shift_pressed,
+        input.caps_lock_on,
+        input.has_control_modifier,
+    });
+}
+
+void PreeditFallbackController::clearEditingState()
+{
+    token_inputs_.clear();
+    boundaries_.clear();
+    token_start_ = 0;
+    detached_preedit_ = false;
 }
 
 void PreeditFallbackController::commitPending(std::string_view suffix)
@@ -161,6 +282,7 @@ void PreeditFallbackController::commitPending(std::string_view suffix)
     commit_.assign(preedit_);
     commit_.append(suffix);
     preedit_.clear();
+    clearEditingState();
 }
 
 std::size_t PreeditFallbackController::previousCharacter(

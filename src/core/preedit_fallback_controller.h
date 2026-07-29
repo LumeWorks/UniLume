@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace unilume::core {
 
@@ -41,8 +42,29 @@ public:
     [[nodiscard]] std::string_view preedit() const;
 
 private:
+    struct StoredInput {
+        KeyKind kind{KeyKind::text};
+        std::string text;
+        bool shift_pressed{};
+        bool caps_lock_on{};
+        bool has_control_modifier{};
+
+        [[nodiscard]] KeyInput view() const;
+    };
+
+    struct BoundaryCheckpoint {
+        std::size_t token_start{};
+        std::vector<StoredInput> token_inputs;
+    };
+
     bool applyEdit(std::int32_t delete_before_cursor,
                    std::string_view commit_text);
+    static bool applyEdit(std::string &text,
+                          std::int32_t delete_before_cursor,
+                          std::string_view commit_text);
+    bool restoreBeforeBoundary();
+    void record(const KeyInput &input);
+    void clearEditingState();
     void commitPending(std::string_view suffix);
     static std::size_t previousCharacter(std::string_view text,
                                          std::size_t position);
@@ -51,6 +73,10 @@ private:
     std::string preedit_;
     std::string commit_;
     PreeditCommitPolicy commit_policy_;
+    std::vector<StoredInput> token_inputs_;
+    std::vector<BoundaryCheckpoint> boundaries_;
+    std::size_t token_start_{};
+    bool detached_preedit_{};
 };
 
 } // namespace unilume::core
