@@ -13,9 +13,10 @@
 namespace unilume::fcitx5 {
 
 InputContextState::InputContextState(fcitx::InputContext &input_context,
+                                     UinputBackspaceDevice &uinput_device,
                                      UlInputMethod method)
     : input_context_(input_context),
-      backend_(input_context),
+      backend_(input_context, uinput_device),
       direct_controller_(backend_, method),
       preedit_controller_(
           method,
@@ -31,6 +32,49 @@ InputContextState::~InputContextState()
 
 void InputContextState::keyEvent(fcitx::KeyEvent &event)
 {
+    if (event.isRelease() && backend_.initialBackspacePending()) {
+        event.filterAndAccept();
+        if (!backend_.startAcknowledgedReplacement()) {
+            direct_controller_.complete(
+                direct_controller_.activeSequence(), false);
+        }
+        return;
+    }
+    const bool is_backspace =
+        event.rawKey().sym() == FcitxKey_BackSpace ||
+        event.rawKey().sym() == 8;
+    if (is_backspace) {
+        if (event.isRelease() &&
+            backend_.forwardedBackspaceReleasePending()) {
+            if (!backend_.continueAcknowledgedReplacement()) {
+                direct_controller_.timeout(
+                    direct_controller_.activeSequence());
+            }
+            return;
+        }
+        if (event.isRelease() && backend_.consumeBarrierRelease()) {
+            event.filterAndAccept();
+            return;
+        }
+        if (!event.isRelease() &&
+            backend_.acknowledgedDeletionPending()) {
+            switch (backend_.acknowledgeBackspace()) {
+            case BackspaceAcknowledgement::forward_deletion:
+                backend_.expectForwardedBackspaceRelease();
+                return;
+            case BackspaceAcknowledgement::consume_barrier: {
+                backend_.expectBarrierRelease();
+                event.filterAndAccept();
+                const std::uint64_t sequence =
+                    backend_.finishAcknowledgedReplacement();
+                direct_controller_.complete(sequence, sequence != 0);
+                return;
+            }
+            case BackspaceAcknowledgement::unexpected:
+                break;
+            }
+        }
+    }
     const std::uint64_t started_at_ns = diagnostics_.beginEvent();
     const MappedKey mapped = mapKeyEvent(event);
     if (mapped.status == MappingStatus::ignored) {
@@ -92,6 +136,13 @@ void InputContextState::keyEvent(fcitx::KeyEvent &event)
 
 void InputContextState::reset()
 {
+    // Some clients reset the input context after accepting each synthetic
+    // Backspace. The final barrier is the transaction boundary; resetting
+    // before it arrives would orphan the remaining deletion and commit.
+    if (backend_.acknowledgedDeletionPending() &&
+        !backend_.initialBackspacePending()) {
+        return;
+    }
     diagnostics_.recordReset(TraceResetReason::focus);
     direct_controller_.resetForFocus();
     preedit_controller_.reset();

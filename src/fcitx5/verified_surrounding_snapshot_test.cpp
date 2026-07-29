@@ -28,13 +28,13 @@ int main()
 
     ok &= expect(
         !replacementTransportIsAtomic("wayland_v2"),
-        "split Wayland v2 transport accepted direct replacement");
+        "split Wayland v2 transport accepted atomic replacement");
     ok &= expect(
         !replacementTransportIsAtomic("wayland"),
-        "split Wayland v1 transport accepted direct replacement");
+        "split Wayland v1 transport accepted atomic replacement");
     ok &= expect(
         !replacementTransportIsAtomic("dbus"),
-        "split D-Bus transport accepted direct replacement");
+        "split D-Bus transport accepted atomic replacement");
     ok &= expect(
         replacementTransportIsAtomic("test_sync"),
         "synchronous transport rejected direct replacement");

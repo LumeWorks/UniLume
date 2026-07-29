@@ -25,6 +25,8 @@ int main()
 
     bool ok = true;
     InputMethodConfig input_method_config;
+    ok &= expect(*input_method_config.verified_direct_enabled,
+                 "zero-preedit replacement must be enabled by default");
     fcitx::RawConfig raw;
     raw["InputMethod"] = "VNI";
     raw["OutputCharset"] = "UTF8";

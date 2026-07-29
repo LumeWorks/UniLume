@@ -1,0 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+# Grant the active local session access to the Backspace-only uinput backend.
+KERNEL=="uinput", SUBSYSTEM=="misc", TAG+="uaccess", OPTIONS+="static_node=uinput"

@@ -72,7 +72,7 @@ struct DecodeResult {
 };
 
 struct Resolution {
-    ApplicationMode mode{ApplicationMode::safe_preedit};
+    ApplicationMode mode{ApplicationMode::automatic};
     ResolutionSource source{ResolutionSource::missing_identity};
     std::string_view pattern;
 };

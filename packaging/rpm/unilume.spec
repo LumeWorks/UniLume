@@ -51,6 +51,7 @@ Features:
 %{_datadir}/fcitx5/inputmethod/unilume.conf
 %{_datadir}/doc/unilume/
 %{_datadir}/licenses/unilume/
+/usr/lib/udev/rules.d/70-unilume-uinput.rules
 
 %changelog
 * Fri Jul 24 2026 Lê Hùng Quang Minh <dismonjames@gmail.com> - 0.1.0-0.rc1.1

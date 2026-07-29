@@ -76,7 +76,8 @@ private:
         std::uint64_t keymap_generation{};
         dictionary::Snapshot dictionary_snapshot;
         std::uint64_t dictionary_generation{};
-        bool verified_direct_enabled{};
+        bool verified_direct_enabled{
+            verified_direct_enabled_by_default};
         bool emoji_enabled{};
         policy::Snapshot application_policy_snapshot;
         std::uint64_t application_policy_generation{};
@@ -123,6 +124,7 @@ private:
         fcitx::InputContext *input_context) const;
 
     fcitx::Instance &instance_;
+    UinputBackspaceDevice uinput_device_;
     fcitx::FactoryFor<InputContextState> state_factory_;
     std::unique_ptr<fcitx::Menu> mode_menu_;
     std::unique_ptr<ModeAction> mode_action_;

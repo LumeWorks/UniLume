@@ -83,23 +83,34 @@ sudo ./install.sh --prefix=/usr
 
 ## Post-install
 
-1. Restart Fcitx5:
+1. Native packages install the session-access rule for the zero-preedit
+   backend. After a first install from source, reload it once:
+   ```sh
+   sudo udevadm control --reload-rules
+   sudo udevadm trigger --name-match=uinput
+   ```
+
+2. Restart Fcitx5:
    ```sh
    fcitx5 -rd
    ```
 
-2. Open Fcitx5 configuration:
+3. Open Fcitx5 configuration:
    ```sh
    fcitx5-configtool
    ```
 
-3. Add **UniLume** as an input method in the *Add Input Method* dialog.
+4. Add **UniLume** as an input method in the *Add Input Method* dialog.
 
-4. If the package includes the optional configuration application, open it
+5. If the package includes the optional configuration application, open it
    from the UniLume entry in Fcitx configuration or run:
    ```sh
    unilume-config
    ```
+
+If `/dev/uinput` is unavailable, UniLume remains usable and falls back to
+client preedit. Set `VerifiedDirectEnabled=False` in the input-method config to
+force that rollback explicitly.
 
 ## Verification
 

@@ -52,7 +52,10 @@ void IntegrationFixture::pump(std::size_t events)
 
 void IntegrationFixture::drain()
 {
-    for (std::size_t step = 0; step < 10000; ++step) {
+    // Deep bounded-delay profiles intentionally hold hundreds of keys while
+    // exercising the fixed controller queue. Keep the harness ceiling finite
+    // but above the worst qualified profile (400 events per replacement).
+    for (std::size_t step = 0; step < 100000; ++step) {
         if (!backend_.hasPending() &&
             controller_.transactionState() ==
                 core::TransactionState::idle &&

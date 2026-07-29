@@ -22,7 +22,10 @@ enum class SubmissionStatus {
 
 class DirectCommitController {
 public:
-    static constexpr std::size_t queue_capacity = 64;
+    // A zero-preedit backend may need several frontend round trips for one
+    // replacement. Keep a fixed, allocation-free burst window large enough
+    // for paste-like keyboard injection without making the queue unbounded.
+    static constexpr std::size_t queue_capacity = 512;
 
     explicit DirectCommitController(
         platform::ReplacementBackend &backend,

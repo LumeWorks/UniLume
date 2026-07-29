@@ -53,11 +53,12 @@ live bounded snapshot inside each edit, and fences old frontend generations on
 reset. It is feature-gated during qualification; see
 [verified-direct-backend.md](verified-direct-backend.md).
 
-The production ownership decision is frozen in
+The production ownership decision is recorded in
 [ADR 0001](adr/0001-composition-ownership.md): `InputContextState` is the sole
-composition owner, a path transition crosses a reset barrier, and no
-server-preedit, second Wayland input-method object, or uinput helper may edit
-the same composition.
+composition owner and a path transition crosses a reset barrier. Its Issue
+#102 amendment permits one in-process, Backspace-only uinput device for
+acknowledged deletion on split Fcitx transports; it never owns composition
+text or commits output independently.
 
 The original proposal and boundary rationale remain in
 [linux-adapter-design.md](linux-adapter-design.md). Current test semantics and
