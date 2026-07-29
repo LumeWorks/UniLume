@@ -17,8 +17,8 @@ current evidence is:
 | Compositor family | Compositor | Evidence | Verdict |
 | --- | --- | --- | --- |
 | wlroots | sway 1.9 (headless backend) | native terminal, exact output | corpus, 1 ms burst and unpaced stress pass |
-| KWin | KWin 6.3.6 (nested X11 backend) | native GTK3/Chromium, exact output | safe-preedit policy pending #90 retest |
-| Mutter | GNOME Shell/Mutter 48.7 (headless virtual monitor) | native GTK3, exact output | safe-preedit policy pending #90 retest |
+| KWin | KWin 5.27.11 (nested X11 backend) | native GTK3/Chromium, exact output | GTK direct and Chromium safe-preedit corpus/1 ms burst pass |
+| Mutter | GNOME Shell/Mutter 46.0 (headless virtual monitor) | native GTK3, exact output | direct corpus and 1 ms burst pass |
 
 Earlier work under #47 ran real Firefox, Chrome and VS Code/Electron Wayland
 clients inside an isolated KWin 6.3.6 virtual compositor with Fcitx 5.1.12, and
@@ -133,9 +133,10 @@ backend it did not actually use.
 2. **Terminal clients do not provide surrounding text.** With `foot`, the
    direct replacement path is correctly ineligible and the diagnostic trace
    records the `unavailable` capability gate. The GTK probe provides validated
-   surrounding text. Fcitx's current Wayland transport is nevertheless
-   ineligible for direct replacement because it cannot batch delete and
-   commit into one edit.
+   surrounding text. An application using Fcitx's `wayland` or `wayland_v2`
+   frontend is nevertheless ineligible for direct replacement because those
+   transports cannot batch delete and commit into one edit. Native Wayland
+   applications using an atomic GTK/DBus frontend remain eligible.
 3. **One run claims one compositor and client.** The evidence JSON records the
    exact family, version, injector and extraction client. It is not evidence
    for an untested application or compositor version.
@@ -349,9 +350,22 @@ Wayland v2 frontend flushes both with separate protocol `commit(serial)`
 requests. UniLume cannot make that boundary atomic from the public addon API.
 Issue #90 therefore makes the transport contract fail closed to client
 preedit for `wayland` and `wayland_v2`, with the diagnostic gate
-`non_atomic_transport`. Its GitHub Actions matrix runs the six-scenario Chrome
-corpus and three 1 ms/key burst rounds. Issue #58 remains open until that
-retest and the remaining Firefox/Electron/Qt coverage are complete.
+`non_atomic_transport`.
+
+GitHub Actions run 30419153697 retested Google Chrome 150.0.7871.128,
+KWin 5.27.11 and Fcitx 5.1.7 through the native browser probe:
+
+| Phase | Observations | Key events | Errors | Observed path |
+| --- | ---: | ---: | ---: | --- |
+| corpus, 10 ms/key | 6 | 94 | 0 | preedit |
+| burst, 3 rounds at 1 ms/key | 18 | 282 | 0 | preedit |
+| unpaced stress, 2 rounds | 12 | 188 | 0 | preedit |
+
+There were no lost, duplicate, reordered or corrupted values. The client and
+diagnostic path both reported `preedit`; diagnostics recorded
+`non_atomic_transport`, zero backend failures, zero stale results and zero
+uncertain outcomes. Issue #58 remains open for the remaining
+Firefox/Electron/Qt coverage and qualifying soaks.
 
 ### Firefox native Wayland blocker
 

@@ -187,9 +187,10 @@ been re-evaluated.
 **Conclusion:** The client-preedit fallback with underline is retained whenever
 the surrounding snapshot or atomic-edit transport is unavailable. Native
 Wayland clients can advertise surrounding text, but Fcitx 5.1.12 does not
-expose an atomic delete-plus-commit operation to addons, so its Wayland
-frontends also use client preedit. Correct text takes precedence over removing
-the underline.
+expose an atomic delete-plus-commit operation to addons through its `wayland`
+and `wayland_v2` frontends, so those frontend paths use client preedit.
+Applications using another atomic Fcitx frontend remain eligible for direct
+replacement. Correct text takes precedence over removing the underline.
 
 ## Deterministic test profiles
 
@@ -198,11 +199,11 @@ The integration harness models the following browser profiles:
 | Profile | SurroundingText (observed) | Behavior |
 | --- | --- | --- |
 | `firefox-x11` | Not advertised in test matrix | Client-preedit fallback, burst-safe |
-| `firefox-wayland` | Advertised in KWin trace | Client preedit; Fcitx transport is split |
+| `firefox-wayland` | Advertised in KWin trace | Depends on the actual Fcitx frontend transport |
 | `chromium-x11` | Not advertised in test matrix | Client-preedit fallback, burst-safe |
-| `chromium-wayland` | Advertised in KWin trace | Client preedit; Fcitx transport is split |
+| `chromium-wayland` | Advertised in KWin trace | Client preedit on tested `wayland_v2`; burst-safe |
 | `electron-x11` | Not advertised in test matrix | Client-preedit fallback, burst-safe |
-| `electron-wayland` | Advertised in KWin trace | Client preedit; Fcitx transport is split |
+| `electron-wayland` | Advertised in KWin trace | Depends on the actual Fcitx frontend transport |
 
 Browser profiles are tested via `PreeditFallbackController` with the full
 corpus (Telex composition, URL, email, C++/C# code, punctuation, backspace).
@@ -215,7 +216,7 @@ See `tests/integration/browser_capability_tests.cpp` and
   Plasma X11 only. Other distributions, desktop environments, compositors, or
   Wayland sessions may differ and remain unverified.
 - Native Wayland browser capability traces are recorded in
-  `docs/zero-preedit-evidence.md`. Full interactive output validation remains
-  separate from capability observation.
+  `docs/zero-preedit-evidence.md`. Chrome has exact-output coverage in
+  `docs/wayland-validation.md`; Firefox and Electron remain separate.
 - The policy never hardcodes process names to force a specific path.
 - No claims are made about production readiness.
