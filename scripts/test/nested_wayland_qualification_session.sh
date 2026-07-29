@@ -98,7 +98,12 @@ dbus-run-session -- sh -eu -c '
   fcitx_pid=""
   xvfb_pid=""
   cleanup() {
-    kill $fcitx_pid $compositor_pid $xvfb_pid 2>/dev/null || true
+    for pid in $fcitx_pid $compositor_pid $xvfb_pid; do
+      kill "$pid" 2>/dev/null || true
+    done
+    for pid in $fcitx_pid $compositor_pid $xvfb_pid; do
+      wait "$pid" 2>/dev/null || true
+    done
   }
   trap cleanup EXIT HUP INT TERM
 

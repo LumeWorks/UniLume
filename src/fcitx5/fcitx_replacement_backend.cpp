@@ -2,6 +2,7 @@
 
 #include "fcitx_replacement_backend.h"
 
+#include "replacement_transport_contract.h"
 #include "utf8_validation.h"
 #include "verified_surrounding_snapshot.h"
 
@@ -24,6 +25,8 @@ bool FcitxReplacementBackend::supportsDirectReplacement() const
     observation_.surrounding_available =
         input_context_.capabilityFlags().test(
             fcitx::CapabilityFlag::SurroundingText);
+    observation_.atomic_transport = replacementTransportIsAtomic(
+        input_context_.frontendName());
     if (!observation_.surrounding_available) {
         observation_.surrounding_bytes = 0;
         observation_.cursor_valid = false;
@@ -41,7 +44,8 @@ bool FcitxReplacementBackend::supportsDirectReplacement() const
     observation_.within_resource_limit =
         validated.within_resource_limit;
     observation_.utf8_valid = validated.utf8_valid;
-    return validated.allowsReplacement();
+    return observation_.atomic_transport &&
+           validated.allowsReplacement();
 }
 
 bool FcitxReplacementBackend::canReplace(
@@ -52,6 +56,8 @@ bool FcitxReplacementBackend::canReplace(
     observation_.surrounding_available =
         input_context_.capabilityFlags().test(
             fcitx::CapabilityFlag::SurroundingText);
+    observation_.atomic_transport = replacementTransportIsAtomic(
+        input_context_.frontendName());
     observation_.cursor_valid = false;
     observation_.utf8_valid = false;
     observation_.within_resource_limit = false;
@@ -77,7 +83,8 @@ bool FcitxReplacementBackend::canReplace(
     observation_.within_resource_limit =
         validated.within_resource_limit;
     observation_.utf8_valid = validated.utf8_valid;
-    return validated.allowsReplacement();
+    return observation_.atomic_transport &&
+           validated.allowsReplacement();
 }
 
 platform::ReplacementStatus

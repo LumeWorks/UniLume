@@ -92,6 +92,8 @@ const char *capabilityName(TraceCapability capability)
     switch (capability) {
     case TraceCapability::unavailable:
         return "unavailable";
+    case TraceCapability::non_atomic_transport:
+        return "non_atomic_transport";
     case TraceCapability::ready:
         return "ready";
     case TraceCapability::invalid_cursor:
@@ -281,7 +283,7 @@ void DiagnosticTrace::recordDirect(
 
 void DiagnosticTrace::recordPreedit(
     const core::PreeditAction &action,
-    bool surrounding_available,
+    const ReplacementObservation &replacement,
     std::uint64_t started_at_ns)
 {
     if (started_at_ns == 0) {
@@ -297,8 +299,7 @@ void DiagnosticTrace::recordPreedit(
         0,
         EventKind::key,
         TracePath::preedit,
-        surrounding_available ? TraceCapability::ready
-                              : TraceCapability::unavailable,
+        capability(replacement),
         TraceError::none,
         durationBucket(monotonicNanoseconds() - started_at_ns),
         TraceResetReason::none,
@@ -336,7 +337,7 @@ void DiagnosticTrace::recordReset(TraceResetReason reason)
 
 void DiagnosticTrace::recordModeChange(
     bool preedit,
-    bool surrounding_available)
+    const ReplacementObservation &replacement)
 {
     if (!enabled_) {
         return;
@@ -352,8 +353,7 @@ void DiagnosticTrace::recordModeChange(
         0,
         EventKind::mode_change,
         preedit ? TracePath::preedit : TracePath::direct,
-        surrounding_available ? TraceCapability::ready
-                              : TraceCapability::unavailable,
+        capability(replacement),
         TraceError::none,
         TraceDurationBucket::under_1_us,
         TraceResetReason::none,
@@ -363,7 +363,7 @@ void DiagnosticTrace::recordModeChange(
 }
 
 void DiagnosticTrace::recordPreeditHandoff(
-    bool surrounding_available)
+    const ReplacementObservation &replacement)
 {
     if (!enabled_) {
         return;
@@ -379,8 +379,7 @@ void DiagnosticTrace::recordPreeditHandoff(
         0,
         EventKind::preedit_handoff,
         TracePath::preedit,
-        surrounding_available ? TraceCapability::ready
-                              : TraceCapability::unavailable,
+        capability(replacement),
         TraceError::none,
         TraceDurationBucket::under_1_us,
         TraceResetReason::none,
@@ -645,6 +644,9 @@ TraceCapability DiagnosticTrace::capability(
 {
     if (!replacement.surrounding_available) {
         return TraceCapability::unavailable;
+    }
+    if (!replacement.atomic_transport) {
+        return TraceCapability::non_atomic_transport;
     }
     if (!replacement.within_resource_limit) {
         return TraceCapability::resource_limit;

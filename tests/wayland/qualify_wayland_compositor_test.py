@@ -127,19 +127,64 @@ class InjectionArgumentTest(unittest.TestCase):
 class BrowserProbeStateTest(unittest.TestCase):
     def test_visible_and_committed_values_are_independent(self) -> None:
         state = HARNESS.BrowserProbeState("controlled-token")
-        state.record("controlled-token", "visible", "tiếng Việt")
+        state.record("controlled-token", "visible", "tiếng Việt", 1)
         observed, settled_ns = state.wait_for("visible", "tiếng Việt", 0)
         self.assertEqual(observed, "tiếng Việt")
         self.assertGreater(settled_ns, 0)
-        state.record("controlled-token", "committed", "tiếng Việt")
+        state.record("controlled-token", "committed", "tiếng Việt", 2)
         state.clear_commit()
         self.assertIsNone(state.committed)
         self.assertEqual(state.visible, "tiếng Việt")
+        self.assertFalse(state.visible_composing)
+
+    def test_visible_value_retains_browser_composition_state(self) -> None:
+        state = HARNESS.BrowserProbeState("controlled-token")
+        state.record(
+            "controlled-token",
+            "visible",
+            "tiếng Việt",
+            1,
+            composing=True,
+        )
+        self.assertEqual(state.visible, "tiếng Việt")
+        self.assertTrue(state.visible_composing)
+        self.assertTrue(state.composition_seen)
+        state.record(
+            "controlled-token",
+            "visible",
+            "tiếng Việt",
+            2,
+            composing=False,
+        )
+        self.assertFalse(state.visible_composing)
+        self.assertTrue(state.composition_seen)
+        state.clear_commit()
+        self.assertFalse(state.composition_seen)
+
+    def test_late_browser_report_cannot_restore_old_composition(self) -> None:
+        state = HARNESS.BrowserProbeState("controlled-token")
+        state.record(
+            "controlled-token",
+            "visible",
+            "",
+            3,
+            composing=False,
+        )
+        state.clear_commit()
+        state.record(
+            "controlled-token",
+            "visible",
+            "old preedit",
+            2,
+            composing=True,
+        )
+        self.assertEqual(state.visible, "")
+        self.assertFalse(state.composition_seen)
 
     def test_wrong_token_is_rejected(self) -> None:
         state = HARNESS.BrowserProbeState("controlled-token")
         with self.assertRaises(ValueError):
-            state.record("other-token", "visible", "")
+            state.record("other-token", "visible", "", 1)
 
     def test_firefox_profile_exists_and_skips_first_run_ui(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -197,7 +242,11 @@ class DiagnosticBundleTest(unittest.TestCase):
 
 
 def observation(
-    name: str, expected: str, observed: str, before_boundary: str | None = None
+    name: str,
+    expected: str,
+    observed: str,
+    before_boundary: str | None = None,
+    preedit_active_before_boundary: bool = False,
 ) -> object:
     return HARNESS.ObservedScenario(
         name=name,
@@ -205,6 +254,7 @@ def observation(
         expected=expected,
         observed=observed,
         before_boundary=expected if before_boundary is None else before_boundary,
+        preedit_active_before_boundary=preedit_active_before_boundary,
         key_events=len(expected),
         completion_ns=1000,
     )
@@ -369,6 +419,17 @@ class CorpusContractTest(unittest.TestCase):
 
 
 class BackendPathTest(unittest.TestCase):
+    def test_browser_composition_is_preedit_even_when_dom_value_is_visible(
+        self,
+    ) -> None:
+        observed = observation(
+            "browser-preedit",
+            "tiếng",
+            "tiếng",
+            preedit_active_before_boundary=True,
+        )
+        self.assertFalse(observed.zero_preedit)
+
     def test_all_direct_observations_are_the_direct_path(self) -> None:
         summary = {
             "zero_preedit_observations": 6,

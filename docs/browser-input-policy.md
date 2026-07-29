@@ -8,10 +8,10 @@ others use direct zero-preedit.
 
 ## Capability requirement
 
-UniLume's direct zero-preedit path requires the Fcitx
-`CapabilityFlag::SurroundingText` (bit 6) to be set by the frontend. This flag
-signals that the application can provide the text around the cursor, letting the
-input method delete and replace previously committed characters safely.
+UniLume's direct zero-preedit path requires both the Fcitx
+`CapabilityFlag::SurroundingText` (bit 6) and a frontend transport that applies
+delete plus commit as one indivisible edit. Surrounding text supplies the
+range oracle; it does not by itself make two transport messages atomic.
 
 The following Fcitx 5.1.12 capability flags are relevant:
 
@@ -31,8 +31,8 @@ The `InputModePolicy` state machine chooses one of three paths:
                          │
               ┌──────────┴──────────┐
               │                     │
-      SurroundingText         no SurroundingText
-         available              (browser/Electron)
+       valid snapshot          missing snapshot or
+       + atomic edit           split edit transport
               │                     │
               ▼                     ▼
         ┌──────────┐         ┌──────────┐
@@ -53,14 +53,15 @@ The `InputModePolicy` state machine chooses one of three paths:
 **Rules:**
 
 1. Path is selected on the first key event of a composition based on the
-   current `SurroundingText` capability.
+   current surrounding snapshot and frontend transaction contract.
 2. During an active composition the path is stable:
    - `preedit` never promotes to `direct` (prevents overlapping preedit
      update from Firefox)
-   - `direct` demotes to `preedit` only if `SurroundingText` is lost
+   - `direct` demotes to `preedit` if its snapshot or atomic transport becomes
+     unavailable
 3. Between compositions (after commit, reset, focus change, or navigation):
    - Both paths reset to `unknown`
-   - The next composition re-evaluates the capability snapshot
+   - The next composition re-evaluates both gates
 4. A full `reset()` (focus change) always returns to `unknown`.
 
 ## Browser capability observations (X11 matrix)
@@ -108,11 +109,11 @@ Browser engines:
 - **Electron/VS Code:** Inherits Chromium's IME architecture. Same observed
   behavior as Chrome in the tested environment.
 
-This is not a UniLume limitation in the tested environment; the observed
-behavior reflects the frontend API contract as exercised by these applications
-on X11. The isolated native Wayland trace did produce different capability
-signals. Different versions and desktop environments still require separate
-validation.
+The isolated native Wayland trace produced different capability signals, but
+Fcitx 5.1.12's `wayland` and `wayland_v2` addon transport splits a logical
+delete-plus-commit replacement. UniLume consequently selects client preedit
+for those frontend protocols regardless of application identity. Different
+Fcitx frontend implementations still require separate validation.
 
 ## Zero-preedit research
 
@@ -128,7 +129,8 @@ the cursor.
 **Browser applicability in tested X11 matrix:** In the environments tested,
 browsers did not advertise `CapabilityFlag::SurroundingText`, so
 `canReplace()` returned `false`. The tested native Wayland clients did expose
-it, but direct replacement remains gated on validation of the live state.
+it, but Fcitx's current Wayland frontend transport fails the separate
+atomic-edit gate and therefore selects client preedit.
 The adapter-level `VerifiedDirectEnabled` flag must also be enabled during
 qualification; it defaults off. See
 [verified-direct-backend.md](verified-direct-backend.md).
@@ -182,13 +184,13 @@ been re-evaluated.
 | B. Stable prefix | No (decision C) | Partial only if unsafe | Rejected mid-word without engine oracle |
 | C. Server-side preedit | No (tested Firefox/X11) | Yes | Rejected for tested reproduction |
 
-**Conclusion (tested X11 matrix):** Safe zero-preedit for browser/Electron
-frontends is not currently achievable with the frontend capabilities observed
-in the tested environment and the current UniKey engine interface. The
-client-preedit fallback with underline is retained as the safe default for
-all browser/Electron contexts in this matrix. The native Wayland capability
-trace makes those contexts eligible for verified direct replacement; complete
-interactive output validation is tracked separately.
+**Conclusion:** The client-preedit fallback with underline is retained whenever
+the surrounding snapshot or atomic-edit transport is unavailable. Native
+Wayland clients can advertise surrounding text, but Fcitx 5.1.12 does not
+expose an atomic delete-plus-commit operation to addons through its `wayland`
+and `wayland_v2` frontends, so those frontend paths use client preedit.
+Applications using another atomic Fcitx frontend remain eligible for direct
+replacement. Correct text takes precedence over removing the underline.
 
 ## Deterministic test profiles
 
@@ -197,11 +199,11 @@ The integration harness models the following browser profiles:
 | Profile | SurroundingText (observed) | Behavior |
 | --- | --- | --- |
 | `firefox-x11` | Not advertised in test matrix | Client-preedit fallback, burst-safe |
-| `firefox-wayland` | Advertised in KWin trace | Direct when the live state validates |
+| `firefox-wayland` | Advertised in KWin trace | Depends on the actual Fcitx frontend transport |
 | `chromium-x11` | Not advertised in test matrix | Client-preedit fallback, burst-safe |
-| `chromium-wayland` | Advertised in KWin trace | Direct when the live state validates |
+| `chromium-wayland` | Advertised in KWin trace | Client preedit on tested `wayland_v2`; burst-safe |
 | `electron-x11` | Not advertised in test matrix | Client-preedit fallback, burst-safe |
-| `electron-wayland` | Advertised in KWin trace | Direct when the live state validates |
+| `electron-wayland` | Advertised in KWin trace | Depends on the actual Fcitx frontend transport |
 
 Browser profiles are tested via `PreeditFallbackController` with the full
 corpus (Telex composition, URL, email, C++/C# code, punctuation, backspace).
@@ -214,7 +216,7 @@ See `tests/integration/browser_capability_tests.cpp` and
   Plasma X11 only. Other distributions, desktop environments, compositors, or
   Wayland sessions may differ and remain unverified.
 - Native Wayland browser capability traces are recorded in
-  `docs/zero-preedit-evidence.md`. Full interactive output validation remains
-  separate from capability observation.
+  `docs/zero-preedit-evidence.md`. Chrome has exact-output coverage in
+  `docs/wayland-validation.md`; Firefox and Electron remain separate.
 - The policy never hardcodes process names to force a specific path.
 - No claims are made about production readiness.

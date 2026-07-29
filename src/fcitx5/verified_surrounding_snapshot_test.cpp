@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "verified_surrounding_snapshot.h"
+#include "replacement_transport_contract.h"
 
 #include <fcitx/surroundingtext.h>
 
@@ -24,6 +25,16 @@ int main()
 {
     using namespace unilume::fcitx5;
     bool ok = true;
+
+    ok &= expect(
+        !replacementTransportIsAtomic("wayland_v2"),
+        "split Wayland v2 transport accepted direct replacement");
+    ok &= expect(
+        !replacementTransportIsAtomic("wayland"),
+        "split Wayland v1 transport accepted direct replacement");
+    ok &= expect(
+        replacementTransportIsAtomic("dbus"),
+        "existing synchronous frontend rejected direct replacement");
 
     fcitx::SurroundingText valid;
     valid.setText("tôi", 3, 3);

@@ -12,14 +12,23 @@
     const parameters = new URLSearchParams(window.location.search);
     const token = parameters.get("token");
     const probe = document.querySelector("#probe");
+    let revision = 0;
 
-    const report = (kind, value) => fetch("/report", {
+    const report = (kind, value, composing = false) => fetch("/report", {
       method: "POST",
       headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({token, kind, value}),
+      body: JSON.stringify({
+        token,
+        kind,
+        value,
+        composing,
+        revision: ++revision,
+      }),
     });
 
-    probe.addEventListener("input", () => report("visible", probe.value));
+    probe.addEventListener("input", event => {
+      report("visible", probe.value, event.isComposing);
+    });
     probe.addEventListener("keydown", event => {
       if (event.key !== "Enter") {
         return;

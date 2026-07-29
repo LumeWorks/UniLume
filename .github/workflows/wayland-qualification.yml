@@ -112,7 +112,7 @@ jobs:
           if-no-files-found: warn
 
   nested-compositor-qualification:
-    name: ${{ matrix.family }} native Wayland qualification
+    name: ${{ matrix.family }} ${{ matrix.client }} native Wayland qualification
     runs-on: ubuntu-latest
     timeout-minutes: 50
     strategy:
@@ -121,8 +121,16 @@ jobs:
         include:
           - family: kwin
             compositor_packages: kwin-wayland xdotool x11-utils xvfb
+            client: gtk3-probe
+            browser: ""
+          - family: kwin
+            compositor_packages: kwin-wayland xdotool x11-utils xvfb
+            client: browser-probe
+            browser: google-chrome
           - family: mutter
             compositor_packages: gnome-shell gir1.2-gtk-3.0 python3-gi
+            client: gtk3-probe
+            browser: ""
 
     steps:
       - name: Checkout repository
@@ -160,15 +168,23 @@ jobs:
           cmake --build build/fcitx5 --parallel 2
           cmake --install build/fcitx5 --prefix "$RUNNER_TEMP/unilume-wayland"
 
-      - name: Qualify the native direct path
+      - name: Qualify the native input path
         env:
           COMPOSITOR_FAMILY: ${{ matrix.family }}
+          CLIENT: ${{ matrix.client }}
+          BROWSER: ${{ matrix.browser }}
           SOAK_SECONDS: ${{ inputs.soak_seconds || '0' }}
           UNILUME_WAYLAND_LOG_DIR: ${{ runner.temp }}/wayland-logs
         run: |
+          browser_args=()
+          if [ -n "$BROWSER" ]; then
+            browser_args=(--browser "$BROWSER")
+          fi
           ./scripts/test/nested_wayland_qualification_session.sh \
             "$RUNNER_TEMP/unilume-wayland" \
             "$COMPOSITOR_FAMILY" \
+            --client "$CLIENT" \
+            "${browser_args[@]}" \
             --burst-rounds 3 \
             --stress-rounds 2 \
             --soak-seconds "$SOAK_SECONDS" \
@@ -179,7 +195,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: wayland-qualification-${{ matrix.family }}
+          name: wayland-qualification-${{ matrix.family }}-${{ matrix.client }}
           path: |
             ${{ runner.temp }}/wayland-${{ matrix.family }}.json
             ${{ runner.temp }}/wayland-logs

@@ -11,6 +11,7 @@ add_library(unilume_fcitx5 MODULE
   fcitx_replacement_backend.cpp
   input_context_state.cpp
   input_method_config.cpp
+  replacement_transport_contract.cpp
   status_action_model.cpp
   verified_surrounding_snapshot.cpp
 )
@@ -201,6 +202,7 @@ if(BUILD_TESTING)
   )
 
   add_executable(unilume_fcitx5_backend_contract_tests
+    replacement_transport_contract.cpp
     verified_surrounding_snapshot.cpp
     verified_surrounding_snapshot_test.cpp
   )
