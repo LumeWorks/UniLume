@@ -115,11 +115,15 @@ real defect from hiding behind a lenient gate.
 ### Direct replacement against preedit fallback
 
 Each scenario is sampled twice: once before any commit boundary is sent, and
-once after. Text already present in the first sample proves UniLume replaced
-the composition directly. Text that appears only after the boundary means the
-run observed the preedit fallback. The harness then cross-checks that
-client-observed path against the path the addon's own diagnostic trace claims,
-so the addon cannot report a backend it did not actually use.
+once after. For terminal and GTK probes, text already present in the first
+sample proves UniLume replaced the composition directly. Browser DOM values
+can include active client preedit, so the browser probe also records the
+`InputEvent.isComposing` bit and only classifies early text as direct when no
+composition is active. Text that appears only after the boundary, or appears
+while the browser composition is active, means the run observed the preedit
+fallback. The harness then cross-checks that client-observed path against the
+path the addon's own diagnostic trace claims, so the addon cannot report a
+backend it did not actually use.
 
 ## Known limitations of this environment
 

@@ -112,6 +112,7 @@ class ObservedScenario:
     expected: str
     observed: str
     before_boundary: str
+    preedit_active_before_boundary: bool
     key_events: int
     completion_ns: int
 
@@ -121,8 +122,11 @@ class ObservedScenario:
 
     @property
     def zero_preedit(self) -> bool:
-        """True when the client held the final text before any commit boundary."""
-        return self.before_boundary == self.expected
+        """True when final text was visible without an active composition."""
+        return (
+            self.before_boundary == self.expected
+            and not self.preedit_active_before_boundary
+        )
 
     @property
     def defect(self) -> str:
@@ -523,6 +527,9 @@ class TerminalClient:
     def visible_text(self) -> str:
         return self.text()
 
+    def visible_is_preedit(self) -> bool:
+        return False
+
     def wait_for(
         self, expected: str, timeout_seconds: float, visible: bool = False
     ) -> tuple[str, int]:
@@ -592,17 +599,39 @@ class BrowserProbeState:
         self.condition = threading.Condition()
         self.visible: str | None = None
         self.committed: str | None = None
+        self.visible_composing = False
+        self.composition_seen = False
+        self.revision = 0
 
-    def record(self, token: str, kind: str, value: str) -> None:
+    def record(
+        self,
+        token: str,
+        kind: str,
+        value: str,
+        revision: int,
+        composing: bool = False,
+    ) -> None:
         if token != self.token or kind not in ("visible", "committed"):
             raise ValueError("invalid browser probe report")
+        if isinstance(revision, bool) or revision < 1:
+            raise ValueError("invalid browser probe revision")
         with self.condition:
+            if revision <= self.revision:
+                return
+            self.revision = revision
             setattr(self, kind, value)
+            if kind == "visible":
+                self.visible_composing = composing
+                self.composition_seen = (
+                    self.composition_seen or composing
+                )
             self.condition.notify_all()
 
     def clear_commit(self) -> None:
         with self.condition:
             self.committed = None
+            self.visible_composing = False
+            self.composition_seen = False
 
     def wait_for(
         self, kind: str, expected: str, timeout_seconds: float
@@ -686,11 +715,21 @@ class BrowserProbeClient(TerminalClient):
                     token = report["token"]
                     kind = report["kind"]
                     value = report["value"]
+                    revision = report["revision"]
+                    composing = report.get("composing", False)
                     if not all(
                         isinstance(item, str) for item in (token, kind, value)
+                    ) or not isinstance(revision, int) or not isinstance(
+                        composing, bool
                     ):
                         raise TypeError
-                    state.record(token, kind, value)
+                    state.record(
+                        token,
+                        kind,
+                        value,
+                        revision,
+                        composing,
+                    )
                 except (
                     json.JSONDecodeError,
                     KeyError,
@@ -795,6 +834,9 @@ class BrowserProbeClient(TerminalClient):
 
     def visible_text(self) -> str:
         return self.state.visible or ""
+
+    def visible_is_preedit(self) -> bool:
+        return self.state.composition_seen
 
     def wait_for(
         self, expected: str, timeout_seconds: float, visible: bool = False
@@ -1048,6 +1090,7 @@ def observe_scenario(
     before_boundary, _ = client.wait_for(
         scenario.expected, preedit_settle_seconds, visible=True
     )
+    preedit_active_before_boundary = client.visible_is_preedit()
     injector.commit_boundary()
     observed, settled_ns = client.wait_for(scenario.expected, timeout_seconds)
     return ObservedScenario(
@@ -1056,6 +1099,7 @@ def observe_scenario(
         expected=scenario.expected,
         observed=observed,
         before_boundary=before_boundary,
+        preedit_active_before_boundary=preedit_active_before_boundary,
         key_events=count_key_events(scenario.encoded_input),
         completion_ns=max(settled_ns - last_input_ns, 1),
     )
@@ -1100,6 +1144,9 @@ def as_samples(observations: Sequence[ObservedScenario]) -> list[dict[str, objec
             "expected": observation.expected,
             "observed": observation.observed,
             "text_before_commit_boundary": observation.before_boundary,
+            "preedit_active_before_commit_boundary": (
+                observation.preedit_active_before_boundary
+            ),
             "correct": observation.correct,
             "zero_preedit": observation.zero_preedit,
             "defect": observation.defect,
