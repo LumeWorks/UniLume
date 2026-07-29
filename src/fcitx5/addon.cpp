@@ -213,8 +213,8 @@ UniLumeAddon::~UniLumeAddon() = default;
 
 UniLumeAddon::UniLumeAddon(fcitx::Instance &instance)
     : instance_(instance),
-      state_factory_([](fcitx::InputContext &input_context) {
-          return new InputContextState(input_context);
+      state_factory_([this](fcitx::InputContext &input_context) {
+          return new InputContextState(input_context, uinput_device_);
       })
 {
     fcitx::registerDomain("unilume", UNILUME_LOCALE_DIR);

@@ -13,6 +13,8 @@
 
 namespace unilume::fcitx5 {
 
+inline constexpr bool verified_direct_enabled_by_default = true;
+
 // These identifiers are part of Fcitx's persisted per-input-method config.
 // Keep them explicit and closed: accepting an arbitrary legacy charset would
 // permit lossy commits, which UniLume intentionally does not support.
@@ -72,7 +74,8 @@ FCITX_CONFIGURATION(
         this, "DictionaryFile", _("Validated personal dictionary"), ""};
     fcitx::Option<bool> verified_direct_enabled{
         this, "VerifiedDirectEnabled",
-        _("Enable capability-gated verified direct replacement"), false};
+        _("Enable capability-gated verified direct replacement"),
+        verified_direct_enabled_by_default};
     fcitx::Option<bool> application_policy_enabled{
         this, "ApplicationPolicyEnabled",
         _("Enable per-application input policy"), false};

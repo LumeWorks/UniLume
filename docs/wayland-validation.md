@@ -127,17 +127,15 @@ backend it did not actually use.
 
 ## Known limitations of this environment
 
-1. **`uinput` is not used.** Issue #58 places it out of scope because a
-   kernel-level injection path would mask native-path behaviour, so the harness
-   fails loudly instead of substituting it.
+1. **Harness injection is independent of the backend.** The compositor harness
+   still uses its documented injector; it never substitutes uinput to create
+   test keystrokes. UniLume's Issue #102 backend may use its own
+   Backspace-only device for acknowledged replacement.
 2. **Terminal clients do not provide surrounding text.** With `foot`, the
-   direct replacement path is correctly ineligible and the diagnostic trace
-   records the `unavailable` capability gate. The GTK probe provides validated
-   surrounding text. An application using Fcitx's `dbus`, `wayland` or
-   `wayland_v2` frontend is nevertheless ineligible for direct replacement
-   because those transports cannot guarantee that delete and commit reach the
-   client as one edit. Native Wayland applications using another proven atomic
-   frontend remain eligible.
+   atomic surrounding-text path is ineligible. When `/dev/uinput` is available,
+   `dbus`, `wayland` and `wayland_v2` instead use acknowledged deletion; the
+   diagnostic trace records that transport as ready. Without it, the context
+   falls back to safe preedit.
 3. **One run claims one compositor and client.** The evidence JSON records the
    exact family, version, injector and extraction client. It is not evidence
    for an untested application or compositor version.

@@ -69,13 +69,13 @@ the backend requests the minimum surrounding-text deletion and commits the
 replacement in the same synchronous controller transaction. Cursor movement,
 focus changes, reset events, and unhandled Backspace clear composition state.
 
-When `VerifiedDirectEnabled=True`, an input context with a valid live
-surrounding-text snapshot on its first key uses direct commit with no client
-preedit and therefore no underline. The flag defaults to `False` until the
-production matrices are complete. A context without the flag or live oracle
-uses the safe preedit fallback. Frontends may display that client preedit with
-an underline. The addon never promotes a live preedit context into direct mode,
-because a frontend may still be applying an asynchronous preedit update.
+`VerifiedDirectEnabled` defaults to `True`. Atomic frontends use their verified
+surrounding-text edit. Split D-Bus and Wayland transports use one shared,
+Backspace-only uinput device: each deletion is released before the next is
+emitted, and the replacement is committed only when a final filtered barrier
+returns through Fcitx. This keeps ordinary typing out of client preedit and
+therefore removes its underline. If neither backend is available, the context
+uses bounded safe preedit.
 
 ## Safety fallback
 
@@ -84,9 +84,10 @@ valid UTF-8 snapshot with an unselected cursor and enough characters. Previously
 committed text never bypasses this live check. Verified replacement and raw
 fallback use separate backend calls so fallback cannot guess a deletion.
 
-This policy prefers a visible uncomposed key over duplicate or missing text.
-It does not synthesize Backspace, sleep, retry indefinitely, use a socket
-daemon, or provide a uinput fallback.
+The acknowledged backend has a 128-character deletion limit and a fixed
+512-key burst queue. It does not sleep, retry indefinitely, monitor the mouse,
+or run a socket daemon. Set `VerifiedDirectEnabled=False` to disable it and
+return immediately to safe preedit.
 
 Fcitx delete/commit methods are synchronous requests on its event thread and
 do not acknowledge application-side mutation. See
@@ -179,6 +180,5 @@ are validated outside the key path and installed per context as documented in
 lifecycle described in [dictionary-support.md](dictionary-support.md).
 Per-application modes, status menu, configurable hotkeys, deterministic rule
 precedence, and safe direct-mode fallback are documented in
-[application-policy.md](application-policy.md). Legacy
-charset output, uinput, distro packages, and system-wide Wayland protocol
-integration are not provided yet.
+[application-policy.md](application-policy.md). Legacy charset output and an
+independent system-wide Wayland protocol backend are not provided yet.

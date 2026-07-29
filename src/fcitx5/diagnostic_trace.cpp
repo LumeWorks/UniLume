@@ -642,6 +642,11 @@ TraceError DiagnosticTrace::directError(
 TraceCapability DiagnosticTrace::capability(
     const ReplacementObservation &replacement)
 {
+    if (replacement.acknowledged_uinput) {
+        return replacement.within_resource_limit
+                   ? TraceCapability::ready
+                   : TraceCapability::resource_limit;
+    }
     if (!replacement.surrounding_available) {
         return TraceCapability::unavailable;
     }

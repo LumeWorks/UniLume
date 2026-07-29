@@ -52,6 +52,24 @@ void runBurstTests(Assertions &assertions)
         assertions.equal(
             "burst final queue", fixture.metrics().queue_depth, 0);
     }
+
+    const std::string deep_input = burstInput(400);
+    const std::string deep_expected = referenceOutput(deep_input);
+    IntegrationFixture deep_fixture{{.delay_events = 400}};
+    deep_fixture.type(deep_input);
+    deep_fixture.drain();
+    assertions.equal(
+        "deep acknowledged burst output",
+        deep_fixture.output(),
+        deep_expected);
+    assertions.equal(
+        "deep acknowledged burst overflow",
+        deep_fixture.metrics().queue_overflow_count,
+        0);
+    assertions.truth(
+        "deep acknowledged burst bounded",
+        deep_fixture.metrics().max_queue_depth <=
+            core::DirectCommitController::queue_capacity);
 }
 
 void runSoakSmokeTests(Assertions &assertions)

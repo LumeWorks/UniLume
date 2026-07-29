@@ -27,7 +27,7 @@ coi là sẵn sàng để sử dụng hằng ngày.
 
 ## Chưa có
 
-- Gói distro hoặc uinput fallback.
+- Backend Wayland độc lập không đi qua Fcitx.
 - Xác minh trên Wayland và ma trận ứng dụng/phân phối rộng hơn môi trường
   KDE/X11 đã kiểm tra.
 - Backend IBus hoặc tích hợp Wayland cấp hệ thống độc lập.
@@ -184,5 +184,4 @@ Nếu UniLume mang lại giá trị cho bạn, bạn có thể ủng hộ nhà p
 *Chưa có lượt ủng hộ nào. Hãy là người đầu tiên đóng góp và xuất hiện tại đây!*
 
 <!-- Cập nhật danh sách nhà ủng hộ tại đây -->
-
 

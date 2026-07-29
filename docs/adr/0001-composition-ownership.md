@@ -2,7 +2,7 @@
 
 # ADR 0001: one composition owner with verified direct replacement
 
-- Status: Accepted
+- Status: Accepted, amended by Issue #102 on 2026-07-29
 - Date: 2026-07-26
 - Issue: [#47](https://github.com/dismonjames/UniLume/issues/47)
 - Supersedes: no previous production decision
@@ -47,13 +47,16 @@ reset/focus ──▶ unknown                         verified direct
 1. `verified direct` only when `SurroundingText` is present, the UTF-8 state
    and cursor are valid, cursor equals selection anchor, and the frontend can
    apply delete plus commit as one indivisible edit;
-2. `client preedit` in every other case.
+2. `acknowledged direct` on known split Fcitx transports when the bounded
+   Backspace device is available;
+3. `client preedit` in every other case.
 
 The owner is immutable during an active composition. A capability loss, focus
 change, cursor/selection invalidation, navigation boundary, or frontend
 generation change crosses a reset barrier before another owner may start.
-There is never a server-preedit, protocol helper, or uinput writer active
-beside either owner.
+There is never a server-preedit or second protocol composition owner. The
+acknowledged transport may emit deletion-only Backspaces, but
+`InputContextState` remains the only owner of replacement text and commit.
 
 This is a correctness decision, not a promise that every frontend has no
 underline. Native Wayland can use the verified direct path when its live state
@@ -82,10 +85,11 @@ that batch: its Wayland v2 frontend flushes addon delete and commit requests
 separately. Issue #90 therefore makes `wayland` and `wayland_v2` fail the
 atomic-transport gate and use client preedit. This preserves the original
 single-owner and correctness-first decision without adding another backend.
-Issue #91 extends the same gate to Fcitx's asynchronous `dbus` frontend after
-bounded 30-minute GTK3 evidence retained partial edits with no engine,
-snapshot, resource, or lifecycle failure. Synchronous frontends remain
-eligible; frontend names are never inferred from an application or compositor.
+Issue #91 extends the same atomic gate to Fcitx's asynchronous `dbus`
+frontend. Issue #102 then adds an ordered alternative for these split
+transports: one Backspace is emitted, its press and release return through
+Fcitx, and only then is the next deletion emitted. A final filtered Backspace
+is the commit barrier. There are no timing sleeps or application-name rules.
 
 ## Options considered
 
@@ -95,19 +99,18 @@ eligible; frontend names are never inferred from an application or compositor.
 | Verified direct replacement | Blind replacement corrupts text after cursor/selection movement; snapshot validation and generation fencing prevent the edit | Lowest rendering overhead and no preedit; existing bounded transaction queue applies | Limited to frontends with validated state, no new permission, one maintained adapter | Selected only with a valid oracle |
 | Server preedit | A late unacknowledged update can replace newer visible state; the real Firefox/X11 1 ms experiment lost text | Cosmetic path adds UI update work; rejected before a performance result could qualify it | Rendering semantics vary by frontend/compositor; another recovery contract to maintain | Rejected |
 | Wayland input-method protocol | Only one input-method object is allowed per seat; a second UniLume owner conflicts with Fcitx | Batching is useful but already paid for in the Fcitx frontend; no separate eligible RSS result | Compositor-specific and single-seat-owner contract; no extra permission when used through Fcitx | Use through Fcitx, not as another backend |
-| Helper/uinput | A focus change sends delete/insert keys to the wrong application; selection and cursor cannot be verified | Another process/device and IPC would add CPU/RSS; rejected before optimization | Linux-only, requires `/dev/uinput` access, largest security and maintenance surface | Rejected |
+| Acknowledged uinput deletion | A focus change can retarget unacknowledged keys; one-at-a-time emission, input-context ACK, bounded queue and final barrier constrain the window | One in-process device; no helper, socket, sleep or polling loop | Linux-only and requires active-session `/dev/uinput` access | Selected for split Fcitx transports by Issue #102 |
 
 The timing number is a prototype comparison floor, not end-to-end desktop
-latency. Server-preedit, a second Wayland owner, and uinput are rejected on
-correctness/ownership before performance can make them eligible.
+latency. Server-preedit and a second Wayland owner remain rejected.
 
 ## Preliminary threat model
 
 Protected assets are user text, target focus, selection, clipboard secrecy,
 and input integrity.
 
-- A helper with uinput access can synthesize keys system-wide. UniLume will not
-  request that permission.
+- The uinput device exposes only `KEY_BACKSPACE`, emits only while one bounded
+  transaction is active, and is owned by the Fcitx addon rather than a helper.
 - Stale input-context state can delete unrelated text. Direct replacement is
   denied unless the live state validates, and stale generations are ignored.
 - A malicious or broken frontend can advertise false capability. Range and
@@ -129,7 +132,8 @@ implementation violates an invariant:
 4. restore the previous UniLume package or select the prior input method using
    the existing user-local rollback procedure.
 
-No rollback may enable server-preedit or uinput implicitly.
+Setting `VerifiedDirectEnabled=False` disables both direct transports and
+returns every context to safe preedit.
 
 ## Consequences
 
@@ -141,5 +145,5 @@ No rollback may enable server-preedit or uinput implicitly.
   client-preedit.
 - Issue #48 may harden this existing state machine and recovery contract. It
   must not introduce a second composition writer.
-- Issue #49's helper/uinput path is unnecessary under this decision unless a
-  later ADR supplies a new oracle and threat model.
+- Issue #102 supplies the bounded acknowledged transport amendment; it does
+  not authorize arbitrary key injection, mouse monitoring or a helper daemon.

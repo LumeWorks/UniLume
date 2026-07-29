@@ -4,6 +4,7 @@
 include(GNUInstallDirs)
 
 add_library(unilume_fcitx5 MODULE
+  acknowledged_backspace_transaction.cpp
   addon.cpp
   diagnostic_trace.cpp
   emoji_picker.cpp
@@ -13,6 +14,7 @@ add_library(unilume_fcitx5 MODULE
   input_method_config.cpp
   replacement_transport_contract.cpp
   status_action_model.cpp
+  uinput_backspace_device.cpp
   verified_surrounding_snapshot.cpp
 )
 
@@ -25,6 +27,7 @@ target_link_libraries(unilume_fcitx5 PRIVATE
   unilume_emoji
   unilume_keymap
   unilume_macro
+  unilume_sanitizer_options
 )
 
 target_include_directories(unilume_fcitx5 PRIVATE
@@ -101,6 +104,10 @@ install(FILES
 install(FILES
   ${CMAKE_CURRENT_BINARY_DIR}/org.fcitx.Fcitx5.Addon.UniLume.metainfo.xml
   DESTINATION ${CMAKE_INSTALL_DATADIR}/metainfo
+)
+install(FILES
+  ${PROJECT_SOURCE_DIR}/data/70-unilume-uinput.rules
+  DESTINATION lib/udev/rules.d
 )
 
 if(BUILD_TESTING)
@@ -222,6 +229,29 @@ if(BUILD_TESTING)
   add_test(
     NAME fcitx5-backend-contract
     COMMAND unilume_fcitx5_backend_contract_tests
+  )
+
+  add_executable(unilume_fcitx5_acknowledged_backspace_tests
+    acknowledged_backspace_transaction.cpp
+    acknowledged_backspace_transaction_test.cpp
+  )
+  target_link_libraries(
+    unilume_fcitx5_acknowledged_backspace_tests PRIVATE
+    unilume_sanitizer_options
+  )
+  target_include_directories(
+    unilume_fcitx5_acknowledged_backspace_tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+  set_target_properties(
+    unilume_fcitx5_acknowledged_backspace_tests PROPERTIES
+    CXX_STANDARD 23
+    CXX_STANDARD_REQUIRED YES
+    CXX_EXTENSIONS NO
+  )
+  add_test(
+    NAME fcitx5-acknowledged-backspace
+    COMMAND unilume_fcitx5_acknowledged_backspace_tests
   )
 
   add_executable(unilume_fcitx5_diagnostic_tests

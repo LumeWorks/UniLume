@@ -47,9 +47,9 @@ int main()
                     ApplicationMode::automatic,
                 "default rule did not apply");
         const Resolution missing = resolve(decoded.snapshot, "");
-        require(missing.mode == ApplicationMode::safe_preedit &&
+        require(missing.mode == ApplicationMode::automatic &&
                     missing.source == ResolutionSource::missing_identity,
-                "missing identity did not fail safe");
+                "missing identity did not retain automatic mode");
 
         require(!decode(
                     "unilume_app_policy_version=1\n"

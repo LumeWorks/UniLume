@@ -54,6 +54,7 @@ The cycle order is automatic, direct, safe-preedit, off. A focus reset clears
 the temporary selection; an identity or policy reload also returns the context
 to its resolved rule.
 
-`VerifiedDirectEnabled` defaults to `False` during production qualification.
+`VerifiedDirectEnabled` defaults to `True`; setting it to `False` is the
+immediate rollback to safe preedit.
 Neither an application rule nor a mode hotkey can bypass it. See
 [verified-direct-backend.md](verified-direct-backend.md).

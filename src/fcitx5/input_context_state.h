@@ -24,6 +24,7 @@ struct MappedKey;
 class InputContextState final : public fcitx::InputContextProperty {
 public:
     explicit InputContextState(fcitx::InputContext &input_context,
+                               UinputBackspaceDevice &uinput_device,
                                UlInputMethod method = UL_INPUT_METHOD_TELEX);
     ~InputContextState();
 

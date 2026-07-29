@@ -3,6 +3,8 @@
 #pragma once
 
 #include "replacement_backend.h"
+#include "acknowledged_backspace_transaction.h"
+#include "uinput_backspace_device.h"
 #include "verified_surrounding_snapshot.h"
 
 #include <cstddef>
@@ -22,12 +24,14 @@ struct ReplacementObservation {
     bool utf8_valid{};
     bool within_resource_limit{};
     bool atomic_transport{true};
+    bool acknowledged_uinput{};
 };
 
 class FcitxReplacementBackend final
     : public platform::ReplacementBackend {
 public:
-    explicit FcitxReplacementBackend(fcitx::InputContext &input_context);
+    FcitxReplacementBackend(fcitx::InputContext &input_context,
+                            UinputBackspaceDevice &uinput_device);
 
     [[nodiscard]] bool supportsDirectReplacement() const;
     [[nodiscard]] bool canReplace(
@@ -43,13 +47,28 @@ public:
 
     void reset() override;
     [[nodiscard]] const ReplacementObservation &lastObservation() const;
+    [[nodiscard]] bool acknowledgedDeletionPending() const;
+    [[nodiscard]] bool initialBackspacePending() const;
+    [[nodiscard]] bool startAcknowledgedReplacement();
+    [[nodiscard]] BackspaceAcknowledgement acknowledgeBackspace();
+    void expectForwardedBackspaceRelease();
+    [[nodiscard]] bool forwardedBackspaceReleasePending() const;
+    [[nodiscard]] bool continueAcknowledgedReplacement();
+    void expectBarrierRelease();
+    [[nodiscard]] bool consumeBarrierRelease();
+    [[nodiscard]] std::uint64_t finishAcknowledgedReplacement();
 
 private:
     fcitx::InputContext &input_context_;
+    UinputBackspaceDevice &uinput_device_;
     std::uint64_t last_sequence_id_{};
     std::uint64_t generation_{1};
     mutable ReplacementObservation observation_;
     mutable VerifiedSurroundingTicket verified_ticket_;
+    AcknowledgedBackspaceTransaction acknowledged_transaction_;
+    bool initial_backspace_pending_{};
+    bool forwarded_backspace_release_pending_{};
+    bool barrier_release_pending_{};
 };
 
 } // namespace unilume::fcitx5
