@@ -169,6 +169,27 @@ Therefore a **commit-only** oracle would also need a **backspace contract**:
 either forbid commit until word end, or guarantee backspace never crosses the
 committed frontier. The engine does not provide such a frontier.
 
+### 6.1 Backspace inside transactional client preedit
+
+The composition-boundary policy can retain several completed words in one
+uncommitted client preedit so asynchronous frontends receive a single ordered
+snapshot. A whitespace or punctuation boundary resets the engine's active
+word, but it does not make that boundary committed application text.
+
+`PreeditFallbackController` therefore owns a bounded history for the current
+transactional preedit. If Backspace crosses the latest boundary, the
+controller removes that UTF-8 character and replays only the preceding active
+word into the engine. Replay output must exactly match the visible word before
+the restored engine state is accepted. Macro or convenience expansions that
+cannot match raw replay enter an owned-preedit editing state; further
+Backspaces remain local, and the remaining preedit is committed before a new
+composition begins.
+
+This is not the rejected forwarded-backspace model: no Backspace is sent into
+application text, and no committed prefix is recalled. The history is cleared
+on commit, reset, option/resource reload, or the 2048-byte transactional
+preedit bound.
+
 ## 7. Indexing and UTF-8
 
 Even a perfect symbol-index oracle would need a careful map:
