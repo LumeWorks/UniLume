@@ -88,11 +88,14 @@ class ProbeReportState:
 
     def __init__(self) -> None:
         self.condition = threading.Condition()
-        self.values: dict[str, str] = {}
+        self.values: dict[str, tuple[int, str]] = {}
 
-    def record(self, token: str, value: str) -> None:
+    def record(self, token: str, revision: int, value: str) -> None:
         with self.condition:
-            self.values[token] = value
+            current = self.values.get(token)
+            if current is not None and revision <= current[0]:
+                return
+            self.values[token] = (revision, value)
             self.condition.notify_all()
 
     def wait_for(
@@ -100,12 +103,14 @@ class ProbeReportState:
     ) -> str | None:
         deadline = time.monotonic() + timeout_seconds
         with self.condition:
-            while self.values.get(token) != expected:
+            while True:
+                current = self.values.get(token)
+                if current is not None and current[1] == expected:
+                    return expected
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
-                    return self.values.get(token)
+                    return current[1] if current is not None else None
                 self.condition.wait(remaining)
-            return expected
 
 
 class ProbeReportServer:
@@ -129,13 +134,20 @@ class ProbeReportServer:
                 try:
                     report = json.loads(self.rfile.read(length).decode("utf-8"))
                     token = report["token"]
+                    revision = report["revision"]
                     value = report["value"]
-                    if not isinstance(token, str) or not isinstance(value, str):
+                    if (
+                        not isinstance(token, str)
+                        or not isinstance(revision, int)
+                        or isinstance(revision, bool)
+                        or revision < 0
+                        or not isinstance(value, str)
+                    ):
                         raise TypeError
                 except (json.JSONDecodeError, KeyError, TypeError, UnicodeDecodeError):
                     self.send_error(400)
                     return
-                state.record(token, value)
+                state.record(token, revision, value)
                 self.send_response(204)
                 self.send_header("Access-Control-Allow-Origin", "*")
                 self.send_header("Content-Length", "0")

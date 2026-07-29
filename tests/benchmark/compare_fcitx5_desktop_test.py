@@ -40,17 +40,29 @@ class ProbeWindowTitleTest(unittest.TestCase):
 class ProbeReportStateTest(unittest.TestCase):
     def test_wait_returns_exact_application_value(self) -> None:
         reports = HARNESS.ProbeReportState()
-        reports.record("token", "tiếng Việt")
+        reports.record("token", 1, "tiếng Việt")
         self.assertEqual(reports.wait_for("token", "tiếng Việt", 0), "tiếng Việt")
         self.assertEqual(reports.wait_for("token", "different", 0), "tiếng Việt")
         self.assertIsNone(reports.wait_for("missing", "", 0))
+
+    def test_late_older_report_cannot_overwrite_latest_value(self) -> None:
+        reports = HARNESS.ProbeReportState()
+        reports.record("token", 2, "latest")
+        reports.record("token", 1, "stale")
+        self.assertEqual(reports.wait_for("token", "latest", 0), "latest")
 
     def test_loopback_server_receives_real_probe_report(self) -> None:
         with HARNESS.ProbeReportServer(0) as reports:
             port = reports.server.server_address[1]
             request = urllib.request.Request(
                 f"http://127.0.0.1:{port}/report",
-                data=json.dumps({"token": "token", "value": "tiếng Việt"}).encode(),
+                data=json.dumps(
+                    {
+                        "token": "token",
+                        "revision": 1,
+                        "value": "tiếng Việt",
+                    }
+                ).encode(),
                 headers={"Content-Type": "text/plain"},
                 method="POST",
             )
