@@ -17,8 +17,8 @@ current evidence is:
 | Compositor family | Compositor | Evidence | Verdict |
 | --- | --- | --- | --- |
 | wlroots | sway 1.9 (headless backend) | native terminal, exact output | corpus, 1 ms burst and unpaced stress pass |
-| KWin | KWin 5.27.11 (nested X11 backend) | native GTK3/Chromium, exact output | GTK direct and Chromium safe-preedit corpus/1 ms burst pass |
-| Mutter | GNOME Shell/Mutter 46.0 (headless virtual monitor) | native GTK3, exact output | direct corpus and 1 ms burst pass |
+| KWin | KWin 5.27.11 (nested X11 backend) | native GTK3/Chromium, exact output | safe-preedit 30-minute soak passes |
+| Mutter | GNOME Shell/Mutter 46.0 (headless virtual monitor) | native GTK3, exact output | safe-preedit 30-minute soak passes |
 
 Earlier work under #47 ran real Firefox, Chrome and VS Code/Electron Wayland
 clients inside an isolated KWin 6.3.6 virtual compositor with Fcitx 5.1.12, and
@@ -133,10 +133,11 @@ backend it did not actually use.
 2. **Terminal clients do not provide surrounding text.** With `foot`, the
    direct replacement path is correctly ineligible and the diagnostic trace
    records the `unavailable` capability gate. The GTK probe provides validated
-   surrounding text. An application using Fcitx's `wayland` or `wayland_v2`
-   frontend is nevertheless ineligible for direct replacement because those
-   transports cannot batch delete and commit into one edit. Native Wayland
-   applications using an atomic GTK/DBus frontend remain eligible.
+   surrounding text. An application using Fcitx's `dbus`, `wayland` or
+   `wayland_v2` frontend is nevertheless ineligible for direct replacement
+   because those transports cannot guarantee that delete and commit reach the
+   client as one edit. Native Wayland applications using another proven atomic
+   frontend remain eligible.
 3. **One run claims one compositor and client.** The evidence JSON records the
    exact family, version, injector and extraction client. It is not evidence
    for an untested application or compositor version.
@@ -389,6 +390,34 @@ preedit-path soak passed. The long-run direct blocker is tracked by #91.
 Qualification reports now retain a bounded list of exact soak failures instead
 of only an aggregate count, so its retest can identify the concrete sequence
 without allowing an unbounded artifact.
+
+A post-#90 retest on commit `e43cba2` retained another direct-path failure on
+Mutter: 1 error in 9,783 observations, expected `Á Ă Â Ê Ô Ơ Ư Đ` but observed
+`AS Ă Â Ê Ô Ơ Ư Đ`. Corpus, burst and stress were exact; RSS stayed at
+27,484 KiB, the thread count stayed at one, the client survived and diagnostics
+reported no backend, stale or uncertain outcome. KWin completed 30 minutes
+without an error in the same run. This isolates the remaining fault to the
+split D-Bus edit transport rather than the engine, compositor, resources or
+surrounding-snapshot lifecycle. Issue #91 therefore applies the same
+`non_atomic_transport` fail-closed policy to `dbus` before repeating both
+qualifying soaks.
+
+GitHub Actions run 30421908450 repeated the full matrix on commit `afb2373`.
+Both GTK3 clients and the addon's diagnostics observed `preedit`:
+
+| Family/client | Soak observations | Errors | RSS first → last | Threads |
+| --- | ---: | ---: | ---: | ---: |
+| KWin GTK3 | 2,926 | 0 | 34,880 → 34,916 KiB | 6 → 6 |
+| Mutter GTK3 | 2,559 | 0 | 27,364 → 27,364 KiB | 1 → 1 |
+| KWin Chrome | 16,509 | 0 | 35,432 → 35,432 KiB | 6 → 6 |
+| wlroots terminal | 2,422 | 0 | 32,956 → 32,980 KiB | 4 → 4 |
+
+Every soak ran for the qualifying 1,800 seconds, retained no failures, kept
+RSS and thread growth non-linear, and reported a surviving client. Corpus,
+three 1 ms/key burst rounds and two unpaced stress rounds also had zero errors
+for every client. The transport gate therefore removes the long-run
+delete-plus-commit corruption without a retry, delay, application rule or
+second text writer.
 
 ## Implementation gaps (Wayland)
 

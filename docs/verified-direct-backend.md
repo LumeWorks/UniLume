@@ -24,14 +24,15 @@ not infer validity from application identity or text previously committed by
 UniLume. Automatic and explicit-direct application modes both retain this
 gate; failure selects or returns to safe preedit.
 
-Fcitx 5.1.12's `wayland` and `wayland_v2` frontends do not satisfy the
+Fcitx's `dbus`, `wayland` and `wayland_v2` frontends do not satisfy the
 transport gate. Their public addon API dispatches deletion and committed text
-separately; the v2 frontend flushes each with its own protocol
-`commit(serial)`. UniLume therefore uses client preedit for these frontend
-protocols even when they advertise `SurroundingText`. This is a protocol
-contract, not an application-name rule. Direct replacement can be reconsidered
-only when Fcitx exposes an atomic replacement primitive to input-method
-addons.
+separately. The Wayland v2 frontend flushes each with its own protocol
+`commit(serial)`; 30-minute native GTK3 soaks also retain partially applied
+edits through the D-Bus frontend. UniLume therefore uses client preedit for
+these frontend protocols even when they advertise `SurroundingText`. This is
+a protocol contract, not an application-name rule. Direct replacement can be
+reconsidered only when Fcitx exposes an atomic replacement primitive to
+input-method addons.
 
 ## Transaction contract
 
