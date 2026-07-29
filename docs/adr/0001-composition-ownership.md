@@ -82,6 +82,10 @@ that batch: its Wayland v2 frontend flushes addon delete and commit requests
 separately. Issue #90 therefore makes `wayland` and `wayland_v2` fail the
 atomic-transport gate and use client preedit. This preserves the original
 single-owner and correctness-first decision without adding another backend.
+Issue #91 extends the same gate to Fcitx's asynchronous `dbus` frontend after
+bounded 30-minute GTK3 evidence retained partial edits with no engine,
+snapshot, resource, or lifecycle failure. Synchronous frontends remain
+eligible; frontend names are never inferred from an application or compositor.
 
 ## Options considered
 

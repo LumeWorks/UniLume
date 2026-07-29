@@ -33,8 +33,11 @@ int main()
         !replacementTransportIsAtomic("wayland"),
         "split Wayland v1 transport accepted direct replacement");
     ok &= expect(
-        replacementTransportIsAtomic("dbus"),
-        "existing synchronous frontend rejected direct replacement");
+        !replacementTransportIsAtomic("dbus"),
+        "split D-Bus transport accepted direct replacement");
+    ok &= expect(
+        replacementTransportIsAtomic("test_sync"),
+        "synchronous transport rejected direct replacement");
 
     fcitx::SurroundingText valid;
     valid.setText("tôi", 3, 3);

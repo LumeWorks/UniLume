@@ -6,7 +6,8 @@ namespace unilume::fcitx5 {
 
 bool replacementTransportIsAtomic(std::string_view frontend_name)
 {
-    return frontend_name != "wayland" &&
+    return frontend_name != "dbus" &&
+           frontend_name != "wayland" &&
            frontend_name != "wayland_v2";
 }
 
