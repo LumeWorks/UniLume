@@ -88,8 +88,9 @@ single-owner and correctness-first decision without adding another backend.
 Issue #91 extends the same atomic gate to Fcitx's asynchronous `dbus`
 frontend. Issue #102 then adds an ordered alternative for these split
 transports: one Backspace is emitted, its press and release return through
-Fcitx, and only then is the next deletion emitted. A final filtered Backspace
-is the commit barrier. There are no timing sleeps or application-name rules.
+Fcitx, and only then is the next deletion emitted. The release ACK of the
+final deletion is the commit boundary. There are no timing sleeps or
+application-name rules.
 
 ## Options considered
 
@@ -99,7 +100,7 @@ is the commit barrier. There are no timing sleeps or application-name rules.
 | Verified direct replacement | Blind replacement corrupts text after cursor/selection movement; snapshot validation and generation fencing prevent the edit | Lowest rendering overhead and no preedit; existing bounded transaction queue applies | Limited to frontends with validated state, no new permission, one maintained adapter | Selected only with a valid oracle |
 | Server preedit | A late unacknowledged update can replace newer visible state; the real Firefox/X11 1 ms experiment lost text | Cosmetic path adds UI update work; rejected before a performance result could qualify it | Rendering semantics vary by frontend/compositor; another recovery contract to maintain | Rejected |
 | Wayland input-method protocol | Only one input-method object is allowed per seat; a second UniLume owner conflicts with Fcitx | Batching is useful but already paid for in the Fcitx frontend; no separate eligible RSS result | Compositor-specific and single-seat-owner contract; no extra permission when used through Fcitx | Use through Fcitx, not as another backend |
-| Acknowledged uinput deletion | A focus change can retarget unacknowledged keys; one-at-a-time emission, input-context ACK, bounded queue and final barrier constrain the window | One in-process device; no helper, socket, sleep or polling loop | Linux-only and requires active-session `/dev/uinput` access | Selected for split Fcitx transports by Issue #102 |
+| Acknowledged uinput deletion | A focus change can retarget unacknowledged keys; one-at-a-time emission, input-context ACK and bounded queue constrain the window | One in-process device; no helper, socket, sleep or polling loop | Linux-only and requires active-session `/dev/uinput` access | Selected for split Fcitx transports by Issue #102 |
 
 The timing number is a prototype comparison floor, not end-to-end desktop
 latency. Server-preedit and a second Wayland owner remain rejected.

@@ -15,7 +15,6 @@ bool AcknowledgedBackspaceTransaction::prepare(
     }
     sequence_id_ = sequence_id;
     remaining_deletions_ = deletions;
-    emitted_backspaces_ = deletions + 1;
     commit_text_.assign(commit_text);
     active_ = true;
     return true;
@@ -26,25 +25,29 @@ BackspaceAcknowledgement AcknowledgedBackspaceTransaction::acknowledge()
     if (!active_) {
         return BackspaceAcknowledgement::unexpected;
     }
-    if (remaining_deletions_ != 0) {
-        --remaining_deletions_;
-        return BackspaceAcknowledgement::forward_deletion;
-    }
-    if (barrier_acknowledged_) {
+    if (deletion_press_acknowledged_ || remaining_deletions_ == 0) {
         return BackspaceAcknowledgement::unexpected;
     }
-    barrier_acknowledged_ = true;
-    return BackspaceAcknowledgement::consume_barrier;
+    --remaining_deletions_;
+    deletion_press_acknowledged_ = true;
+    return BackspaceAcknowledgement::forward_deletion;
+}
+
+BackspaceReleaseAcknowledgement
+AcknowledgedBackspaceTransaction::acknowledgeRelease()
+{
+    if (!active_ || !deletion_press_acknowledged_) {
+        return BackspaceReleaseAcknowledgement::unexpected;
+    }
+    deletion_press_acknowledged_ = false;
+    return remaining_deletions_ == 0
+               ? BackspaceReleaseAcknowledgement::complete
+               : BackspaceReleaseAcknowledgement::emit_next;
 }
 
 bool AcknowledgedBackspaceTransaction::active() const
 {
     return active_;
-}
-
-std::size_t AcknowledgedBackspaceTransaction::emittedBackspaces() const
-{
-    return active_ ? emitted_backspaces_ : 0;
 }
 
 std::uint64_t AcknowledgedBackspaceTransaction::sequenceId() const
@@ -61,10 +64,9 @@ void AcknowledgedBackspaceTransaction::clear()
 {
     sequence_id_ = 0;
     remaining_deletions_ = 0;
-    emitted_backspaces_ = 0;
     commit_text_.clear();
     active_ = false;
-    barrier_acknowledged_ = false;
+    deletion_press_acknowledged_ = false;
 }
 
 } // namespace unilume::fcitx5

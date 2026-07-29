@@ -38,22 +38,28 @@ int main()
                  "valid acknowledged deletion was rejected");
     ok &= expect(transaction.active() &&
                      transaction.sequenceId() == 42 &&
-                     transaction.emittedBackspaces() == 3 &&
                      transaction.commitText() == "ế",
                  "prepared deletion state was not retained exactly");
     ok &= expect(!transaction.prepare(43, 1, "x"),
                  "active transaction was replaced");
     ok &= expect(transaction.acknowledge() ==
-                     BackspaceAcknowledgement::forward_deletion &&
-                     transaction.acknowledge() ==
-                         BackspaceAcknowledgement::forward_deletion,
-                 "deletion Backspaces were not forwarded exactly");
-    ok &= expect(transaction.acknowledge() ==
-                     BackspaceAcknowledgement::consume_barrier,
-                 "final synchronization barrier was not consumed");
+                     BackspaceAcknowledgement::forward_deletion,
+                 "first deletion press was not acknowledged");
     ok &= expect(transaction.acknowledge() ==
                      BackspaceAcknowledgement::unexpected,
-                 "synchronization barrier was acknowledged twice");
+                 "second deletion press bypassed its release");
+    ok &= expect(transaction.acknowledgeRelease() ==
+                     BackspaceReleaseAcknowledgement::emit_next,
+                 "first deletion release did not request the next event");
+    ok &= expect(transaction.acknowledge() ==
+                     BackspaceAcknowledgement::forward_deletion,
+                 "second deletion press was not acknowledged");
+    ok &= expect(transaction.acknowledgeRelease() ==
+                     BackspaceReleaseAcknowledgement::complete,
+                 "final deletion release did not complete the transaction");
+    ok &= expect(transaction.acknowledgeRelease() ==
+                     BackspaceReleaseAcknowledgement::unexpected,
+                 "final deletion release was acknowledged twice");
     transaction.clear();
     ok &= expect(!transaction.active() && transaction.sequenceId() == 0 &&
                      transaction.commitText().empty(),

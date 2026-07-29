@@ -46,15 +46,25 @@ void InputContextState::keyEvent(fcitx::KeyEvent &event)
     if (is_backspace) {
         if (event.isRelease() &&
             backend_.forwardedBackspaceReleasePending()) {
-            if (!backend_.continueAcknowledgedReplacement()) {
+            switch (backend_.acknowledgeBackspaceRelease()) {
+            case BackspaceReleaseAcknowledgement::emit_next:
+                return;
+            case BackspaceReleaseAcknowledgement::complete: {
+                const std::uint64_t sequence =
+                    backend_.finishAcknowledgedReplacement();
+                direct_controller_.complete(sequence, sequence != 0);
+                if (backend_.initialBackspacePending() &&
+                    !backend_.startAcknowledgedReplacement()) {
+                    direct_controller_.complete(
+                        direct_controller_.activeSequence(), false);
+                }
+                return;
+            }
+            case BackspaceReleaseAcknowledgement::unexpected:
                 direct_controller_.timeout(
                     direct_controller_.activeSequence());
+                return;
             }
-            return;
-        }
-        if (event.isRelease() && backend_.consumeBarrierRelease()) {
-            event.filterAndAccept();
-            return;
         }
         if (!event.isRelease() &&
             backend_.acknowledgedDeletionPending()) {
@@ -62,14 +72,6 @@ void InputContextState::keyEvent(fcitx::KeyEvent &event)
             case BackspaceAcknowledgement::forward_deletion:
                 backend_.expectForwardedBackspaceRelease();
                 return;
-            case BackspaceAcknowledgement::consume_barrier: {
-                backend_.expectBarrierRelease();
-                event.filterAndAccept();
-                const std::uint64_t sequence =
-                    backend_.finishAcknowledgedReplacement();
-                direct_controller_.complete(sequence, sequence != 0);
-                return;
-            }
             case BackspaceAcknowledgement::unexpected:
                 break;
             }
@@ -137,8 +139,9 @@ void InputContextState::keyEvent(fcitx::KeyEvent &event)
 void InputContextState::reset()
 {
     // Some clients reset the input context after accepting each synthetic
-    // Backspace. The final barrier is the transaction boundary; resetting
-    // before it arrives would orphan the remaining deletion and commit.
+    // Backspace. The final deletion release is the transaction boundary;
+    // resetting before it arrives would orphan the remaining deletion and
+    // commit.
     if (backend_.acknowledgedDeletionPending() &&
         !backend_.initialBackspacePending()) {
         return;

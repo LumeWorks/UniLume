@@ -72,7 +72,7 @@ focus changes, reset events, and unhandled Backspace clear composition state.
 `VerifiedDirectEnabled` defaults to `True`. Atomic frontends use their verified
 surrounding-text edit. Split D-Bus and Wayland transports use one shared,
 Backspace-only uinput device: each deletion is released before the next is
-emitted, and the replacement is committed only when a final filtered barrier
+emitted, and the replacement is committed when the final deletion release
 returns through Fcitx. This keeps ordinary typing out of client preedit and
 therefore removes its underline. If neither backend is available, the context
 uses bounded safe preedit.

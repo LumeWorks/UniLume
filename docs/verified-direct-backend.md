@@ -27,9 +27,9 @@ Fcitx's `dbus`, `wayland` and `wayland_v2` frontends do not satisfy the atomic
 transport gate. On Linux, UniLume instead uses one shared Backspace-only
 uinput device when `/dev/uinput` is available. It emits one deletion at a
 time, waits for its press/release to return through the same Fcitx input
-context, and commits only after a final filtered barrier. Deletions are capped
-at 128 characters. If the device is unavailable, these frontends use safe
-preedit.
+context, and commits on the release ACK of the final deletion. Deletions are
+capped at 128 characters. If the device is unavailable, these frontends use
+safe preedit.
 
 ## Transaction contract
 

@@ -212,7 +212,7 @@ bool DirectCommitController::enqueue(const KeyInput &input)
     const std::size_t index = (queue_head_ + queue_size_) % queue_.size();
     QueuedInput &queued = queue_[index];
     queued.kind = input.kind;
-    queued.text_size = input.text.size();
+    queued.text_size = static_cast<std::uint8_t>(input.text.size());
     std::copy(input.text.begin(), input.text.end(), queued.text.begin());
     queued.shift_pressed = input.shift_pressed;
     queued.caps_lock_on = input.caps_lock_on;

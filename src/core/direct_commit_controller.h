@@ -53,11 +53,13 @@ private:
     struct QueuedInput {
         KeyKind kind{KeyKind::text};
         std::array<char, queued_text_capacity> text{};
-        std::size_t text_size{};
+        std::uint8_t text_size{};
         bool shift_pressed{};
         bool caps_lock_on{};
         bool has_control_modifier{};
     };
+
+    static_assert(sizeof(QueuedInput) <= 40);
 
     SubmissionStatus processNow(const KeyInput &input);
     SubmissionStatus startTransaction(const KeyInput &input,
