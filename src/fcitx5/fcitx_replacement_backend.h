@@ -21,6 +21,7 @@ struct ReplacementObservation {
     bool cursor_valid{};
     bool utf8_valid{};
     bool within_resource_limit{};
+    bool atomic_transport{true};
 };
 
 class FcitxReplacementBackend final

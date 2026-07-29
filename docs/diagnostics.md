@@ -66,8 +66,9 @@ The bundle distinguishes:
 - `stale_result`: an old or duplicate completion was rejected;
 - `uncertain_outcome`: cancellation could not prove whether a request applied;
 - `backend_failure`: even the safe fallback could not be submitted;
-- `capability` values `unavailable`, `invalid_cursor`, `invalid_utf8`, and
-  `resource_limit`: the live surrounding snapshot failed a specific gate.
+- `capability` values `unavailable`, `non_atomic_transport`,
+  `invalid_cursor`, `invalid_utf8`, and `resource_limit`: the live
+  surrounding snapshot or frontend transaction failed a specific gate.
 
 Durations use six fixed buckets from `under_1_us` through
 `at_least_1_ms`; exact timestamps are not exported. The ring retains the last

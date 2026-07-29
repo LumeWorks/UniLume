@@ -30,6 +30,7 @@ enum class TracePath : std::uint8_t {
 
 enum class TraceCapability : std::uint8_t {
     unavailable,
+    non_atomic_transport,
     ready,
     invalid_cursor,
     invalid_utf8,
@@ -104,11 +105,14 @@ public:
         std::uint64_t started_at_ns);
     void recordPreedit(
         const core::PreeditAction &action,
-        bool surrounding_available,
+        const ReplacementObservation &replacement,
         std::uint64_t started_at_ns);
     void recordReset(TraceResetReason reason);
-    void recordModeChange(bool preedit, bool surrounding_available);
-    void recordPreeditHandoff(bool surrounding_available);
+    void recordModeChange(
+        bool preedit,
+        const ReplacementObservation &replacement);
+    void recordPreeditHandoff(
+        const ReplacementObservation &replacement);
 
     // Rendering and file export are explicit cold-path operations. Event
     // methods accept no text, clipboard, application identity or surrounding

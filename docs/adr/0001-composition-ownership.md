@@ -45,7 +45,8 @@ reset/focus ──▶ unknown                         verified direct
 `InputContextState` is the sole owner. A composition receives one owner:
 
 1. `verified direct` only when `SurroundingText` is present, the UTF-8 state
-   and cursor are valid, and cursor equals selection anchor;
+   and cursor are valid, cursor equals selection anchor, and the frontend can
+   apply delete plus commit as one indivisible edit;
 2. `client preedit` in every other case.
 
 The owner is immutable during an active composition. A capability loss, focus
@@ -64,7 +65,7 @@ preedit.
 | Event | Required behavior |
 | --- | --- |
 | First processable key | Snapshot capability, surrounding text, cursor, anchor, focus generation; choose one owner |
-| Direct edit | Validate the same generation and replacement range immediately before delete/commit |
+| Direct edit | Validate the same generation, replacement range and atomic frontend transport immediately before delete/commit |
 | Capability/cursor/selection loss | Abort/reset direct state; cross a barrier; do not replay or guess an edit |
 | Client-preedit visual update lost | Keep engine state authoritative; a missing visual snapshot cannot mutate committed text |
 | Visual update reordered/duplicated | Ignore a stale sequence; snapshots are complete, not deltas |
@@ -76,8 +77,11 @@ preedit.
 The Fcitx Wayland frontend remains the protocol owner. UniLume is an input
 method engine inside Fcitx and must not bind a second
 `zwp_input_method_v2` object. The protocol can batch
-delete/commit/preedit state, but it does not manufacture surrounding text when
-the application omits it.
+delete/commit/preedit state, but Fcitx 5.1.12's public addon API does not expose
+that batch: its Wayland v2 frontend flushes addon delete and commit requests
+separately. Issue #90 therefore makes `wayland` and `wayland_v2` fail the
+atomic-transport gate and use client preedit. This preserves the original
+single-owner and correctness-first decision without adding another backend.
 
 ## Options considered
 
@@ -126,8 +130,9 @@ No rollback may enable server-preedit or uinput implicitly.
 ## Consequences
 
 - Correct text wins over removing the underline.
-- Native Wayland is eligible for zero-preedit based on capability and live
-  state, not an application allowlist.
+- A native Wayland frontend is eligible for zero-preedit only when capability,
+  live state and atomic transport all validate, not from an application
+  allowlist. Fcitx 5.1.12's Wayland addon transport does not qualify.
 - X11 browser/Electron frontends observed without `SurroundingText` remain
   client-preedit.
 - Issue #48 may harden this existing state machine and recovery contract. It

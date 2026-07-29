@@ -12,6 +12,8 @@ introduced.
 only makes a context eligible. Every direct operation still requires:
 
 - Fcitx `SurroundingText` capability;
+- a frontend transport that can apply delete plus commit as one indivisible
+  edit;
 - a valid surrounding snapshot no larger than 64 KiB;
 - valid UTF-8;
 - a collapsed cursor/anchor selection;
@@ -21,6 +23,15 @@ The backend checks this live snapshot inside the replacement request. It does
 not infer validity from application identity or text previously committed by
 UniLume. Automatic and explicit-direct application modes both retain this
 gate; failure selects or returns to safe preedit.
+
+Fcitx 5.1.12's `wayland` and `wayland_v2` frontends do not satisfy the
+transport gate. Their public addon API dispatches deletion and committed text
+separately; the v2 frontend flushes each with its own protocol
+`commit(serial)`. UniLume therefore uses client preedit for these frontend
+protocols even when they advertise `SurroundingText`. This is a protocol
+contract, not an application-name rule. Direct replacement can be reconsidered
+only when Fcitx exposes an atomic replacement primitive to input-method
+addons.
 
 ## Transaction contract
 
@@ -45,10 +56,12 @@ boundaries cancel or fence the active transaction, clear the queue, reset the
 engine, and advance the backend generation. A new Fcitx input context starts
 with a fresh state object.
 
-Fcitx delete/commit calls are synchronous requests on its event thread, so the
+Fcitx delete/commit calls are synchronous requests on its event thread, but
+synchronous calls are not necessarily one frontend transaction. The
 production backend does not block the event loop or maintain an asynchronous
-worker. The delayed simulator exists only to exercise cancellation, stale,
-duplicate, reordered, dropped, and uncertain outcomes deterministically.
+worker, and it refuses a known split transport before issuing either request.
+The delayed simulator exists only to exercise cancellation, stale, duplicate,
+reordered, dropped, and uncertain outcomes deterministically.
 
 ## Rollback
 

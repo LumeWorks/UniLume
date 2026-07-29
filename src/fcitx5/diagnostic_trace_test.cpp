@@ -91,6 +91,13 @@ int main()
         metrics,
         unavailable,
         trace.beginEvent());
+    ReplacementObservation non_atomic_transport = ready;
+    non_atomic_transport.atomic_transport = false;
+    trace.recordDirect(
+        core::SubmissionStatus::handled,
+        metrics,
+        non_atomic_transport,
+        trace.beginEvent());
     ReplacementObservation invalid_cursor = ready;
     invalid_cursor.cursor_valid = false;
     trace.recordDirect(
@@ -113,20 +120,20 @@ int main()
         resource_limit,
         trace.beginEvent());
     trace.recordReset(TraceResetReason::capability_loss);
-    trace.recordModeChange(true, false);
-    trace.recordPreeditHandoff(false);
+    trace.recordModeChange(true, unavailable);
+    trace.recordPreeditHandoff(unavailable);
 
     static constexpr std::string_view canary =
         "typed-secret user@example.com token=ABCD1234";
     for (std::size_t index = 0; index < 1'000'000; ++index) {
         trace.recordPreedit(
             {true, canary, canary},
-            false,
+            unavailable,
             trace.beginEvent());
     }
     const DiagnosticSnapshot snapshot = trace.snapshot();
     ok &= expect(
-        snapshot.total_events == 1'000'011 &&
+        snapshot.total_events == 1'000'012 &&
             snapshot.retained_events == 64,
         "ring must retain only its fixed capacity");
     ok &= expect(
@@ -139,6 +146,9 @@ int main()
             snapshot.capabilities[
                 static_cast<std::size_t>(
                     TraceCapability::unavailable)] != 0 &&
+            snapshot.capabilities[
+                static_cast<std::size_t>(
+                    TraceCapability::non_atomic_transport)] != 0 &&
             snapshot.capabilities[
                 static_cast<std::size_t>(
                     TraceCapability::invalid_cursor)] != 0 &&
@@ -162,6 +172,8 @@ int main()
     ok &= expect(
         bundle.find("\"fallbacks\":1") != std::string::npos &&
             bundle.find("\"preedit_handoffs\":1") !=
+                std::string::npos &&
+            bundle.find("\"non_atomic_transport\":1") !=
                 std::string::npos &&
             bundle.find("\"stale_results\":1") != std::string::npos &&
             bundle.find("\"uncertain_outcomes\":1") !=
@@ -189,7 +201,7 @@ int main()
             DiagnosticSettings{true, path}};
         exported.recordPreedit(
             {true, canary, canary},
-            true,
+            ready,
             exported.beginEvent());
         std::string error;
         ok &= expect(

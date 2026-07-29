@@ -349,7 +349,7 @@ void InputContextState::synchronizeMode()
     if (current != platform::InputPath::off) {
         diagnostics_.recordModeChange(
             current == platform::InputPath::preedit,
-            direct_replacement_available_);
+            backend_.lastObservation());
     }
 }
 
@@ -362,7 +362,7 @@ void InputContextState::handlePreeditEvent(
         preedit_controller_.submit(mapped.input());
     if (!action.commit_text.empty()) {
         diagnostics_.recordPreeditHandoff(
-            direct_replacement_available_);
+            backend_.lastObservation());
         input_context_.commitString(std::string(action.commit_text));
     }
     if (preedit_controller_.preedit().empty()) {
@@ -371,7 +371,7 @@ void InputContextState::handlePreeditEvent(
     updatePreedit();
     diagnostics_.recordPreedit(
         action,
-        direct_replacement_available_,
+        backend_.lastObservation(),
         started_at_ns);
     if (action.handled) {
         event.filterAndAccept();
@@ -383,7 +383,7 @@ void InputContextState::commitPendingPreedit()
     const std::string_view pending = preedit_controller_.preedit();
     if (!pending.empty()) {
         diagnostics_.recordPreeditHandoff(
-            direct_replacement_available_);
+            backend_.lastObservation());
         input_context_.commitString(std::string(pending));
     }
     preedit_controller_.reset();
