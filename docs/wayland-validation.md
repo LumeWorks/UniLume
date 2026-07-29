@@ -17,8 +17,8 @@ current evidence is:
 | Compositor family | Compositor | Evidence | Verdict |
 | --- | --- | --- | --- |
 | wlroots | sway 1.9 (headless backend) | native terminal, exact output | corpus, 1 ms burst and unpaced stress pass |
-| KWin | KWin 5.27.11 (nested X11 backend) | native GTK3/Chromium, exact output | safe-preedit corpus/1 ms burst pass; 30-minute retest pending |
-| Mutter | GNOME Shell/Mutter 46.0 (headless virtual monitor) | native GTK3, exact output | safe-preedit 30-minute retest pending |
+| KWin | KWin 5.27.11 (nested X11 backend) | native GTK3/Chromium, exact output | safe-preedit 30-minute soak passes |
+| Mutter | GNOME Shell/Mutter 46.0 (headless virtual monitor) | native GTK3, exact output | safe-preedit 30-minute soak passes |
 
 Earlier work under #47 ran real Firefox, Chrome and VS Code/Electron Wayland
 clients inside an isolated KWin 6.3.6 virtual compositor with Fcitx 5.1.12, and
@@ -401,6 +401,23 @@ split D-Bus edit transport rather than the engine, compositor, resources or
 surrounding-snapshot lifecycle. Issue #91 therefore applies the same
 `non_atomic_transport` fail-closed policy to `dbus` before repeating both
 qualifying soaks.
+
+GitHub Actions run 30421908450 repeated the full matrix on commit `afb2373`.
+Both GTK3 clients and the addon's diagnostics observed `preedit`:
+
+| Family/client | Soak observations | Errors | RSS first → last | Threads |
+| --- | ---: | ---: | ---: | ---: |
+| KWin GTK3 | 2,926 | 0 | 34,880 → 34,916 KiB | 6 → 6 |
+| Mutter GTK3 | 2,559 | 0 | 27,364 → 27,364 KiB | 1 → 1 |
+| KWin Chrome | 16,509 | 0 | 35,432 → 35,432 KiB | 6 → 6 |
+| wlroots terminal | 2,422 | 0 | 32,956 → 32,980 KiB | 4 → 4 |
+
+Every soak ran for the qualifying 1,800 seconds, retained no failures, kept
+RSS and thread growth non-linear, and reported a surviving client. Corpus,
+three 1 ms/key burst rounds and two unpaced stress rounds also had zero errors
+for every client. The transport gate therefore removes the long-run
+delete-plus-commit corruption without a retry, delay, application rule or
+second text writer.
 
 ## Implementation gaps (Wayland)
 
