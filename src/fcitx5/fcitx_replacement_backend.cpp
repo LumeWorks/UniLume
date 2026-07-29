@@ -181,7 +181,6 @@ bool FcitxReplacementBackend::cancel(std::uint64_t sequence_id)
         acknowledged_transaction_.clear();
         initial_backspace_pending_ = false;
         forwarded_backspace_release_pending_ = false;
-        barrier_release_pending_ = false;
         return known_unapplied;
     }
     // Fcitx commit/delete calls are synchronous requests on the event thread.
@@ -200,7 +199,6 @@ void FcitxReplacementBackend::reset()
     acknowledged_transaction_.clear();
     initial_backspace_pending_ = false;
     forwarded_backspace_release_pending_ = false;
-    barrier_release_pending_ = false;
 }
 
 const ReplacementObservation &
@@ -248,32 +246,22 @@ bool FcitxReplacementBackend::forwardedBackspaceReleasePending() const
     return forwarded_backspace_release_pending_;
 }
 
-bool FcitxReplacementBackend::continueAcknowledgedReplacement()
+BackspaceReleaseAcknowledgement
+FcitxReplacementBackend::acknowledgeBackspaceRelease()
 {
     if (!forwarded_backspace_release_pending_ ||
         !acknowledged_transaction_.active()) {
-        return false;
+        return BackspaceReleaseAcknowledgement::unexpected;
     }
     forwarded_backspace_release_pending_ = false;
-    if (uinput_device_.emitBackspace()) {
-        return true;
+    const BackspaceReleaseAcknowledgement acknowledgement =
+        acknowledged_transaction_.acknowledgeRelease();
+    if (acknowledgement != BackspaceReleaseAcknowledgement::emit_next ||
+        uinput_device_.emitBackspace()) {
+        return acknowledgement;
     }
     acknowledged_transaction_.clear();
-    return false;
-}
-
-void FcitxReplacementBackend::expectBarrierRelease()
-{
-    barrier_release_pending_ = true;
-}
-
-bool FcitxReplacementBackend::consumeBarrierRelease()
-{
-    if (!barrier_release_pending_) {
-        return false;
-    }
-    barrier_release_pending_ = false;
-    return true;
+    return BackspaceReleaseAcknowledgement::unexpected;
 }
 
 std::uint64_t FcitxReplacementBackend::finishAcknowledgedReplacement()

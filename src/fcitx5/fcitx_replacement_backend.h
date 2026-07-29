@@ -53,9 +53,8 @@ public:
     [[nodiscard]] BackspaceAcknowledgement acknowledgeBackspace();
     void expectForwardedBackspaceRelease();
     [[nodiscard]] bool forwardedBackspaceReleasePending() const;
-    [[nodiscard]] bool continueAcknowledgedReplacement();
-    void expectBarrierRelease();
-    [[nodiscard]] bool consumeBarrierRelease();
+    [[nodiscard]] BackspaceReleaseAcknowledgement
+    acknowledgeBackspaceRelease();
     [[nodiscard]] std::uint64_t finishAcknowledgedReplacement();
 
 private:
@@ -68,7 +67,6 @@ private:
     AcknowledgedBackspaceTransaction acknowledged_transaction_;
     bool initial_backspace_pending_{};
     bool forwarded_backspace_release_pending_{};
-    bool barrier_release_pending_{};
 };
 
 } // namespace unilume::fcitx5
