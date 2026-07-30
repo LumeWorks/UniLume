@@ -85,6 +85,12 @@ jobs:
             dist/packages/*.deb \
             --clobber
 
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deb
+          path: dist/packages/*.deb
+
   build-rpm:
     name: Build RPM packages
     needs: prepare-release
@@ -140,6 +146,12 @@ jobs:
             --repo "$GH_REPO" \
             dist/packages/*.rpm \
             --clobber
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpm
+          path: dist/packages/*.rpm
 
   build-arch:
     name: Build Arch packages
@@ -199,6 +211,12 @@ jobs:
             dist/packages/*.pkg.tar.zst \
             --clobber
 
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: arch
+          path: dist/packages/*.pkg.tar.zst
+
   publish:
     name: Publish packages
     needs: [prepare-release, build-deb, build-rpm, build-arch]
@@ -211,6 +229,8 @@ jobs:
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
+        with:
+          path: dist/packages
 
       - name: Setup signing
         shell: bash
@@ -222,7 +242,8 @@ jobs:
       - name: Sign packages
         shell: bash
         run: |
-          if command -v gpg &>/dev/null && gpg --list-secret-keys &>/dev/null; then
+          if command -v gpg &>/dev/null && gpg --list-secret-keys &>/dev/null && [[ -d dist/packages ]]; then
+            shopt -s nullglob
             for dir in dist/packages/*/; do
               scripts/release/sign-all.sh "$dir"
             done
