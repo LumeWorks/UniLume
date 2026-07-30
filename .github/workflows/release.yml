@@ -31,7 +31,7 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y \
-            cmake g++ pkg-config libfcitx5core-dev debhelper dpkg-dev
+            build-essential cmake g++ pkg-config libfcitx5core-dev debhelper dpkg-dev
 
       - name: Get version
         shell: bash
@@ -79,7 +79,9 @@ jobs:
         shell: bash
         run: |
           UNILUME_VERSION=$(cmake -P cmake/UniLumeVersion.cmake 2>&1 | sed -n 's/.*UniLume version: //p')
+          UNILUME_RPM_VERSION=$(echo "${UNILUME_VERSION}" | cut -d'-' -f1)
           echo "UNILUME_VERSION=${UNILUME_VERSION}" >> "$GITHUB_ENV"
+          echo "UNILUME_RPM_VERSION=${UNILUME_RPM_VERSION}" >> "$GITHUB_ENV"
 
       - name: Build RPM
         shell: bash
@@ -87,8 +89,8 @@ jobs:
           RPM_TOPDIR="$(mktemp -d)"
           mkdir -p "${RPM_TOPDIR}/"{BUILD,RPMS,SOURCES,SPECS,SRPMS}
           cp packaging/rpm/unilume.spec "${RPM_TOPDIR}/SPECS/"
-          tar -czf "${RPM_TOPDIR}/SOURCES/unilume-${UNILUME_VERSION}.tar.gz" \
-            --transform "s|^|unilume-${UNILUME_VERSION}/|" \
+          tar -czf "${RPM_TOPDIR}/SOURCES/unilume-${UNILUME_RPM_VERSION}.tar.gz" \
+            --transform "s|^|unilume-${UNILUME_RPM_VERSION}/|" \
             --exclude="./.git" \
             --exclude="./build" \
             --exclude="./.cippie" \
@@ -124,7 +126,7 @@ jobs:
       - name: Install build deps
         shell: bash
         run: |
-          pacman -Syu --noconfirm cmake gcc pkg-config fcitx5 make tar sudo
+          pacman -Syu --noconfirm cmake gcc pkg-config fcitx5 make tar sudo fakeroot debugedit
 
       - name: Build Arch package
         shell: bash
