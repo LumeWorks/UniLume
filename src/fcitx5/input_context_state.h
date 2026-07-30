@@ -76,7 +76,7 @@ private:
     std::uint64_t macro_generation_{};
     std::uint64_t keymap_generation_{};
     std::uint64_t dictionary_generation_{};
-    bool verified_direct_enabled_{};
+    bool verified_direct_enabled_{true};
     bool direct_replacement_available_{};
     DirectStrategy direct_strategy_{DirectStrategy::fast};
     policy::ApplicationMode policy_mode_{
