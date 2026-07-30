@@ -64,6 +64,8 @@ jobs:
             pkg-config \
             sway \
             wtype
+          sudo modprobe uinput 2>/dev/null || true
+          sudo chmod 666 /dev/uinput 2>/dev/null || true
 
       - name: Generate the locales the addon tests require
         run: |
@@ -154,6 +156,8 @@ jobs:
             mesa-utils \
             pkg-config \
             $COMPOSITOR_PACKAGES
+          sudo modprobe uinput 2>/dev/null || true
+          sudo chmod 666 /dev/uinput 2>/dev/null || true
 
       - name: Generate the locales the addon tests require
         run: |
