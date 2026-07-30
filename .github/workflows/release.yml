@@ -36,7 +36,7 @@ jobs:
       - name: Get version
         shell: bash
         run: |
-          source cmake/UniLumeVersion.cmake
+          UNILUME_VERSION=$(cmake -P cmake/UniLumeVersion.cmake 2>&1 | sed -n 's/.*UniLume version: //p')
           echo "UNILUME_VERSION=${UNILUME_VERSION}" >> "$GITHUB_ENV"
           echo "UNILUME_DEB_VERSION=${UNILUME_VERSION/-/\~}" >> "$GITHUB_ENV"
 
@@ -94,7 +94,7 @@ jobs:
       - name: Get version
         shell: bash
         run: |
-          source cmake/UniLumeVersion.cmake
+          UNILUME_VERSION=$(cmake -P cmake/UniLumeVersion.cmake 2>&1 | sed -n 's/.*UniLume version: //p')
           echo "UNILUME_VERSION=${UNILUME_VERSION}" >> "$GITHUB_ENV"
 
       - name: Build RPM
