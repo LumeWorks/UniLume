@@ -21,6 +21,9 @@ jobs:
     outputs:
       tag: ${{ steps.release-tag.outputs.tag }}
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - id: release-tag
         shell: bash
         run: |
@@ -30,11 +33,12 @@ jobs:
       - name: Create draft release if needed
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
           TAG: ${{ steps.release-tag.outputs.tag }}
         shell: bash
         run: |
-          gh release view "$TAG" >/dev/null 2>&1 || \
-            gh release create "$TAG" --draft --generate-notes --title "UniLume $TAG"
+          gh release view "$TAG" --repo "$GH_REPO" >/dev/null 2>&1 || \
+            gh release create "$TAG" --repo "$GH_REPO" --draft --generate-notes --title "UniLume $TAG"
 
   build-deb:
     name: Build Debian packages
