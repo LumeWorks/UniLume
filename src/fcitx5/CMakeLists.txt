@@ -179,7 +179,7 @@ if(BUILD_TESTING)
     COMMAND unilume_fcitx5_translation_tests
   )
   set_tests_properties(fcitx5-translation PROPERTIES
-    ENVIRONMENT "LANGUAGE=vi;LC_ALL=C.UTF-8"
+    ENVIRONMENT "LANGUAGE=vi"
   )
 
   add_executable(unilume_fcitx5_emoji_module_tests

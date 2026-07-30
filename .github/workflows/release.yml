@@ -15,8 +15,30 @@ permissions:
   contents: write
 
 jobs:
+  prepare-release:
+    name: Create draft release
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.release-tag.outputs.tag }}
+    steps:
+      - id: release-tag
+        shell: bash
+        run: |
+          tag="${{ inputs.tag || github.ref_name }}"
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+
+      - name: Create draft release if needed
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release-tag.outputs.tag }}
+        shell: bash
+        run: |
+          gh release view "$TAG" >/dev/null 2>&1 || \
+            gh release create "$TAG" --draft --generate-notes --title "UniLume $TAG"
+
   build-deb:
     name: Build Debian packages
+    needs: prepare-release
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
@@ -53,12 +75,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
-          gh release upload "${GITHUB_REF_NAME}" \
+          gh release upload "${{ needs.prepare-release.outputs.tag }}" \
             dist/packages/*.deb \
             --clobber
 
   build-rpm:
     name: Build RPM packages
+    needs: prepare-release
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
@@ -106,12 +129,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
-          gh release upload "${GITHUB_REF_NAME}" \
+          gh release upload "${{ needs.prepare-release.outputs.tag }}" \
             dist/packages/*.rpm \
             --clobber
 
   build-arch:
     name: Build Arch packages
+    needs: prepare-release
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
@@ -158,13 +182,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
-          gh release upload "${GITHUB_REF_NAME}" \
+          gh release upload "${{ needs.prepare-release.outputs.tag }}" \
             dist/packages/*.pkg.tar.zst \
             --clobber
 
   publish:
     name: Publish packages
-    needs: [build-deb, build-rpm, build-arch]
+    needs: [prepare-release, build-deb, build-rpm, build-arch]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: release
@@ -206,6 +230,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
-          gh release upload "${GITHUB_REF_NAME}" \
+          gh release upload "${{ needs.prepare-release.outputs.tag }}" \
             dist/packages/**/*.{deb,rpm,pkg.tar.zst,tar.zst,asc} \
             --clobber
