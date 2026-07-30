@@ -14,6 +14,7 @@ Source0:        %{name}-%{version}.tar.gz
 BuildRequires:  cmake >= 3.16
 BuildRequires:  gcc-c++
 BuildRequires:  pkgconfig
+BuildRequires:  gettext
 BuildRequires:  pkgconfig(Fcitx5Core) >= 5.0
 
 Requires:       fcitx5 >= 5.0

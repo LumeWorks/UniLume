@@ -4,7 +4,7 @@ Priority: optional
 Maintainer: Lê Hùng Quang Minh <dismonjames@gmail.com>
 Build-Depends: cmake (>= 3.16),
                debhelper-compat (= 13),
-               pkg-config,
+               pkg-config, gettext,
                libfcitx5core-dev (>= 5.0)
 Standards-Version: 4.7.0
 Homepage: https://packages.dismon.me
