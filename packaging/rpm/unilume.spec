@@ -9,7 +9,7 @@ Summary:        Modern, lightweight Vietnamese input method for Linux
 
 License:        GPL-2.0-or-later AND LGPL-2.0-or-later
 URL:            https://packages.dismon.me
-Source0:        %{name}-%{version}.tar.zst
+Source0:        %{name}-%{version}.tar.gz
 
 BuildRequires:  cmake >= 3.16
 BuildRequires:  gcc-c++
