@@ -31,8 +31,10 @@ done
 echo "Generating SHA256SUMS..."
 cd "$DIR"
 sha256sum ./*.deb ./*.rpm ./*.pkg.tar.zst ./*.tar.zst 2>/dev/null > SHA256SUMS
+SIGNING_KEY="${UNILUME_SIGNING_KEY:-$(gpg --list-secret-keys --with-colons 2>/dev/null | grep '^sec' | cut -d: -f5 | head -n1)}"
+SIGNING_KEY="${SIGNING_KEY:-unilume@dismon.me}"
 gpg --batch --yes --clearsign \
-  --default-key "${UNILUME_SIGNING_KEY:-unilume@dismon.me}" \
+  --default-key "$SIGNING_KEY" \
   --output SHA256SUMS.asc \
   SHA256SUMS
 rm -f SHA256SUMS

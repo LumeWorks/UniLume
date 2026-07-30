@@ -7,7 +7,8 @@
 set -euo pipefail
 
 FILE="${1:?Usage: $0 <file>}"
-SIGNING_KEY="${UNILUME_SIGNING_KEY:-unilume@dismon.me}"
+SIGNING_KEY="${UNILUME_SIGNING_KEY:-$(gpg --list-secret-keys --with-colons 2>/dev/null | grep '^sec' | cut -d: -f5 | head -n1)}"
+SIGNING_KEY="${SIGNING_KEY:-unilume@dismon.me}"
 
 if [[ ! -f "$FILE" ]]; then
   echo "Error: file not found: $FILE"
