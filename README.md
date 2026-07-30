@@ -96,7 +96,7 @@ Contract custom keymap và quy tắc activate/rollback được mô tả trong
 [docs/keymap-support.md](docs/keymap-support.md).
 Personal dictionary và policy keep/restore được mô tả trong
 [docs/dictionary-support.md](docs/dictionary-support.md).
-Policy theo ứng dụng, bốn mode, menu trạng thái và hotkey được mô tả trong
+Policy theo ứng dụng, hai mode Direct/Off, menu trạng thái và hotkey được mô tả trong
 [docs/application-policy.md](docs/application-policy.md).
 Contract verified direct replacement, feature flag và rollback được mô tả
 trong [docs/verified-direct-backend.md](docs/verified-direct-backend.md).
@@ -184,4 +184,3 @@ Nếu UniLume mang lại giá trị cho bạn, bạn có thể ủng hộ nhà p
 *Chưa có lượt ủng hộ nào. Hãy là người đầu tiên đóng góp và xuất hiện tại đây!*
 
 <!-- Cập nhật danh sách nhà ủng hộ tại đây -->
-

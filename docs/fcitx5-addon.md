@@ -71,23 +71,27 @@ focus changes, reset events, and unhandled Backspace clear composition state.
 
 `VerifiedDirectEnabled` defaults to `True`. Atomic frontends use their verified
 surrounding-text edit. Split D-Bus and Wayland transports use one shared,
-Backspace-only uinput device: each deletion is released before the next is
-emitted, and the replacement is committed when the final deletion release
-returns through Fcitx. This keeps ordinary typing out of client preedit and
-therefore removes its underline. If neither backend is available, the context
-uses bounded safe preedit.
+Backspace-only uinput device and emit the deletion count plus one sentinel as a
+release-driven sequence with at most one synthetic key pair in flight.
+The first synthetic pair waits for the matching physical triggering key release;
+unrelated modifier releases cannot start or be consumed by the transaction.
+`DirectStrategy=Guarded` is the default and commits at sentinel release;
+`DirectStrategy=Fast` is opt-in and commits at sentinel press. Vietnamese
+composition never enters Fcitx preedit. If neither backend is available, the
+original key passes through.
 
 ## Safety fallback
 
-Replacement requires the Fcitx `SurroundingText` capability and a bounded,
-valid UTF-8 snapshot with an unselected cursor and enough characters. Previously
-committed text never bypasses this live check. Verified replacement and raw
-fallback use separate backend calls so fallback cannot guess a deletion.
+Atomic replacement requires the Fcitx `SurroundingText` capability and a
+bounded, valid UTF-8 snapshot with an unselected cursor and enough characters.
+Split transport uses the bounded uinput sequence instead. A pre-dispatch
+failure returns the key to the frontend; it does not synthesize a fallback
+commit.
 
 The acknowledged backend has a 128-character deletion limit and a fixed
 512-key burst queue. It does not sleep, retry indefinitely, monitor the mouse,
 or run a socket daemon. Set `VerifiedDirectEnabled=False` to disable it and
-return immediately to safe preedit.
+return immediately to passthrough.
 
 Fcitx delete/commit methods are synchronous requests on its event thread and
 do not acknowledge application-side mutation. See
@@ -101,7 +105,7 @@ are documented in
 
 Auto-capitalization, word-ending double-space replacement, prose `-- `
 replacement and scoped `w`/bracket shortcuts run through the same per-context
-pipeline in both direct and preedit paths. Prose transforms default off;
+pipeline on the direct path. Prose transforms default off;
 shortcut scope defaults to `Inherited`. Modified shortcuts, URL/email/code
 literal contexts and reset boundaries are never rewritten. See
 [ADR 0003](adr/0003-typing-convenience-pipeline.md) for exact ordering and
@@ -116,8 +120,8 @@ Fcitx configuration contract; the new state crosses the existing composition
 boundary before another key is processed. Macros and dictionaries cannot be
 enabled from the status menu until their validated file is configured.
 
-The input-method icon distinguishes normal Vietnamese processing, off, and
-safe-preedit fallback. All three are scalable SVGs installed in the hicolor
+The input-method icon distinguishes normal Vietnamese processing, Off, and
+Direct-unavailable passthrough. The scalable SVGs are installed in the hicolor
 theme for KDE/GNOME and HiDPI fallback. English source strings and the complete
 Vietnamese gettext catalog cover status tooltips and configuration
 descriptions. Run `scripts/i18n/update.sh` after changing a production string;
@@ -154,17 +158,10 @@ Automated:
 - controller tests for immediate, delayed, stale, duplicate, reordered,
   dropped, failure, reset, burst, and sanitizer profiles.
 
-Controlled desktop validation has covered xterm, KWrite, Zenity, VSCode,
-Chrome, and Firefox ESR on KDE/X11. Direct zero-preedit was observed in the
-tested Qt and GTK contexts; XIM and browser/Electron contexts used fallback.
-This is still a limited environment matrix, not a production-readiness claim.
-
-In the tested Debian 13.6 / KDE Plasma / X11 matrix, browser and Electron
-contexts used the client-preedit fallback because they did not advertise the
-`SurroundingText` capability to Fcitx. See `docs/browser-input-policy.md` for
-the capability analysis and input-path policy state machine. Wayland or other
-environments may produce different capability signals and are not yet
-verified.
+Earlier controlled desktop validation covered xterm, KWrite, Zenity, VSCode,
+Chrome, and Firefox ESR on KDE/X11, but its fallback observations predate the
+Direct-only contract. The Issue #107 matrix must be repeated before making a
+current production-readiness claim. See `docs/browser-input-policy.md`.
 
 Native Wayland is qualified automatically on the wlroots family only; KWin and
 Mutter are not claimed. See `docs/wayland-validation.md` for the measured

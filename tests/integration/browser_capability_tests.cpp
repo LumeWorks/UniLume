@@ -7,8 +7,7 @@
 //   → InputModePolicy::observe()
 //   → composition lifecycle (resetForCompositionEnd, reset)
 //   → selected InputPath
-//   → DirectCommitController (direct path) or
-//     PreeditFallbackController (preedit path)
+//   → DirectCommitController (direct path) or raw passthrough (off path)
 //   → final output verification
 //
 // This tests the same chain that InputContextState::keyEvent uses
@@ -18,7 +17,6 @@
 #include "direct_commit_controller.h"
 #include "input_mode_policy.h"
 #include "integration_fixture.h"
-#include "preedit_fallback_controller.h"
 #include "test_assertions.h"
 #include "test_suites.h"
 
@@ -50,15 +48,20 @@ public:
         synchronizeMode();
         lastPath_ = policy_.path();
         if (lastPath_ == platform::InputPath::direct) {
-            direct_.submit(input);
+            const core::SubmissionStatus status = direct_.submit(input);
+            if (status == core::SubmissionStatus::unhandled ||
+                status == core::SubmissionStatus::passthrough) {
+                backend_.forwardRaw(
+                    input.kind == core::KeyKind::backspace ? 1 : 0,
+                    input.text);
+            }
             drain();
             policy_.resetForCompositionEnd();
         } else {
-            const core::PreeditAction action = preedit_.submit(input);
-            preeditBuffer_.append(action.commit_text);
-            if (preedit_.preedit().empty()) {
-                policy_.resetForCompositionEnd();
-            }
+            backend_.forwardRaw(
+                input.kind == core::KeyKind::backspace ? 1 : 0,
+                input.text);
+            policy_.resetForCompositionEnd();
         }
     }
 
@@ -76,17 +79,12 @@ public:
     void reset()
     {
         policy_.reset();
-        preeditBuffer_.clear();
-        preedit_.reset();
         direct_.resetForFocus();
     }
 
     [[nodiscard]] std::string output() const
     {
-        if (lastPath_ == platform::InputPath::direct) {
-            return backend_.text();
-        }
-        return preeditBuffer_ + std::string(preedit_.preedit());
+        return backend_.text();
     }
 
     [[nodiscard]] platform::InputPath path() const
@@ -134,8 +132,6 @@ private:
     DeterministicBackend backend_;
     platform::InputModePolicy policy_;
     core::DirectCommitController direct_;
-    core::PreeditFallbackController preedit_;
-    std::string preeditBuffer_;
     platform::InputPath lastPath_{platform::InputPath::unknown};
 };
 
@@ -143,22 +139,19 @@ private:
 
 void runBrowserCapabilityTests(Assertions &assertions)
 {
-    // -- 1. Browser profile → preedit path → correct output --
-    // Verifies: policy selects preedit, fallback controller produces
-    //           composed Vietnamese, composition boundaries trigger
-    //           resetForCompositionEnd().
+    // -- 1. An unavailable direct backend passes raw keys through --
     {
         BrowserPipeline browser{false};
 
         browser.type("tooi ");
         assertions.equal(
             "browser pipeline first word",
-            browser.output(), "tôi ");
+            browser.output(), "tooi ");
 
         browser.type("ddang ");
         assertions.equal(
             "browser pipeline second word",
-            browser.output(), "tôi đang ");
+            browser.output(), "tooi ddang ");
 
         // Full typical browser input (URLs, email, code literals)
         BrowserPipeline corpus{false};
@@ -168,7 +161,7 @@ void runBrowserCapabilityTests(Assertions &assertions)
             "std::vector<int> Console.WriteLine(\"hello\"); "
             "foo_bar->value ");
         const std::string expected =
-            "tôi tiếng đay là bộ gõ tiếng Việt "
+            "tooi tieengs dday laf booj gox tieengs Vieetj "
             "http://abc.com/a1 user@example.com "
             "std::vector<int> Console.WriteLine(\"hello\"); "
             "foo_bar->value ";
@@ -203,14 +196,14 @@ void runBrowserCapabilityTests(Assertions &assertions)
     }
 
     // -- 3. Policy path selection mirrors capability --
-    // Verifies: observe(false) → preedit, observe(true) → direct.
+    // Verifies: observe(false) → off, observe(true) → direct.
     {
         platform::InputModePolicy policy;
 
         policy.observe(false);
         assertions.truth(
-            "no SurroundingText selects preedit path",
-            policy.path() == platform::InputPath::preedit);
+            "no direct backend selects passthrough",
+            policy.path() == platform::InputPath::off);
 
         policy.resetForCompositionEnd();
         policy.observe(true);
@@ -230,7 +223,7 @@ void runBrowserCapabilityTests(Assertions &assertions)
 
         re_eval.observe(false);
         assertions.truth("demotes immediately on loss",
-            re_eval.path() == platform::InputPath::preedit);
+            re_eval.path() == platform::InputPath::off);
 
         re_eval.resetForCompositionEnd();
         re_eval.observe(true);
@@ -238,16 +231,15 @@ void runBrowserCapabilityTests(Assertions &assertions)
             re_eval.path() == platform::InputPath::direct);
     }
 
-    // -- 5. No mid-composition promotion --
-    // Verifies: once on preedit, stays even if capability reappears.
+    // -- 5. Restored capability never enters preedit --
     {
         platform::InputModePolicy stable;
 
         stable.observe(false);
         stable.observe(true);
         assertions.truth(
-            "preedit does not promote mid-composition",
-            stable.path() == platform::InputPath::preedit);
+            "restored capability selects direct",
+            stable.path() == platform::InputPath::direct);
 
         stable.resetForCompositionEnd();
         stable.observe(true);
@@ -268,8 +260,8 @@ void runBrowserCapabilityTests(Assertions &assertions)
 
         focus.observe(false);
         assertions.truth(
-            "post-reset observation picks preedit",
-            focus.path() == platform::InputPath::preedit);
+            "post-reset observation picks passthrough",
+            focus.path() == platform::InputPath::off);
     }
 
     // -- 7. IntegrationFixture cross-check --
@@ -286,15 +278,13 @@ void runBrowserCapabilityTests(Assertions &assertions)
             native.metrics().queue_depth, 0);
     }
 
-    // -- 8. Pipeline separation: preedit path never leaves output in backend --
-    // A key press on the preedit path should produce output through
-    // PreeditFallbackController, not the backend.
+    // -- 8. Passthrough never invokes a preedit controller --
     {
-        BrowserPipeline only_preedit{false};
-        only_preedit.type("tooi ");
+        BrowserPipeline passthrough{false};
+        passthrough.type("tooi ");
         assertions.equal(
-            "preedit path output via fallback controller",
-            only_preedit.output(), "tôi ");
+            "off path preserves raw frontend input",
+            passthrough.output(), "tooi ");
     }
 }
 

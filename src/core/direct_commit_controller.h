@@ -18,6 +18,7 @@ enum class SubmissionStatus {
     unhandled,
     queued,
     fallback,
+    passthrough,
 };
 
 class DirectCommitController {
@@ -64,12 +65,10 @@ private:
     SubmissionStatus processNow(const KeyInput &input);
     SubmissionStatus startTransaction(const KeyInput &input,
                                       const KeyResult &result);
-    SubmissionStatus fallback(const KeyInput &input,
-                              std::uint64_t sequence_id);
     bool enqueue(const KeyInput &input);
     QueuedInput dequeue();
     static KeyInput view(const QueuedInput &input);
-    bool finishActive(bool success, bool fallback_allowed = true);
+    bool finishActive(bool success, bool fallback_allowed = false);
     void drainQueue();
     void updateQueueMetrics();
 

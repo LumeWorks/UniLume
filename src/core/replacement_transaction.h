@@ -18,7 +18,7 @@ enum class TransactionState {
 
 class ReplacementTransaction {
 public:
-    static constexpr std::size_t text_capacity = 1024;
+    static constexpr std::size_t text_capacity = 2048;
 
     bool prepare(std::uint64_t sequence_id,
                  std::int32_t delete_before_cursor,

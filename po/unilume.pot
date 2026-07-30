@@ -278,13 +278,7 @@ msgstr ""
 msgid "Search Fcitx emoji data without network access"
 msgstr ""
 
-msgid "Automatic"
-msgstr ""
-
 msgid "Direct"
-msgstr ""
-
-msgid "Safe preedit"
 msgstr ""
 
 msgid "Off"
@@ -293,13 +287,13 @@ msgstr ""
 msgid "UniLume mode"
 msgstr ""
 
-msgid "Automatic - Direct"
+msgid "Direct unavailable - Passthrough"
 msgstr ""
 
-msgid "Automatic - Safe preedit"
+msgid "Direct - Fast"
 msgstr ""
 
-msgid "Direct - Safe fallback"
+msgid "Direct - Guarded"
 msgstr ""
 
 msgid "Select this mode for the current input context"
@@ -311,7 +305,7 @@ msgstr ""
 msgid "Selected for this input context"
 msgstr ""
 
-msgid "Safe preedit: application identity unavailable"
+msgid "Using direct mode without an application identity"
 msgstr ""
 
 msgid "Matched exact application rule: "
@@ -323,7 +317,7 @@ msgstr ""
 msgid "Using the default application policy"
 msgstr ""
 
-msgid "; direct replacement unavailable, using safe preedit"
+msgid "; direct replacement unavailable, passing keys through"
 msgstr ""
 
 msgid "Recently used"
@@ -333,6 +327,12 @@ msgid "Emoji: type to search or choose a recent item"
 msgstr ""
 
 msgid "Emoji search"
+msgstr ""
+
+msgid "Fast"
+msgstr ""
+
+msgid "Guarded"
 msgstr ""
 
 msgid "Inherited"
@@ -374,10 +374,19 @@ msgstr ""
 msgid "Enable capability-gated verified direct replacement"
 msgstr ""
 
+msgid "Split-transport direct strategy"
+msgstr ""
+
 msgid "Enable per-application input policy"
 msgstr ""
 
 msgid "Validated per-application input policy"
+msgstr ""
+
+msgid "Legacy automatic hotkey (maps to Direct)"
+msgstr ""
+
+msgid "Legacy safe-preedit hotkey (maps to Off)"
 msgstr ""
 
 msgid "Open the complete UniLume configuration"

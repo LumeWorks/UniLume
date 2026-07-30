@@ -27,6 +27,9 @@ int main()
     InputMethodConfig input_method_config;
     ok &= expect(*input_method_config.verified_direct_enabled,
                  "zero-preedit replacement must be enabled by default");
+    ok &= expect(*input_method_config.direct_strategy ==
+                     ConfigDirectStrategy::Fast,
+                 "Fast direct strategy must be the default");
     fcitx::RawConfig raw;
     raw["InputMethod"] = "VNI";
     raw["OutputCharset"] = "UTF8";
@@ -46,6 +49,7 @@ int main()
     raw["DictionaryEnabled"] = "True";
     raw["DictionaryFile"] = "/tmp/unilume-dictionary";
     raw["VerifiedDirectEnabled"] = "True";
+    raw["DirectStrategy"] = "Guarded";
     raw["ApplicationPolicyEnabled"] = "True";
     raw["ApplicationPolicyFile"] = "/tmp/unilume-application-policy";
     raw["CycleModeHotkey"] = "Control+Alt+u";
@@ -62,6 +66,11 @@ int main()
                  "application policy configuration must load");
     ok &= expect(*input_method_config.verified_direct_enabled,
                  "verified direct feature flag must load");
+    ok &= expect(*input_method_config.direct_strategy ==
+                     ConfigDirectStrategy::Guarded &&
+                     toDirectStrategy(*input_method_config.direct_strategy) ==
+                     DirectStrategy::guarded,
+                 "Guarded direct strategy must load and map exactly");
     ok &= expect(*input_method_config.emoji_enabled &&
                      *input_method_config.emoji_hotkey ==
                          "Control+Alt+period",
@@ -119,6 +128,15 @@ int main()
                  "unsupported charset must be rejected");
     ok &= expect(*input_method_config.output_charset == ConfigOutputCharset::UTF8,
                  "unsupported charset must not replace UTF8");
+
+    fcitx::RawConfig invalid_strategy;
+    invalid_strategy["DirectStrategy"] = "Smooth";
+    ok &= expect(!loadInputMethodConfig(input_method_config,
+                                        invalid_strategy),
+                 "unknown direct strategy must be rejected");
+    ok &= expect(*input_method_config.direct_strategy ==
+                     ConfigDirectStrategy::Guarded,
+                 "invalid strategy must preserve active configuration");
 
     fcitx::RawConfig invalid_macro_path;
     invalid_macro_path["MacroFile"] = "bad\npath";

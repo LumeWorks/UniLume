@@ -46,15 +46,21 @@ public:
     bool cancel(std::uint64_t sequence_id) override;
 
     void reset() override;
+    void setDirectStrategy(DirectStrategy strategy);
+    void clearFailure();
     [[nodiscard]] const ReplacementObservation &lastObservation() const;
     [[nodiscard]] bool acknowledgedDeletionPending() const;
     [[nodiscard]] bool initialBackspacePending() const;
     [[nodiscard]] bool startAcknowledgedReplacement();
     [[nodiscard]] BackspaceAcknowledgement acknowledgeBackspace();
-    void expectForwardedBackspaceRelease();
-    [[nodiscard]] bool forwardedBackspaceReleasePending() const;
     [[nodiscard]] BackspaceReleaseAcknowledgement
     acknowledgeBackspaceRelease();
+    [[nodiscard]] bool consumeFastSentinelRelease();
+    [[nodiscard]] bool fastSentinelReleasePending() const;
+    [[nodiscard]] bool consumeCancelledBackspace(bool release);
+    [[nodiscard]] bool consumeUncertainDispatch();
+    [[nodiscard]] bool poisoned() const;
+    [[nodiscard]] bool guardedBoundaryValid() const;
     [[nodiscard]] std::uint64_t finishAcknowledgedReplacement();
 
 private:
@@ -66,7 +72,13 @@ private:
     mutable VerifiedSurroundingTicket verified_ticket_;
     AcknowledgedBackspaceTransaction acknowledged_transaction_;
     bool initial_backspace_pending_{};
-    bool forwarded_backspace_release_pending_{};
+    bool guarded_snapshot_ready_{};
+    bool fast_sentinel_release_pending_{};
+    std::size_t cancelled_backspace_presses_{};
+    bool cancelled_backspace_release_pending_{};
+    bool uncertain_dispatch_{};
+    bool poisoned_{};
+    DirectStrategy strategy_{DirectStrategy::fast};
 };
 
 } // namespace unilume::fcitx5

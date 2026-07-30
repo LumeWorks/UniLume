@@ -35,6 +35,7 @@ struct BackendCompletion {
 enum class BackendEventKind {
     verified_replacement,
     fallback_commit,
+    raw_passthrough,
 };
 
 struct BackendEvent {
@@ -66,6 +67,8 @@ public:
     [[nodiscard]] const std::string &text() const;
     [[nodiscard]] const std::vector<BackendEvent> &eventLog() const;
     [[nodiscard]] std::size_t appliedEvents() const;
+    bool forwardRaw(std::int32_t delete_before_cursor,
+                    std::string_view text);
 
 private:
     struct PendingReplacement {

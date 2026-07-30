@@ -39,26 +39,25 @@ The optional `src/fcitx5/` addon maps Fcitx events into the same controller and
 keeps one state object per Fcitx input context. It is an experimental Telex
 MVP, not a supported production frontend.
 
-Each Fcitx context resolves an explicit application policy and selects one path
-on its first processable key. Automatic mode uses direct replacement only with
-the required surrounding-text capability; explicit direct mode has the same
-capability gate, safe-preedit never selects direct replacement, and off passes
-ordinary keys through. A direct context may demote after capability loss, but
-a preedit context is never promoted in place. Policy and mode changes cross a
-composition reset barrier. The schema and precedence are documented in
+Each Fcitx context resolves an explicit application policy with only Direct
+and Off modes. Direct uses an eligible atomic or acknowledged split-transport
+backend; when none is available it passes the original event through. Off is
+unconditional passthrough. The production Fcitx state has no preedit owner.
+Policy and mode changes cross a composition reset barrier. The schema and
+precedence are documented in
 [application-policy.md](application-policy.md).
 
-The direct backend has a separate no-delete fallback operation, validates the
-live bounded snapshot inside each edit, and fences old frontend generations on
-reset. It is feature-gated during qualification; see
+The production direct controller never invokes its retained no-delete fallback
+operation. It validates the live bounded snapshot inside atomic edits and
+fences old frontend generations on reset. It is feature-gated during
+qualification; see
 [verified-direct-backend.md](verified-direct-backend.md).
 
-The production ownership decision is recorded in
-[ADR 0001](adr/0001-composition-ownership.md): `InputContextState` is the sole
-composition owner and a path transition crosses a reset barrier. Its Issue
-#102 amendment permits one in-process, Backspace-only uinput device for
-acknowledged deletion on split Fcitx transports; it never owns composition
-text or commits output independently.
+The current production ownership decision is recorded in
+[ADR 0005](adr/0005-direct-only-fcitx-runtime.md): `InputContextState` exposes
+Direct/Off only and never connects the retained core preedit controller to
+Fcitx. An in-process Backspace-only uinput device supplies a sentinel ordering
+boundary on split transports.
 
 The original proposal and boundary rationale remain in
 [linux-adapter-design.md](linux-adapter-design.md). Current test semantics and

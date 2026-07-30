@@ -6,12 +6,13 @@ namespace unilume::platform {
 
 InputPath InputModePolicy::observe(bool direct_available)
 {
-    return observe(policy::ApplicationMode::automatic, direct_available);
+    return observe(policy::ApplicationMode::direct, direct_available);
 }
 
 InputPath InputModePolicy::observe(policy::ApplicationMode requested,
                                    bool direct_available)
 {
+    requested = policy::normalizeMode(requested);
     if (requested != requested_) {
         path_ = InputPath::unknown;
         requested_ = requested;
@@ -20,22 +21,7 @@ InputPath InputModePolicy::observe(policy::ApplicationMode requested,
         path_ = InputPath::off;
         return path_;
     }
-    if (requested == policy::ApplicationMode::safe_preedit) {
-        path_ = InputPath::preedit;
-        return path_;
-    }
-    // If already decided, only allow demotion from direct to preedit.
-    if (path_ != InputPath::unknown) {
-        if (path_ == InputPath::direct && !direct_available) {
-            path_ = InputPath::preedit;
-        }
-        return path_;
-    }
-    // First observation: select path based on current capability.
-    // Never promote a context with active composition from preedit
-    // to direct — a frontend may still be applying an asynchronous
-    // preedit update.
-    path_ = direct_available ? InputPath::direct : InputPath::preedit;
+    path_ = direct_available ? InputPath::direct : InputPath::off;
     return path_;
 }
 
@@ -49,7 +35,7 @@ void InputModePolicy::resetForCompositionEnd()
 void InputModePolicy::reset()
 {
     path_ = InputPath::unknown;
-    requested_ = policy::ApplicationMode::automatic;
+    requested_ = policy::ApplicationMode::direct;
 }
 
 InputPath InputModePolicy::path() const

@@ -5,6 +5,7 @@
 #include "unilume_context.h"
 #include "config_snapshot.h"
 #include "typing_pipeline.h"
+#include "direct_strategy.h"
 
 #include <fcitx-config/configuration.h>
 #include <fcitx-config/enum.h>
@@ -20,6 +21,12 @@ inline constexpr bool verified_direct_enabled_by_default = true;
 // permit lossy commits, which UniLume intentionally does not support.
 FCITX_CONFIG_ENUM(ConfigInputMethod, Telex, VNI, VIQR)
 FCITX_CONFIG_ENUM(ConfigOutputCharset, UTF8)
+enum class ConfigDirectStrategy {
+    Fast,
+    Guarded,
+};
+FCITX_CONFIG_ENUM_NAME_WITH_I18N(
+    ConfigDirectStrategy, N_("Fast"), N_("Guarded"))
 enum class ConfigShortcutScope {
     Inherited,
     Disabled,
@@ -76,6 +83,9 @@ FCITX_CONFIGURATION(
         this, "VerifiedDirectEnabled",
         _("Enable capability-gated verified direct replacement"),
         verified_direct_enabled_by_default};
+    fcitx::Option<ConfigDirectStrategy> direct_strategy{
+        this, "DirectStrategy", _("Split-transport direct strategy"),
+        ConfigDirectStrategy::Fast};
     fcitx::Option<bool> application_policy_enabled{
         this, "ApplicationPolicyEnabled",
         _("Enable per-application input policy"), false};
@@ -86,11 +96,13 @@ FCITX_CONFIGURATION(
         this, "CycleModeHotkey", _("Cycle application input mode"),
         "Control+Alt+u"};
     fcitx::Option<std::string> automatic_mode_hotkey{
-        this, "AutomaticModeHotkey", _("Select automatic mode"), ""};
+        this, "AutomaticModeHotkey",
+        _("Legacy automatic hotkey (maps to Direct)"), ""};
     fcitx::Option<std::string> direct_mode_hotkey{
         this, "DirectModeHotkey", _("Select direct mode"), ""};
     fcitx::Option<std::string> safe_preedit_mode_hotkey{
-        this, "SafePreeditModeHotkey", _("Select safe preedit mode"), ""};
+        this, "SafePreeditModeHotkey",
+        _("Legacy safe-preedit hotkey (maps to Off)"), ""};
     fcitx::Option<std::string> off_mode_hotkey{
         this, "OffModeHotkey", _("Turn processing off for this context"), ""};
     fcitx::Option<bool> emoji_enabled{
@@ -107,6 +119,7 @@ FCITX_CONFIGURATION(
 
 [[nodiscard]] UlInputMethod toUlInputMethod(ConfigInputMethod method);
 [[nodiscard]] UlInputMethod toUlInputMethod(config::InputMethod method);
+[[nodiscard]] DirectStrategy toDirectStrategy(ConfigDirectStrategy strategy);
 [[nodiscard]] config::Snapshot snapshotFromConfig(
     const InputMethodConfig &config);
 [[nodiscard]] core::TypingConvenienceOptions typingOptionsFromConfig(

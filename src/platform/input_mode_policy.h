@@ -25,7 +25,7 @@ public:
 
 private:
     InputPath path_{InputPath::unknown};
-    policy::ApplicationMode requested_{policy::ApplicationMode::automatic};
+    policy::ApplicationMode requested_{policy::ApplicationMode::direct};
 };
 
 } // namespace unilume::platform

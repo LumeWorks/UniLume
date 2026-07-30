@@ -248,9 +248,16 @@ Outcome runTransactions(std::span<const std::uint8_t> input)
             trace << 'C';
             break;
         }
-        default:
-            trace << static_cast<int>(controller.submit(keyInput(operation)));
+        default: {
+            const auto key = keyInput(operation);
+            const auto status = controller.submit(key);
+            if (status == core::SubmissionStatus::passthrough ||
+                status == core::SubmissionStatus::unhandled) {
+                backend.forwardRaw(0, key.text);
+            }
+            trace << static_cast<int>(status);
             break;
+        }
         }
         valid = valid && metricsValid(controller) &&
                 core::isValidUtf8(backend.text()) &&
@@ -273,13 +280,24 @@ Outcome runTransactions(std::span<const std::uint8_t> input)
                     integration::test::BackendEventKind::fallback_commit
                 ? model.requestFallbackCommit(
                       event.sequence_id, event.commit_text)
-                : model.requestReplacement(
-                      event.sequence_id,
-                      event.delete_before_cursor,
-                      event.commit_text);
-        valid = valid && event.sequence_id >= previous_sequence &&
+                : event.kind ==
+                        integration::test::BackendEventKind::raw_passthrough
+                    ? (model.forwardRaw(
+                           event.delete_before_cursor, event.commit_text)
+                           ? platform::ReplacementStatus::completed
+                           : platform::ReplacementStatus::failed)
+                    : model.requestReplacement(
+                          event.sequence_id,
+                          event.delete_before_cursor,
+                          event.commit_text);
+        valid = valid &&
+                (event.kind ==
+                     integration::test::BackendEventKind::raw_passthrough ||
+                 event.sequence_id >= previous_sequence) &&
                 replayed == platform::ReplacementStatus::completed;
-        previous_sequence = event.sequence_id;
+        if (event.sequence_id != 0) {
+            previous_sequence = event.sequence_id;
+        }
     }
     valid = valid && metricsValid(controller) && !backend.hasPending() &&
             model.text() == backend.text();
@@ -290,8 +308,16 @@ bool knownTransactionFaultsDetected()
 {
     DeterministicBackend backend(BackendProfile{.delay_events = 1});
     core::DirectCommitController controller(backend);
-    controller.submit({core::KeyKind::text, "a"});
-    controller.submit({core::KeyKind::text, "s"});
+    const auto s1 = controller.submit({core::KeyKind::text, "a"});
+    if (s1 == core::SubmissionStatus::passthrough ||
+        s1 == core::SubmissionStatus::unhandled) {
+        backend.forwardRaw(0, "a");
+    }
+    const auto s2 = controller.submit({core::KeyKind::text, "s"});
+    if (s2 == core::SubmissionStatus::passthrough ||
+        s2 == core::SubmissionStatus::unhandled) {
+        backend.forwardRaw(0, "s");
+    }
     const std::uint64_t active = controller.activeSequence();
     controller.complete(active + 1, true);
     controller.complete(active + 1, true);

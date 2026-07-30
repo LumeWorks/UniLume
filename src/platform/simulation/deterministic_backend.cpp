@@ -188,6 +188,25 @@ std::size_t DeterministicBackend::appliedEvents() const
     return applied_events_;
 }
 
+bool DeterministicBackend::forwardRaw(
+    std::int32_t delete_before_cursor,
+    std::string_view text)
+{
+    if (!apply(delete_before_cursor, text)) {
+        return false;
+    }
+    if (profile_.record_event_log) {
+        event_log_.push_back({
+            BackendEventKind::raw_passthrough,
+            0,
+            delete_before_cursor,
+            std::string(text),
+        });
+    }
+    ++applied_events_;
+    return true;
+}
+
 bool DeterministicBackend::apply(std::int32_t delete_before_cursor,
                                  std::string_view commit_text)
 {

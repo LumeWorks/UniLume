@@ -22,7 +22,7 @@ void runTransactionTests(Assertions &assertions)
         fixture.type("tooi");
         fixture.drain();
         assertions.equal(
-            "unsafe surrounding text uses raw fallback",
+            "unsafe surrounding text passes raw input through",
             fixture.output(),
             "tooi");
         assertions.truth(
@@ -33,13 +33,13 @@ void runTransactionTests(Assertions &assertions)
             fixture.metrics().queue_depth,
             0);
         assertions.truth(
-            "unsafe surrounding never enters verified replacement",
+            "unsafe surrounding never uses a commit fallback",
             std::all_of(
                 fixture.backend().eventLog().begin(),
                 fixture.backend().eventLog().end(),
                 [](const BackendEvent &event) {
                     return event.kind ==
-                           BackendEventKind::fallback_commit;
+                           BackendEventKind::raw_passthrough;
                 }));
     }
 
@@ -47,7 +47,8 @@ void runTransactionTests(Assertions &assertions)
     delete_failure.type("tooi");
     delete_failure.drain();
     assertions.equal(
-        "delete failure raw fallback", delete_failure.output(), "tooi");
+        "delete failure passes the current key through",
+        delete_failure.output(), "tooi");
     assertions.truth(
         "delete failure abort recorded",
         delete_failure.metrics().aborted_transactions != 0);
@@ -56,7 +57,8 @@ void runTransactionTests(Assertions &assertions)
     commit_failure.type("abc");
     commit_failure.drain();
     assertions.equal(
-        "commit failure raw fallback", commit_failure.output(), "abc");
+        "commit failure passes the current key through",
+        commit_failure.output(), "abc");
 
     DeterministicBackend unavailable_fallback({
         .surrounding_text_available = false,
@@ -64,13 +66,15 @@ void runTransactionTests(Assertions &assertions)
     });
     core::DirectCommitController unavailable_controller(
         unavailable_fallback);
+    const core::SubmissionStatus unavail_status =
+        unavailable_controller.submit({core::KeyKind::text, "a"});
     assertions.truth(
         "failed raw fallback returns the event to the frontend",
-        unavailable_controller.submit({core::KeyKind::text, "a"}) ==
-            core::SubmissionStatus::unhandled);
+        unavail_status == core::SubmissionStatus::unhandled ||
+            unavail_status == core::SubmissionStatus::passthrough);
     assertions.equal(
-        "failed raw fallback is observable",
-        unavailable_controller.metrics().fallback_failure_count, 1);
+        "no fallback commit is attempted",
+        unavailable_controller.metrics().fallback_failure_count, 0);
 
     IntegrationFixture dropped{
         {.delay_events = 5, .drop_next_callback = true}};

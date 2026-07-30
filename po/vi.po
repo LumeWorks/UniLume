@@ -311,14 +311,8 @@ msgstr "Xóa danh sách emoji dùng gần đây được giới hạn trên máy
 msgid "Search Fcitx emoji data without network access"
 msgstr "Tìm dữ liệu emoji của Fcitx mà không truy cập mạng"
 
-msgid "Automatic"
-msgstr "Tự động"
-
 msgid "Direct"
 msgstr "Trực tiếp"
-
-msgid "Safe preedit"
-msgstr "Preedit an toàn"
 
 msgid "Off"
 msgstr "Tắt"
@@ -326,14 +320,14 @@ msgstr "Tắt"
 msgid "UniLume mode"
 msgstr "Chế độ UniLume"
 
-msgid "Automatic - Direct"
-msgstr "Tự động · Trực tiếp"
+msgid "Direct unavailable - Passthrough"
+msgstr "Direct không khả dụng - Cho phím đi qua"
 
-msgid "Automatic - Safe preedit"
-msgstr "Tự động · Preedit an toàn"
+msgid "Direct - Fast"
+msgstr "Trực tiếp - Nhanh"
 
-msgid "Direct - Safe fallback"
-msgstr "Trực tiếp · Dự phòng an toàn"
+msgid "Direct - Guarded"
+msgstr "Trực tiếp - Có kiểm tra"
 
 msgid "Select this mode for the current input context"
 msgstr "Chọn chế độ này cho ngữ cảnh nhập hiện tại"
@@ -344,8 +338,8 @@ msgstr "Chế độ nhập theo ứng dụng của UniLume"
 msgid "Selected for this input context"
 msgstr "Đã chọn cho ngữ cảnh nhập này"
 
-msgid "Safe preedit: application identity unavailable"
-msgstr "Preedit an toàn: không xác định được ứng dụng"
+msgid "Using direct mode without an application identity"
+msgstr "Đang dùng chế độ trực tiếp khi thiếu định danh ứng dụng"
 
 msgid "Matched exact application rule: "
 msgstr "Khớp chính xác quy tắc ứng dụng: "
@@ -356,8 +350,8 @@ msgstr "Khớp tiền tố quy tắc ứng dụng: "
 msgid "Using the default application policy"
 msgstr "Đang dùng chính sách ứng dụng mặc định"
 
-msgid "; direct replacement unavailable, using safe preedit"
-msgstr "; không thể thay thế trực tiếp, đang dùng preedit an toàn"
+msgid "; direct replacement unavailable, passing keys through"
+msgstr "; không thể thay thế trực tiếp, cho phím đi qua"
 
 msgid "Recently used"
 msgstr "Dùng gần đây"
@@ -367,6 +361,12 @@ msgstr "Emoji: gõ để tìm hoặc chọn một mục dùng gần đây"
 
 msgid "Emoji search"
 msgstr "Tìm emoji"
+
+msgid "Fast"
+msgstr "Nhanh"
+
+msgid "Guarded"
+msgstr "Có kiểm tra"
 
 msgid "Inherited"
 msgstr "Kế thừa"
@@ -407,11 +407,20 @@ msgstr "Từ điển cá nhân đã kiểm tra"
 msgid "Enable capability-gated verified direct replacement"
 msgstr "Bật thay thế trực tiếp đã kiểm chứng theo khả năng"
 
+msgid "Split-transport direct strategy"
+msgstr "Chiến lược direct cho transport phân tách"
+
 msgid "Enable per-application input policy"
 msgstr "Bật chính sách nhập theo ứng dụng"
 
 msgid "Validated per-application input policy"
 msgstr "Chính sách nhập theo ứng dụng đã kiểm tra"
+
+msgid "Legacy automatic hotkey (maps to Direct)"
+msgstr "Phím tắt automatic cũ (ánh xạ sang Trực tiếp)"
+
+msgid "Legacy safe-preedit hotkey (maps to Off)"
+msgstr "Phím tắt safe-preedit cũ (ánh xạ sang Tắt)"
 
 msgid "Open the complete UniLume configuration"
 msgstr "Mở toàn bộ cấu hình UniLume"
@@ -457,3 +466,21 @@ msgstr "Bật hoặc tắt chính sách từ điển cá nhân"
 
 msgid "UniLume status action"
 msgstr "Tác vụ trạng thái UniLume"
+
+#~ msgid "Automatic"
+#~ msgstr "Tự động"
+
+#~ msgid "Safe preedit"
+#~ msgstr "Preedit an toàn"
+
+#~ msgid "Automatic - Direct"
+#~ msgstr "Tự động · Trực tiếp"
+
+#~ msgid "Automatic - Safe preedit"
+#~ msgstr "Tự động · Preedit an toàn"
+
+#~ msgid "Direct - Safe fallback"
+#~ msgstr "Trực tiếp · Dự phòng an toàn"
+
+#~ msgid "Safe preedit: application identity unavailable"
+#~ msgstr "Preedit an toàn: không xác định được ứng dụng"

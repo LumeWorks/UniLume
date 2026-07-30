@@ -32,11 +32,11 @@ bool validPattern(std::string_view pattern)
 bool parseMode(std::string_view text, ApplicationMode &mode)
 {
     if (text == "automatic") {
-        mode = ApplicationMode::automatic;
+        mode = ApplicationMode::direct;
     } else if (text == "direct") {
         mode = ApplicationMode::direct;
     } else if (text == "safe-preedit") {
-        mode = ApplicationMode::safe_preedit;
+        mode = ApplicationMode::off;
     } else if (text == "off") {
         mode = ApplicationMode::off;
     } else {
@@ -62,15 +62,14 @@ bool prefixLess(const Rule &left, const Rule &right)
 
 std::string_view modeName(ApplicationMode mode)
 {
-    switch (mode) {
-    case ApplicationMode::automatic:
-        return "automatic";
+    switch (normalizeMode(mode)) {
     case ApplicationMode::direct:
         return "direct";
-    case ApplicationMode::safe_preedit:
-        return "safe-preedit";
     case ApplicationMode::off:
         return "off";
+    case ApplicationMode::automatic:
+    case ApplicationMode::safe_preedit:
+        break;
     }
     return {};
 }
@@ -117,6 +116,7 @@ DecodeResult decode(std::string_view text)
     }
     auto table = std::make_shared<Table>();
     bool has_default = false;
+    bool legacy_modes = false;
     std::set<std::pair<MatchKind, std::string>> seen;
     std::size_t offset = header.size();
     std::size_t line_number = 1;
@@ -153,6 +153,8 @@ DecodeResult decode(std::string_view text)
                 return {.line = line_number, .field = "default",
                         .error = "invalid or duplicate default mode"};
             }
+            legacy_modes = legacy_modes || fields[1] == "automatic" ||
+                           fields[1] == "safe-preedit";
             has_default = true;
             continue;
         }
@@ -181,6 +183,8 @@ DecodeResult decode(std::string_view text)
             return {.line = line_number, .field = "mode",
                     .error = "unknown application mode"};
         }
+        legacy_modes = legacy_modes || fields[2] == "automatic" ||
+                       fields[2] == "safe-preedit";
         if (!seen.emplace(kind, std::string(pattern)).second) {
             return {.line = line_number, .field = "pattern",
                     .error = "duplicate or conflicting rule"};
@@ -201,7 +205,8 @@ DecodeResult decode(std::string_view text)
     }
     std::sort(table->exact_rules.begin(), table->exact_rules.end(), exactLess);
     std::sort(table->prefix_rules.begin(), table->prefix_rules.end(), prefixLess);
-    return {.snapshot = {std::move(table)}};
+    return {.snapshot = {std::move(table)},
+            .legacy_modes = legacy_modes};
 }
 
 std::string encode(const Snapshot &snapshot)
@@ -234,7 +239,8 @@ Resolution resolve(const Snapshot &snapshot,
                    std::string_view application_identity)
 {
     if (!snapshot.table || application_identity.empty()) {
-        return {};
+        return {ApplicationMode::direct,
+                ResolutionSource::missing_identity, {}};
     }
     const Table &table = *snapshot.table;
     const auto exact = std::lower_bound(
@@ -245,14 +251,17 @@ Resolution resolve(const Snapshot &snapshot,
         });
     if (exact != table.exact_rules.end() &&
         exact->pattern == application_identity) {
-        return {exact->mode, ResolutionSource::exact_rule, exact->pattern};
+        return {normalizeMode(exact->mode),
+                ResolutionSource::exact_rule, exact->pattern};
     }
     for (const Rule &rule : table.prefix_rules) {
         if (application_identity.starts_with(rule.pattern)) {
-            return {rule.mode, ResolutionSource::prefix_rule, rule.pattern};
+            return {normalizeMode(rule.mode),
+                    ResolutionSource::prefix_rule, rule.pattern};
         }
     }
-    return {table.default_mode, ResolutionSource::default_rule, {}};
+    return {normalizeMode(table.default_mode),
+            ResolutionSource::default_rule, {}};
 }
 
 } // namespace unilume::policy

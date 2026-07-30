@@ -72,13 +72,13 @@ std::size_t runRecoveryCycle(Assertions &assertions)
     assertions.equal("reloaded component output", reloaded.output(),
                      "tôi đang gõ tiếng Việt ");
 
-    // A controlled replacement-backend refusal must take the bounded raw
-    // fallback instead of leaving an active transaction.
+    // A controlled replacement-backend refusal must return the current key
+    // to the frontend instead of synthesizing a fallback commit.
     IntegrationFixture replacement_failure{{.fail_next_delete = true}};
     replacement_failure.type("tooi");
     events += 4;
     replacement_failure.drain();
-    assertions.equal("controlled replacement failure fallback",
+    assertions.equal("controlled replacement failure passthrough",
                      replacement_failure.output(), "tooi");
     assertions.truth("controlled replacement failure drains",
                      !replacement_failure.metrics().active_transaction &&

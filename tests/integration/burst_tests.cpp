@@ -4,6 +4,7 @@
 #include "test_assertions.h"
 #include "test_suites.h"
 
+#include <algorithm>
 #include <array>
 #include <string>
 
@@ -35,6 +36,26 @@ std::string referenceOutput(std::string_view input)
 
 void runBurstTests(Assertions &assertions)
 {
+    static constexpr std::string_view reported_raw{
+        "xin chaof cacs baf con, ddaay la tin nhanws dduocwj gox tuwf "
+        "UniLume"};
+    static constexpr std::string_view reported_expected{
+        "xin chào các bà con, đây la tin nhắn được gõ từ UniLume"};
+    for (const std::size_t virtual_delay : {0U, 1U, 10U}) {
+        IntegrationFixture corpus{{.delay_events = virtual_delay}};
+        corpus.type(reported_raw);
+        corpus.drain();
+        assertions.equal(
+            "reported Telex corpus is exact at every pace",
+            corpus.output(), reported_expected);
+        assertions.equal(
+            "reported Telex corpus leaves no direct backlog",
+            corpus.metrics().queue_depth, 0);
+        assertions.equal(
+            "reported Telex corpus has no failed transaction",
+            corpus.metrics().aborted_transactions, 0);
+    }
+
     static constexpr std::array<std::size_t, 5> sizes{
         10, 50, 100, 1000, 10000};
     for (const std::size_t size : sizes) {
@@ -70,6 +91,15 @@ void runBurstTests(Assertions &assertions)
         "deep acknowledged burst bounded",
         deep_fixture.metrics().max_queue_depth <=
             core::DirectCommitController::queue_capacity);
+    const auto replacement_round_trips = std::count_if(
+        deep_fixture.backend().eventLog().begin(),
+        deep_fixture.backend().eventLog().end(),
+        [](const BackendEvent &event) {
+            return event.delete_before_cursor != 0;
+        });
+    assertions.truth(
+        "deep acknowledged burst coalesces replacement round trips",
+        replacement_round_trips <= 3);
 }
 
 void runSoakSmokeTests(Assertions &assertions)

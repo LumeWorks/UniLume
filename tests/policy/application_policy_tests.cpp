@@ -27,6 +27,8 @@ int main()
             "rule\torg.example.editor\tdirect\n"
             "rule\torg.example.special*\toff\n");
         require(decoded.ok(), "valid application policy rejected");
+        require(decoded.legacy_modes,
+                "legacy application modes were not reported");
         require(decode(encode(decoded.snapshot)).snapshot == decoded.snapshot,
                 "application policy round-trip failed");
 
@@ -41,15 +43,20 @@ int main()
                     longest.pattern == "org.example.special",
                 "longest prefix rule did not win");
         require(resolve(decoded.snapshot, "org.example.other").mode ==
-                    ApplicationMode::safe_preedit,
-                "prefix rule did not match");
+                    ApplicationMode::off,
+                "legacy safe-preedit rule did not map to off");
         require(resolve(decoded.snapshot, "org.other").mode ==
-                    ApplicationMode::automatic,
-                "default rule did not apply");
+                    ApplicationMode::direct,
+                "legacy automatic default did not map to direct");
         const Resolution missing = resolve(decoded.snapshot, "");
-        require(missing.mode == ApplicationMode::automatic &&
+        require(missing.mode == ApplicationMode::direct &&
                     missing.source == ResolutionSource::missing_identity,
-                "missing identity did not retain automatic mode");
+                "missing identity did not select direct mode");
+        require(encode(decoded.snapshot).find("automatic") ==
+                    std::string::npos &&
+                    encode(decoded.snapshot).find("safe-preedit") ==
+                    std::string::npos,
+                "legacy modes were not serialized canonically");
 
         require(!decode(
                     "unilume_app_policy_version=1\n"
@@ -88,7 +95,7 @@ int main()
                                : "org.example.other";
             const ApplicationMode expected =
                 index % 2 == 0 ? ApplicationMode::direct
-                               : ApplicationMode::safe_preedit;
+                               : ApplicationMode::off;
             require(resolve(decoded.snapshot, identity).mode == expected,
                     "focus burst produced a non-deterministic resolution");
         }

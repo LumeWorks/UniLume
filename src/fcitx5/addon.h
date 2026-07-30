@@ -78,6 +78,7 @@ private:
         std::uint64_t dictionary_generation{};
         bool verified_direct_enabled{
             verified_direct_enabled_by_default};
+        DirectStrategy direct_strategy{DirectStrategy::fast};
         bool emoji_enabled{};
         policy::Snapshot application_policy_snapshot;
         std::uint64_t application_policy_generation{};
@@ -128,9 +129,7 @@ private:
     fcitx::FactoryFor<InputContextState> state_factory_;
     std::unique_ptr<fcitx::Menu> mode_menu_;
     std::unique_ptr<ModeAction> mode_action_;
-    std::unique_ptr<ModeAction> automatic_mode_action_;
     std::unique_ptr<ModeAction> direct_mode_action_;
-    std::unique_ptr<ModeAction> safe_preedit_mode_action_;
     std::unique_ptr<ModeAction> off_mode_action_;
     std::unique_ptr<ConfigAction> telex_action_;
     std::unique_ptr<ConfigAction> vni_action_;
@@ -144,6 +143,7 @@ private:
     std::unique_ptr<EmojiPicker> emoji_picker_;
     mutable std::map<std::string, InputMethodConfig> input_method_configs_;
     mutable std::map<std::string, RuntimeResources> runtime_resources_;
+    mutable bool legacy_policy_warning_emitted_{};
 };
 
 class UniLumeFactory final : public fcitx::AddonFactory {

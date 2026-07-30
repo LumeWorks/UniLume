@@ -15,13 +15,17 @@ void IntegrationFixture::type(std::string_view text)
 {
     for (std::size_t offset = 0; offset < text.size();) {
         const std::size_t length = codePointLength(text.substr(offset));
-        controller_.submit({
+        const core::SubmissionStatus status = controller_.submit({
             core::KeyKind::text,
             text.substr(offset, length),
             false,
             false,
             false,
         });
+        if (status == core::SubmissionStatus::unhandled ||
+            status == core::SubmissionStatus::passthrough) {
+            backend_.forwardRaw(0, text.substr(offset, length));
+        }
         pump();
         offset += length;
     }
@@ -29,7 +33,12 @@ void IntegrationFixture::type(std::string_view text)
 
 void IntegrationFixture::backspace()
 {
-    controller_.submit({core::KeyKind::backspace, {}, false, false, false});
+    const core::SubmissionStatus status = controller_.submit(
+        {core::KeyKind::backspace, {}, false, false, false});
+    if (status == core::SubmissionStatus::unhandled ||
+        status == core::SubmissionStatus::passthrough) {
+        backend_.forwardRaw(1, {});
+    }
     pump();
 }
 

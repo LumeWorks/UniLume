@@ -3,6 +3,21 @@
 #include "direct_commit_controller.h"
 
 #include <algorithm>
+#include <string>
+
+namespace {
+
+void eraseLastUtf8Character(std::string &text)
+{
+    std::size_t position = text.size() - 1;
+    while (position > 0 &&
+           (static_cast<unsigned char>(text[position]) & 0xc0) == 0x80) {
+        --position;
+    }
+    text.erase(position);
+}
+
+} // namespace
 
 namespace unilume::core {
 
@@ -39,7 +54,7 @@ void DirectCommitController::complete(std::uint64_t sequence_id, bool success)
         ++metrics_.duplicate_prevention_count;
         return;
     }
-    finishActive(success);
+    finishActive(success, false);
 }
 
 void DirectCommitController::timeout(std::uint64_t sequence_id)
@@ -142,6 +157,11 @@ SubmissionStatus DirectCommitController::processNow(const KeyInput &input)
     if (!result.handled) {
         return SubmissionStatus::unhandled;
     }
+    if (result.delete_before_cursor == 0 &&
+        input.kind == KeyKind::text &&
+        result.commit_text == input.text) {
+        return SubmissionStatus::passthrough;
+    }
     return startTransaction(input, result);
 }
 
@@ -152,7 +172,8 @@ SubmissionStatus DirectCommitController::startTransaction(
     if (result.require_fallback) {
         ++metrics_.aborted_transactions;
         ++metrics_.reset_count;
-        return fallback(input, result.sequence_id);
+        engine_.reset();
+        return SubmissionStatus::unhandled;
     }
     const std::string_view fallback_text =
         input.kind == KeyKind::text ? input.text : std::string_view{};
@@ -164,7 +185,7 @@ SubmissionStatus DirectCommitController::startTransaction(
         engine_.reset();
         ++metrics_.aborted_transactions;
         ++metrics_.reset_count;
-        return SubmissionStatus::fallback;
+        return SubmissionStatus::unhandled;
     }
 
     transaction_.markRequested();
@@ -181,23 +202,7 @@ SubmissionStatus DirectCommitController::startTransaction(
         return SubmissionStatus::handled;
     case platform::ReplacementStatus::failed:
         ++metrics_.duplicate_prevention_count;
-        return finishActive(false)
-                   ? SubmissionStatus::fallback
-                   : SubmissionStatus::unhandled;
-    }
-    return SubmissionStatus::fallback;
-}
-
-SubmissionStatus DirectCommitController::fallback(
-    const KeyInput &input,
-    std::uint64_t sequence_id)
-{
-    if (input.kind != KeyKind::text || input.text.empty()) {
-        return SubmissionStatus::unhandled;
-    }
-    if (backend_.requestFallbackCommit(sequence_id, input.text) !=
-        platform::ReplacementStatus::completed) {
-        ++metrics_.fallback_failure_count;
+        (void)finishActive(false, false);
         return SubmissionStatus::unhandled;
     }
     return SubmissionStatus::fallback;
@@ -277,8 +282,56 @@ void DirectCommitController::drainQueue()
 {
     draining_ = true;
     while (!transaction_.active() && queue_size_ != 0) {
-        const QueuedInput queued = dequeue();
-        processNow(view(queued));
+        const std::size_t pending_inputs = queue_size_;
+        std::string aggregate_commit;
+        aggregate_commit.reserve(ReplacementTransaction::text_capacity);
+        std::int32_t aggregate_delete = 0;
+        std::uint64_t final_sequence = 0;
+        bool valid = true;
+
+        for (std::size_t index = 0; index < pending_inputs; ++index) {
+            const QueuedInput queued = dequeue();
+            const KeyResult result = engine_.process(view(queued));
+            if (!result.handled || result.require_fallback ||
+                result.delete_before_cursor < 0) {
+                valid = false;
+                break;
+            }
+            for (std::int32_t count = 0;
+                 count < result.delete_before_cursor; ++count) {
+                if (aggregate_commit.empty()) {
+                    ++aggregate_delete;
+                } else {
+                    eraseLastUtf8Character(aggregate_commit);
+                }
+            }
+            if (aggregate_commit.size() + result.commit_text.size() >
+                ReplacementTransaction::text_capacity) {
+                valid = false;
+                break;
+            }
+            aggregate_commit.append(result.commit_text);
+            final_sequence = result.sequence_id;
+        }
+
+        if (!valid || final_sequence == 0) {
+            queue_head_ = 0;
+            queue_size_ = 0;
+            updateQueueMetrics();
+            engine_.reset();
+            ++metrics_.aborted_transactions;
+            ++metrics_.reset_count;
+            break;
+        }
+
+        const KeyResult aggregate{
+            .handled = true,
+            .sequence_id = final_sequence,
+            .delete_before_cursor = aggregate_delete,
+            .commit_text = aggregate_commit,
+        };
+        static_cast<void>(startTransaction(
+            {KeyKind::reset, {}, false, false, false}, aggregate));
     }
     draining_ = false;
 }

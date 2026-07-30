@@ -21,6 +21,25 @@ enum class ApplicationMode {
     off,
 };
 
+[[nodiscard]] constexpr ApplicationMode normalizeMode(ApplicationMode mode)
+{
+    switch (mode) {
+    case ApplicationMode::automatic:
+    case ApplicationMode::direct:
+        return ApplicationMode::direct;
+    case ApplicationMode::safe_preedit:
+    case ApplicationMode::off:
+        return ApplicationMode::off;
+    }
+    return ApplicationMode::off;
+}
+
+[[nodiscard]] constexpr bool isLegacyMode(ApplicationMode mode)
+{
+    return mode == ApplicationMode::automatic ||
+           mode == ApplicationMode::safe_preedit;
+}
+
 enum class MatchKind {
     exact,
     prefix,
@@ -36,13 +55,13 @@ enum class ResolutionSource {
 struct Rule {
     MatchKind kind{MatchKind::exact};
     std::string pattern;
-    ApplicationMode mode{ApplicationMode::automatic};
+    ApplicationMode mode{ApplicationMode::direct};
 
     friend bool operator==(const Rule &, const Rule &) = default;
 };
 
 struct Table {
-    ApplicationMode default_mode{ApplicationMode::automatic};
+    ApplicationMode default_mode{ApplicationMode::direct};
     std::vector<Rule> exact_rules;
     std::vector<Rule> prefix_rules;
 
@@ -64,6 +83,7 @@ struct Snapshot {
 
 struct DecodeResult {
     Snapshot snapshot;
+    bool legacy_modes{};
     std::size_t line{};
     std::string field;
     std::string error;
@@ -72,7 +92,7 @@ struct DecodeResult {
 };
 
 struct Resolution {
-    ApplicationMode mode{ApplicationMode::automatic};
+    ApplicationMode mode{ApplicationMode::direct};
     ResolutionSource source{ResolutionSource::missing_identity};
     std::string_view pattern;
 };

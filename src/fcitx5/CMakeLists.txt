@@ -254,6 +254,28 @@ if(BUILD_TESTING)
     COMMAND unilume_fcitx5_acknowledged_backspace_tests
   )
 
+  add_executable(unilume_fcitx5_key_mapper_tests
+    fcitx_key_mapper.cpp
+    fcitx_key_mapper_test.cpp
+  )
+  target_link_libraries(unilume_fcitx5_key_mapper_tests PRIVATE
+    PkgConfig::FCITX5_CORE
+    unilume_core
+    unilume_sanitizer_options
+  )
+  target_include_directories(unilume_fcitx5_key_mapper_tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+  set_target_properties(unilume_fcitx5_key_mapper_tests PROPERTIES
+    CXX_STANDARD 23
+    CXX_STANDARD_REQUIRED YES
+    CXX_EXTENSIONS NO
+  )
+  add_test(
+    NAME fcitx5-key-mapper
+    COMMAND unilume_fcitx5_key_mapper_tests
+  )
+
   add_executable(unilume_fcitx5_diagnostic_tests
     diagnostic_trace.cpp
     diagnostic_trace_test.cpp

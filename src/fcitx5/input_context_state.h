@@ -7,11 +7,11 @@
 #include "dictionary_contract.h"
 #include "fcitx_replacement_backend.h"
 #include "input_mode_policy.h"
-#include "preedit_fallback_controller.h"
 #include "macro_contract.h"
 #include "keymap_contract.h"
 #include "application_policy.h"
 
+#include <fcitx-utils/key.h>
 #include <fcitx/inputcontextproperty.h>
 
 #include <optional>
@@ -30,6 +30,7 @@ public:
 
     void keyEvent(fcitx::KeyEvent &event);
     void reset();
+    void focusReset();
     void suspendComposition();
     void setInputMethod(UlInputMethod method);
     void setOptions(const UlEngineOptions &options);
@@ -42,6 +43,8 @@ public:
     void setDictionary(const dictionary::Snapshot &snapshot,
                        std::uint64_t generation);
     void setVerifiedDirectEnabled(bool enabled);
+    void setDirectStrategy(DirectStrategy strategy);
+    [[nodiscard]] DirectStrategy directStrategy() const;
     void setApplicationPolicy(const policy::Resolution &resolution,
                               std::uint64_t generation,
                               std::string_view application_identity);
@@ -59,18 +62,12 @@ public:
 
 private:
     void compositionBoundary();
+    void startPendingAcknowledgedReplacement();
     void synchronizeMode();
-    void handlePreeditEvent(fcitx::KeyEvent &event,
-                            const MappedKey &mapped,
-                            std::uint64_t started_at_ns);
-    void commitPendingPreedit();
-    void updatePreedit();
-    void clearPreedit();
 
     fcitx::InputContext &input_context_;
     FcitxReplacementBackend backend_;
     core::DirectCommitController direct_controller_;
-    core::PreeditFallbackController preedit_controller_;
     platform::InputModePolicy mode_policy_;
     DiagnosticTrace diagnostics_;
     UlInputMethod input_method_{UL_INPUT_METHOD_TELEX};
@@ -81,8 +78,9 @@ private:
     std::uint64_t dictionary_generation_{};
     bool verified_direct_enabled_{};
     bool direct_replacement_available_{};
+    DirectStrategy direct_strategy_{DirectStrategy::fast};
     policy::ApplicationMode policy_mode_{
-        policy::ApplicationMode::safe_preedit};
+        policy::ApplicationMode::direct};
     policy::ResolutionSource policy_source_{
         policy::ResolutionSource::missing_identity};
     std::optional<policy::ApplicationMode> application_mode_override_;
@@ -91,6 +89,7 @@ private:
     std::uint64_t policy_generation_{};
     std::uint64_t application_mode_revision_{};
     bool policy_initialized_{};
+    fcitx::Key initial_release_key_;
 };
 
 } // namespace unilume::fcitx5

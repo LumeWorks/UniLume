@@ -10,11 +10,11 @@
   <summary xml:lang="vi">Bộ gõ tiếng Việt nhanh, an toàn cho Fcitx5</summary>
   <description>
     <p>UniLume is a Vietnamese input method built directly on the UniKey
-    engine with capability-gated direct replacement and a safe preedit
-    fallback.</p>
+    engine with capability-gated committed direct replacement and raw
+    passthrough when direct input is unavailable.</p>
     <p xml:lang="vi">UniLume là bộ gõ tiếng Việt phát triển trực tiếp trên lõi
-    UniKey, dùng thay thế trực tiếp có kiểm chứng và preedit dự phòng an
-    toàn.</p>
+    UniKey, dùng thay thế trực tiếp đã commit có kiểm chứng và passthrough khi
+    direct không khả dụng.</p>
   </description>
   <url type="homepage">https://github.com/dismonjames/UniLume</url>
   <url type="bugtracker">https://github.com/dismonjames/UniLume/issues</url>

@@ -7,6 +7,7 @@
 #include <array>
 #include <cstddef>
 #include <fcitx/event.h>
+#include <fcitx-utils/key.h>
 
 namespace unilume::fcitx5 {
 
@@ -15,6 +16,8 @@ enum class MappingStatus {
     submit,
     reset,
     line_break,
+    shortcut_fence,
+    plain_backspace,
 };
 
 struct MappedKey {
@@ -30,5 +33,8 @@ struct MappedKey {
 };
 
 MappedKey mapKeyEvent(const fcitx::KeyEvent &event);
+MappedKey mapKey(const fcitx::Key &key,
+                 const fcitx::Key &raw_key,
+                 bool release = false);
 
 } // namespace unilume::fcitx5

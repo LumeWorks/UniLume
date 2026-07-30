@@ -2282,6 +2282,22 @@ int UkEngine::processWordEnd(UkKeyEvent & ev)
 //---------------------------------------------------------------------------
 // Test if last word is a non-Vietnamese word, so that
 // the engine can restore key strokes if it is indeed not a Vietnamese word
+//
+// AutoRestore is aimed at foreign tokens polluted by vowel-side Telex/VNI
+// (w→ư in "wikipedia", free-marking d→đ in "middle"). It must not undo
+// intentional d-stroke abbreviations.
+//
+// processDd allows đ specifically for abbreviations, but appendConsonnant
+// then marks any following consonant that is not in CSeqList (the "m" in
+// "đm", the tail of "đcm", …) as vnw_nonVn. Only the tail flips; the earlier
+// đ entry stays vnw_c. Classifying the whole word from the tail alone would
+// restore "đm" → "ddm".
+//
+// Rule for vnw_nonVn: skip the non-Vn tail and inspect the still-classified
+// prefix. A pure consonant prefix that contains đ is abbreviation/slang, not
+// a Latin word (those have a vowel nucleus). Keep it. A prefix that already
+// has a vowel form (v/cv/vc/cvc) stays eligible for restore — that is the
+// "miđle" / "ưikipedia" path.
 //---------------------------------------------------------------------------
 bool UkEngine::lastWordIsNonVn()
 {
@@ -2289,8 +2305,23 @@ bool UkEngine::lastWordIsNonVn()
         return false;
 
     switch (m_buffer[m_current].form) {
-        case vnw_nonVn:
+        case vnw_nonVn: {
+            int prefix = m_current - 1;
+            while (prefix >= 0 && m_buffer[prefix].form == vnw_nonVn)
+                --prefix;
+            if (prefix < 0 || m_buffer[prefix].form == vnw_empty)
+                return true;
+
+            // Failed cluster extension after a consonant-only d-stroke token.
+            if (m_buffer[prefix].form == vnw_c) {
+                for (int i = prefix; i >= 0 && m_buffer[i].form == vnw_c; --i) {
+                    const VnLexiName sym = m_buffer[i].vnSym;
+                    if (sym == vnl_dd || sym == vnl_DD)
+                        return false;
+                }
+            }
             return true;
+        }
         case vnw_empty:
         case vnw_c:
             return false;

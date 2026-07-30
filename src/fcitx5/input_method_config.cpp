@@ -39,6 +39,7 @@ bool hasOnlyKnownOptions(const fcitx::RawConfig &source)
             name != "KeymapEnabled" && name != "KeymapFile" &&
             name != "DictionaryEnabled" && name != "DictionaryFile" &&
             name != "VerifiedDirectEnabled" &&
+            name != "DirectStrategy" &&
             name != "ApplicationPolicyEnabled" &&
             name != "ApplicationPolicyFile" &&
             name != "CycleModeHotkey" &&
@@ -108,6 +109,13 @@ UlInputMethod toUlInputMethod(config::InputMethod method)
         return UL_INPUT_METHOD_VIQR;
     }
     return UL_INPUT_METHOD_TELEX;
+}
+
+DirectStrategy toDirectStrategy(ConfigDirectStrategy strategy)
+{
+    return strategy == ConfigDirectStrategy::Guarded
+               ? DirectStrategy::guarded
+               : DirectStrategy::fast;
 }
 
 config::Snapshot snapshotFromConfig(const InputMethodConfig &config)
@@ -190,6 +198,7 @@ bool validateInputMethodConfig(const fcitx::RawConfig &source)
         !isOneOf(source, "KeymapEnabled", {"True", "False"}) ||
         !isOneOf(source, "DictionaryEnabled", {"True", "False"}) ||
         !isOneOf(source, "VerifiedDirectEnabled", {"True", "False"}) ||
+        !isOneOf(source, "DirectStrategy", {"Fast", "Guarded"}) ||
         !isOneOf(source, "ApplicationPolicyEnabled", {"True", "False"}) ||
         !isOneOf(source, "EmojiEnabled", {"True", "False"}) ||
         !validPath(source, "KeymapFile") ||

@@ -13,8 +13,8 @@ int main()
         return 1;
     }
     fcitx::registerDomain("unilume", UNILUME_TEST_LOCALE_DIR);
-    const std::string translated = _("Automatic");
-    if (translated != "Tự động") {
+    const std::string translated = _("Direct - Fast");
+    if (translated != "Trực tiếp - Nhanh") {
         std::cerr << "Vietnamese catalog was not loaded: "
                   << translated << '\n';
         return 1;

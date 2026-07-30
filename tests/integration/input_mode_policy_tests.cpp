@@ -8,13 +8,16 @@ namespace unilume::integration::test {
 
 void runInputModePolicyTests(Assertions &assertions)
 {
-    // -- Unknown starts on preedit when capability unavailable --
+    // -- Direct fails open to raw passthrough when unavailable --
     platform::InputModePolicy unavailable_at_start;
     unavailable_at_start.observe(false);
+    assertions.truth(
+        "unavailable direct backend selects passthrough",
+        unavailable_at_start.path() == platform::InputPath::off);
     unavailable_at_start.observe(true);
     assertions.truth(
-        "context does not promote after starting on preedit",
-        unavailable_at_start.path() == platform::InputPath::preedit);
+        "restored direct backend is selected immediately",
+        unavailable_at_start.path() == platform::InputPath::direct);
 
     // -- Between compositions, re-evaluation can upgrade --
     unavailable_at_start.resetForCompositionEnd();
@@ -30,15 +33,15 @@ void runInputModePolicyTests(Assertions &assertions)
         "available capability selects direct path initially",
         direct_at_start.path() == platform::InputPath::direct);
 
-    // -- Capability loss demotes but does not re-promote during composition --
+    // -- Capability loss demotes to passthrough and can re-promote --
     direct_at_start.observe(false);
     assertions.truth(
-        "capability loss returns to preedit",
-        direct_at_start.path() == platform::InputPath::preedit);
+        "capability loss returns to passthrough",
+        direct_at_start.path() == platform::InputPath::off);
     direct_at_start.observe(true);
     assertions.truth(
-        "capability restored does not re-promote same composition",
-        direct_at_start.path() == platform::InputPath::preedit);
+        "capability restoration selects direct without preedit",
+        direct_at_start.path() == platform::InputPath::direct);
 
     // -- Between compositions, re-evaluation re-promotes --
     direct_at_start.resetForCompositionEnd();
@@ -56,22 +59,27 @@ void runInputModePolicyTests(Assertions &assertions)
     assertions.truth("reset restores unknown path",
         reset_test.path() == platform::InputPath::unknown);
     reset_test.observe(false);
-    assertions.truth("after reset, new observation picks preedit",
-        reset_test.path() == platform::InputPath::preedit);
+    assertions.truth("after reset, unavailable backend picks passthrough",
+        reset_test.path() == platform::InputPath::off);
 
     platform::InputModePolicy explicit_modes;
     explicit_modes.observe(policy::ApplicationMode::safe_preedit, true);
     assertions.truth(
-        "safe preedit never selects direct replacement",
-        explicit_modes.path() == platform::InputPath::preedit);
+        "legacy safe preedit maps to off",
+        explicit_modes.path() == platform::InputPath::off);
     explicit_modes.observe(policy::ApplicationMode::off, true);
     assertions.truth(
         "off mode bypasses both processing paths",
         explicit_modes.path() == platform::InputPath::off);
     explicit_modes.observe(policy::ApplicationMode::direct, false);
     assertions.truth(
-        "explicit direct mode falls back when capability is unavailable",
-        explicit_modes.path() == platform::InputPath::preedit);
+        "explicit direct mode passes through when capability is unavailable",
+        explicit_modes.path() == platform::InputPath::off);
+
+    explicit_modes.observe(policy::ApplicationMode::automatic, true);
+    assertions.truth(
+        "legacy automatic maps to direct",
+        explicit_modes.path() == platform::InputPath::direct);
     explicit_modes.resetForCompositionEnd();
     explicit_modes.observe(policy::ApplicationMode::direct, true);
     assertions.truth(

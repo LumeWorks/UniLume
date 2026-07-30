@@ -15,6 +15,7 @@
 #include <fcitx/userinterface.h>
 #include <fcitx/userinterfacemanager.h>
 #include <fcitx-utils/i18n.h>
+#include <fcitx-utils/log.h>
 #include <fcitx-utils/standardpath.h>
 
 #include <filesystem>
@@ -115,34 +116,33 @@ public:
     std::string shortText(fcitx::InputContext *input_context) const override
     {
         if (mode_) {
-            switch (*mode_) {
-            case policy::ApplicationMode::automatic:
-                return _("Automatic");
+            switch (policy::normalizeMode(*mode_)) {
             case policy::ApplicationMode::direct:
                 return _("Direct");
-            case policy::ApplicationMode::safe_preedit:
-                return _("Safe preedit");
             case policy::ApplicationMode::off:
                 return _("Off");
+            case policy::ApplicationMode::automatic:
+            case policy::ApplicationMode::safe_preedit:
+                break;
             }
         }
         const InputContextState *state = addon_.stateFor(input_context);
         if (!state) {
             return _("UniLume mode");
         }
-        switch (state->requestedApplicationMode()) {
-        case policy::ApplicationMode::automatic:
-            return state->effectiveInputPath() == platform::InputPath::direct
-                       ? _("Automatic - Direct")
-                       : _("Automatic - Safe preedit");
+        switch (policy::normalizeMode(state->requestedApplicationMode())) {
         case policy::ApplicationMode::direct:
-            return state->effectiveInputPath() == platform::InputPath::direct
-                       ? _("Direct")
-                       : _("Direct - Safe fallback");
-        case policy::ApplicationMode::safe_preedit:
-            return _("Safe preedit");
+            if (state->effectiveInputPath() != platform::InputPath::direct) {
+                return _("Direct unavailable - Passthrough");
+            }
+            return state->directStrategy() == DirectStrategy::fast
+                       ? _("Direct - Fast")
+                       : _("Direct - Guarded");
         case policy::ApplicationMode::off:
             return _("Off");
+        case policy::ApplicationMode::automatic:
+        case policy::ApplicationMode::safe_preedit:
+            break;
         }
         return _("UniLume mode");
     }
@@ -156,7 +156,8 @@ public:
     {
         const InputContextState *state = addon_.stateFor(input_context);
         return mode_ && state &&
-               state->requestedApplicationMode() == *mode_;
+               state->requestedApplicationMode() ==
+                   policy::normalizeMode(*mode_);
     }
 
     std::string longText(fcitx::InputContext *input_context) const override
@@ -174,8 +175,7 @@ public:
         } else {
             switch (state->applicationPolicySource()) {
             case policy::ResolutionSource::missing_identity:
-                result = _(
-                    "Safe preedit: application identity unavailable");
+                result = _("Using direct mode without an application identity");
                 break;
             case policy::ResolutionSource::exact_rule:
                 result = _("Matched exact application rule: ");
@@ -193,8 +193,8 @@ public:
         }
         if (state->requestedApplicationMode() ==
                 policy::ApplicationMode::direct &&
-            state->effectiveInputPath() == platform::InputPath::preedit) {
-            result += _("; direct replacement unavailable, using safe preedit");
+            state->effectiveInputPath() == platform::InputPath::off) {
+            result += _("; direct replacement unavailable, passing keys through");
         }
         return result;
     }
@@ -228,12 +228,8 @@ UniLumeAddon::UniLumeAddon(fcitx::Instance &instance)
         "unilume-input-context", &state_factory_);
     mode_menu_ = std::make_unique<fcitx::Menu>();
     mode_action_ = std::make_unique<ModeAction>(*this, std::nullopt);
-    automatic_mode_action_ = std::make_unique<ModeAction>(
-        *this, policy::ApplicationMode::automatic);
     direct_mode_action_ = std::make_unique<ModeAction>(
         *this, policy::ApplicationMode::direct);
-    safe_preedit_mode_action_ = std::make_unique<ModeAction>(
-        *this, policy::ApplicationMode::safe_preedit);
     off_mode_action_ = std::make_unique<ModeAction>(
         *this, policy::ApplicationMode::off);
     telex_action_ = std::make_unique<ConfigAction>(
@@ -255,12 +251,8 @@ UniLumeAddon::UniLumeAddon(fcitx::Instance &instance)
         std::make_unique<EmojiAction>(*this, true);
     mode_action_->registerAction(
         "unilume-mode", &instance_.userInterfaceManager());
-    automatic_mode_action_->registerAction(
-        "unilume-mode-automatic", &instance_.userInterfaceManager());
     direct_mode_action_->registerAction(
         "unilume-mode-direct", &instance_.userInterfaceManager());
-    safe_preedit_mode_action_->registerAction(
-        "unilume-mode-safe-preedit", &instance_.userInterfaceManager());
     off_mode_action_->registerAction(
         "unilume-mode-off", &instance_.userInterfaceManager());
     telex_action_->registerAction(
@@ -282,9 +274,7 @@ UniLumeAddon::UniLumeAddon(fcitx::Instance &instance)
     clear_emoji_history_action_->registerAction(
         "unilume-clear-emoji-history",
         &instance_.userInterfaceManager());
-    mode_menu_->addAction(automatic_mode_action_.get());
     mode_menu_->addAction(direct_mode_action_.get());
-    mode_menu_->addAction(safe_preedit_mode_action_.get());
     mode_menu_->addAction(off_mode_action_.get());
     mode_menu_->addAction(telex_action_.get());
     mode_menu_->addAction(vni_action_.get());
@@ -322,10 +312,8 @@ std::string UniLumeAddon::subModeLabelImpl(
             policy::ApplicationMode::off) {
         return _("Off");
     }
-    return state &&
-                   state->effectiveInputPath() ==
-                       platform::InputPath::preedit
-               ? "VI*"
+    return state && state->effectiveInputPath() == platform::InputPath::off
+               ? _("Off")
                : "VI";
 }
 
@@ -343,6 +331,8 @@ void UniLumeAddon::deactivate(const fcitx::InputMethodEntry &,
                               fcitx::InputContextEvent &event)
 {
     emoji_picker_->reset(event.inputContext());
+    auto *state = event.inputContext()->propertyFor(&state_factory_);
+    state->focusReset();
 }
 
 void UniLumeAddon::keyEvent(const fcitx::InputMethodEntry &entry,
@@ -414,6 +404,8 @@ void UniLumeAddon::setConfigForInputMethod(
         typingOptionsFromConfig(configFor(entry));
     prepared.verified_direct_enabled =
         *configFor(entry).verified_direct_enabled;
+    prepared.direct_strategy = toDirectStrategy(
+        *configFor(entry).direct_strategy);
     prepared.emoji_enabled = *configFor(entry).emoji_enabled;
     resourcesFor(entry) = std::move(prepared);
     instance_.inputContextManager().foreach(
@@ -448,6 +440,7 @@ void UniLumeAddon::synchronizeState(
     state.setDictionary(resources.dictionary_snapshot,
                         resources.dictionary_generation);
     state.setVerifiedDirectEnabled(resources.verified_direct_enabled);
+    state.setDirectStrategy(resources.direct_strategy);
     const std::string &identity = input_context.program();
     if (!state.applicationPolicyIsCurrent(
             resources.application_policy_generation, identity)) {
@@ -469,12 +462,12 @@ bool UniLumeAddon::handleModeHotkey(const ModeHotkeys &hotkeys,
         state.cycleApplicationMode();
     } else if (hotkeys.automatic.isValid() &&
                key.check(hotkeys.automatic)) {
-        state.selectApplicationMode(policy::ApplicationMode::automatic);
+        state.selectApplicationMode(policy::ApplicationMode::direct);
     } else if (hotkeys.direct.isValid() && key.check(hotkeys.direct)) {
         state.selectApplicationMode(policy::ApplicationMode::direct);
     } else if (hotkeys.safe_preedit.isValid() &&
                key.check(hotkeys.safe_preedit)) {
-        state.selectApplicationMode(policy::ApplicationMode::safe_preedit);
+        state.selectApplicationMode(policy::ApplicationMode::off);
     } else if (hotkeys.off.isValid() && key.check(hotkeys.off)) {
         state.selectApplicationMode(policy::ApplicationMode::off);
     } else {
@@ -512,9 +505,7 @@ void UniLumeAddon::selectModeFromAction(
 void UniLumeAddon::updateModeActions(fcitx::InputContext *input_context)
 {
     mode_action_->update(input_context);
-    automatic_mode_action_->update(input_context);
     direct_mode_action_->update(input_context);
-    safe_preedit_mode_action_->update(input_context);
     off_mode_action_->update(input_context);
     telex_action_->update(input_context);
     vni_action_->update(input_context);
@@ -606,8 +597,7 @@ std::string UniLumeAddon::statusIcon(
             policy::ApplicationMode::off) {
         return "unilume-off";
     }
-    if (state &&
-        state->effectiveInputPath() == platform::InputPath::preedit) {
+    if (state && state->effectiveInputPath() == platform::InputPath::off) {
         return "unilume-fallback";
     }
     return "unilume";
@@ -709,6 +699,12 @@ bool UniLumeAddon::prepareApplicationPolicyUpdate(
         policy::DecodeResult decoded = policy::decode(text);
         if (!decoded.ok()) {
             return false;
+        }
+        if (decoded.legacy_modes && !legacy_policy_warning_emitted_) {
+            FCITX_WARN()
+                << "UniLume application policy uses legacy modes; "
+                   "automatic maps to direct and safe-preedit maps to off";
+            legacy_policy_warning_emitted_ = true;
         }
         snapshot = std::move(decoded.snapshot);
     }
