@@ -45,12 +45,13 @@ Features:
 %ctest
 
 %files
-%license LICENSE
-%doc README.md AUTHORS.md CONTRIBUTING.md
-%doc docs/
 %{_libdir}/fcitx5/unilume.so*
 %{_datadir}/fcitx5/addon/unilume.conf
 %{_datadir}/fcitx5/inputmethod/unilume.conf
+%{_datadir}/applications/org.fcitx.Fcitx5.Addon.UniLume.desktop
+%{_datadir}/icons/hicolor/scalable/apps/unilume*.svg
+%{_datadir}/locale/vi/LC_MESSAGES/unilume.mo
+%{_datadir}/metainfo/org.fcitx.Fcitx5.Addon.UniLume.metainfo.xml
 %{_datadir}/doc/unilume/
 %{_datadir}/licenses/unilume/
 /usr/lib/udev/rules.d/70-unilume-uinput.rules
