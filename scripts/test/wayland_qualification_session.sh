@@ -84,7 +84,12 @@ dbus-run-session -- sh -eu -c '
 
   # A headless wlroots backend with the software renderer keeps the run
   # reproducible on machines without a GPU or a seat.
-  WLR_BACKENDS=headless WLR_LIBINPUT_NO_DEVICES=1 WLR_RENDERER=pixman \
+  #
+  # Do NOT set WLR_LIBINPUT_NO_DEVICES=1. After the direct-only runtime
+  # (ADR 0005), split Wayland transports replace text via a Backspace-only
+  # /dev/uinput device. Sway must accept that kernel input device through
+  # libinput or the client never observes the deletion/commit sequence.
+  WLR_BACKENDS=headless WLR_RENDERER=pixman \
     sway -c "$work/sway.conf" >"$work/sway.log" 2>&1 &
   sway_pid=$!
   trap "kill $sway_pid 2>/dev/null || true" EXIT HUP INT TERM

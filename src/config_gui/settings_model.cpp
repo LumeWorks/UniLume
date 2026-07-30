@@ -26,6 +26,8 @@ const std::vector<FieldDescriptor> descriptors{
      FieldKind::choice, ChoiceList{"UTF8"}},
     {"VerifiedDirectEnabled", N_("Verified direct replacement"),
      Category::general, FieldKind::boolean, {}},
+    {"DirectStrategy", N_("Split-transport direct strategy"),
+     Category::general, FieldKind::choice, ChoiceList{"Fast", "Guarded"}},
     {"SpellCheck", N_("Spell check"), Category::typing,
      FieldKind::boolean, {}},
     {"FreeMarking", N_("Free marking"), Category::typing,

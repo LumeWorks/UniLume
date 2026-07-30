@@ -897,14 +897,20 @@ def verify_engine_in_path(
 
     This also primes the frontend, so the first measured scenario does not
     absorb one-time text-input negotiation with the compositor.
+
+    Direct-only composition (ADR 0005) replaces via a Backspace-only uinput
+    sequence that only starts after the triggering key release and needs the
+    client to ACK each synthetic Backspace. Inject with a small inter-key
+    delay, wait for the committed text first, and only then send Return.
+    Sending Return immediately cancels an in-flight replacement and leaves
+    the client with the raw ASCII keystrokes.
     """
     if method not in READINESS_PROBE:
         raise QualificationError(f"no readiness probe defined for method {method!r}")
     encoded, expected = READINESS_PROBE[method]
     client.reset()
-    injector.inject(encoded, 0)
-    # Send the boundary too, so a preedit fallback still proves the engine ran.
-    injector.commit_boundary()
+    # 25ms is enough for press/release + one uinput ACK round-trip on CI.
+    injector.inject(encoded, 25)
     observed, _ = client.wait_for(expected, timeout_seconds)
     if observed != expected:
         raise QualificationError(
@@ -912,6 +918,9 @@ def verify_engine_in_path(
             f"{expected!r}; the client received {observed!r}. UniLume is not in "
             "the Wayland input path, so no result would be meaningful"
         )
+    # Clear line state for the measured scenarios that follow.
+    injector.commit_boundary()
+    client.wait_for("", min(timeout_seconds, 2.0))
 
 
 def compositor_identity(

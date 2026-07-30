@@ -16,8 +16,15 @@ IntegrationSession::IntegrationSession(
 
 void IntegrationSession::submit(std::string_view key_text)
 {
-    controller_.submit(
+    // Mirror IntegrationFixture: unchanged text is SubmissionStatus::passthrough
+    // and must still update the simulated document, or the next replacement
+    // fails canReplace() because surrounding text never received the key.
+    const core::SubmissionStatus status = controller_.submit(
         {core::KeyKind::text, key_text, false, false, false});
+    if (status == core::SubmissionStatus::unhandled ||
+        status == core::SubmissionStatus::passthrough) {
+        backend_.forwardRaw(0, key_text);
+    }
     pump();
 }
 
