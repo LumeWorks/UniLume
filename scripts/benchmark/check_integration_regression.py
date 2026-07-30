@@ -17,6 +17,9 @@ class RegressionError(RuntimeError):
 
 
 def run(executable: Path, keys: int) -> dict[str, object]:
+    # The binary exits non-zero when result.errors != 0. That is still a valid
+    # JSON sample for regression comparison (e.g. a broken main baseline while
+    # the candidate fixes correctness). Only fail hard when JSON is unusable.
     completed = subprocess.run(
         [
             str(executable),
@@ -24,16 +27,25 @@ def run(executable: Path, keys: int) -> dict[str, object]:
             f"--keys={keys}",
             "--format=json",
         ],
-        check=True,
+        check=False,
         text=True,
         capture_output=True,
         timeout=120,
     )
-    report = json.loads(completed.stdout)
+    if not completed.stdout.strip():
+        detail = (completed.stderr or "").strip() or f"exit {completed.returncode}"
+        raise RegressionError(f"benchmark produced no JSON output: {detail}")
+    try:
+        report = json.loads(completed.stdout)
+    except json.JSONDecodeError as error:
+        raise RegressionError(
+            f"benchmark JSON was unreadable (exit {completed.returncode}): {error}"
+        ) from error
     rows = report.get("results", [])
     if len(rows) != 1 or rows[0].get("name") != "immediate-typing-disabled":
         raise RegressionError("benchmark did not return the immediate profile")
     rows[0]["metadata"] = report.get("metadata", {})
+    rows[0]["process_exit_code"] = completed.returncode
     return rows[0]
 
 
@@ -94,17 +106,33 @@ def evaluate(
         for row in candidate
     )
 
-    checksums = {int(row["checksum"]) for row in baseline + candidate}
-    key_counts = {int(row["total_keys"]) for row in baseline + candidate}
-    correctness = len(checksums) == 1 and len(key_counts) == 1 and all(
-        int(row["errors"]) == 0
-        and int(row["lost_events"]) == 0
-        and int(row["duplicate_events"]) == 0
-        and int(row["reordered_events"]) == 0
-        and not bool(row["pending_transaction"])
-        and not bool(row["rss"]["linear_growth_detected"])  # type: ignore[index]
-        for row in baseline + candidate
-    )
+    def row_correct(row: dict[str, object]) -> bool:
+        return (
+            int(row["errors"]) == 0
+            and int(row["lost_events"]) == 0
+            and int(row["duplicate_events"]) == 0
+            and int(row["reordered_events"]) == 0
+            and not bool(row["pending_transaction"])
+            and not bool(row["rss"]["linear_growth_detected"])  # type: ignore[index]
+        )
+
+    candidate_correct = all(row_correct(row) for row in candidate)
+    baseline_correct = all(row_correct(row) for row in baseline)
+    candidate_checksums = {int(row["checksum"]) for row in candidate}
+    candidate_key_counts = {int(row["total_keys"]) for row in candidate}
+    # When baseline itself is correctness-broken (common while landing a fix),
+    # require the candidate to be clean and internally consistent. When both
+    # sides are clean, still require matching checksums across the pair.
+    if baseline_correct and candidate_correct:
+        checksums = {int(row["checksum"]) for row in baseline + candidate}
+        key_counts = {int(row["total_keys"]) for row in baseline + candidate}
+        correctness = len(checksums) == 1 and len(key_counts) == 1
+    else:
+        correctness = (
+            candidate_correct
+            and len(candidate_checksums) == 1
+            and len(candidate_key_counts) == 1
+        )
     checks = {
         "correctness_and_lifecycle": correctness,
         "throughput":

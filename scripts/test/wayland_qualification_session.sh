@@ -82,15 +82,17 @@ dbus-run-session -- sh -eu -c '
   export LANG=${LANG:-C.UTF-8}
   unset DISPLAY
 
-  # A headless wlroots backend with the software renderer keeps the run
-  # reproducible on machines without a GPU or a seat.
+  # Headless provides the virtual output; libinput attaches kernel input
+  # devices (including UniLume's Backspace-only /dev/uinput node) to the
+  # seat. Direct-only composition (ADR 0005) replaces text by emitting
+  # synthetic Backspaces through that device — without libinput on the
+  # seat the client never observes the deletion/commit sequence.
   #
-  # Do NOT set WLR_LIBINPUT_NO_DEVICES=1. After the direct-only runtime
-  # (ADR 0005), split Wayland transports replace text via a Backspace-only
-  # /dev/uinput device. Sway must accept that kernel input device through
-  # libinput or the client never observes the deletion/commit sequence.
-  WLR_BACKENDS=headless WLR_RENDERER=pixman \
-    sway -c "$work/sway.conf" >"$work/sway.log" 2>&1 &
+  # Do NOT set WLR_LIBINPUT_NO_DEVICES=1.
+  export WLR_BACKENDS=headless,libinput
+  export WLR_RENDERER=pixman
+  export LIBINPUT_ALLOW_DEVICE=1
+  sway -c "$work/sway.conf" >"$work/sway.log" 2>&1 &
   sway_pid=$!
   trap "kill $sway_pid 2>/dev/null || true" EXIT HUP INT TERM
 
