@@ -15,7 +15,7 @@ if [[ ! -f "$FILE" ]]; then
 fi
 
 if [[ -z "${GNUPGHOME:-}" ]]; then
-  if [[ -f "${HOME}/.gnupg/unilume-signing-key.gpg" ]]; then
+  if [[ -d "${HOME}/.gnupg" ]] || gpg --list-secret-keys &>/dev/null; then
     export GNUPGHOME="${HOME}/.gnupg"
   else
     echo "Error: GNUPGHOME not set and no default key found"
