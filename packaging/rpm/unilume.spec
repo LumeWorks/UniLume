@@ -16,6 +16,7 @@ BuildRequires:  gcc-c++
 BuildRequires:  pkgconfig
 BuildRequires:  gettext
 BuildRequires:  pkgconfig(Fcitx5Core) >= 5.0
+BuildRequires:  fcitx5
 
 Requires:       fcitx5 >= 5.0
 
