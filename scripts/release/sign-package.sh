@@ -7,24 +7,25 @@
 set -euo pipefail
 
 FILE="${1:?Usage: $0 <file>}"
-SIGNING_KEY="${UNILUME_SIGNING_KEY:-}"
-if [[ -z "$SIGNING_KEY" ]]; then
-  SIGNING_KEY="$(gpg --list-secret-keys --with-colons 2>/dev/null | awk -F: '$1=="sec" {print $5; exit}')" || true
-fi
-SIGNING_KEY="${SIGNING_KEY:-unilume@dismon.me}"
-
 if [[ ! -f "$FILE" ]]; then
   echo "Error: file not found: $FILE"
   exit 1
 fi
 
 if [[ -z "${GNUPGHOME:-}" ]]; then
-  if [[ -d "${HOME}/.gnupg" ]] || gpg --list-secret-keys &>/dev/null; then
+  if [[ -d "${HOME}/.gnupg" ]]; then
     export GNUPGHOME="${HOME}/.gnupg"
-  else
-    echo "Error: GNUPGHOME not set and no default key found"
-    exit 1
   fi
+fi
+
+SIGNING_KEY="${UNILUME_SIGNING_KEY:-}"
+if [[ -z "$SIGNING_KEY" ]]; then
+  SIGNING_KEY="$(gpg --list-secret-keys --with-colons --batch 2>/dev/null | awk -F: '$1=="sec" {print $5; exit}')" || true
+fi
+if [[ -z "$SIGNING_KEY" ]]; then
+  echo "Error: no GPG secret key available for signing"
+  echo "Set UNILUME_SIGNING_KEY or import a key (see scripts/release/import-gpg-key.sh)"
+  exit 1
 fi
 
 PASSPHRASE_FLAGS=()

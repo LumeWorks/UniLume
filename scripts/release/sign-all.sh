@@ -33,9 +33,12 @@ cd "$DIR"
 sha256sum ./*.deb ./*.rpm ./*.pkg.tar.zst ./*.tar.zst 2>/dev/null > SHA256SUMS
 SIGNING_KEY="${UNILUME_SIGNING_KEY:-}"
 if [[ -z "$SIGNING_KEY" ]]; then
-  SIGNING_KEY="$(gpg --list-secret-keys --with-colons 2>/dev/null | awk -F: '$1=="sec" {print $5; exit}')" || true
+  SIGNING_KEY="$(gpg --list-secret-keys --with-colons --batch 2>/dev/null | awk -F: '$1=="sec" {print $5; exit}')" || true
 fi
-SIGNING_KEY="${SIGNING_KEY:-unilume@dismon.me}"
+if [[ -z "$SIGNING_KEY" ]]; then
+  echo "Error: no GPG secret key available for signing SHA256SUMS"
+  exit 1
+fi
 
 PASSPHRASE_FLAGS=()
 if [[ -n "${UNILUME_GPG_PASSPHRASE:-}" ]]; then

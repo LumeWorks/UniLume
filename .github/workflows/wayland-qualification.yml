@@ -67,9 +67,18 @@ jobs:
           sudo modprobe uinput 2>/dev/null || true
           sudo cp data/70-unilume-uinput.rules /etc/udev/rules.d/
           sudo udevadm control --reload-rules && sudo udevadm trigger 2>/dev/null || true
-          sudo usermod -aG input "$USER" 2>/dev/null || true
-          sudo chown root:input /dev/uinput 2>/dev/null || true
-          sudo chmod 0660 /dev/uinput 2>/dev/null || true
+          # GitHub-hosted runners have no logind seat for TAG+=uaccess, and
+          # usermod group membership is not effective in the current job shell.
+          # Direct-only composition needs a writable /dev/uinput node so the
+          # Backspace backend can open; world-writable is acceptable on the
+          # ephemeral CI VM (real desktops still use the udev uaccess rule).
+          sudo chown root:root /dev/uinput 2>/dev/null || true
+          sudo chmod 0666 /dev/uinput 2>/dev/null || true
+          if [[ ! -w /dev/uinput ]]; then
+            echo "error: /dev/uinput is not writable by the runner" >&2
+            ls -la /dev/uinput >&2 || true
+            exit 1
+          fi
 
       - name: Generate the locales the addon tests require
         run: |
@@ -163,9 +172,14 @@ jobs:
           sudo modprobe uinput 2>/dev/null || true
           sudo cp data/70-unilume-uinput.rules /etc/udev/rules.d/
           sudo udevadm control --reload-rules && sudo udevadm trigger 2>/dev/null || true
-          sudo usermod -aG input "$USER" 2>/dev/null || true
-          sudo chown root:input /dev/uinput 2>/dev/null || true
-          sudo chmod 0660 /dev/uinput 2>/dev/null || true
+          # Same CI seat limitation as the wlroots job: force a writable node.
+          sudo chown root:root /dev/uinput 2>/dev/null || true
+          sudo chmod 0666 /dev/uinput 2>/dev/null || true
+          if [[ ! -w /dev/uinput ]]; then
+            echo "error: /dev/uinput is not writable by the runner" >&2
+            ls -la /dev/uinput >&2 || true
+            exit 1
+          fi
 
       - name: Generate the locales the addon tests require
         run: |
