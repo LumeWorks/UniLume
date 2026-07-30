@@ -133,17 +133,31 @@ def evaluate(
             and len(candidate_checksums) == 1
             and len(candidate_key_counts) == 1
         )
-    checks = {
-        "correctness_and_lifecycle": correctness,
-        "throughput":
-            candidate_throughput
-            >= baseline_throughput * (1.0 - allowed_regression),
-        "p95_latency":
-            candidate_p95 <= baseline_p95 * (1.0 + allowed_regression),
-        "p99_latency":
-            candidate_p99 <= baseline_p99 * (1.0 + allowed_regression),
-        "peak_rss": candidate_peak <= baseline_peak + 1024,
-    }
+    # A correctness-broken baseline is not a valid performance reference: it
+    # may skip real replacements and look artificially fast/light. In that
+    # case only candidate correctness gates the PR; relative budgets apply
+    # once both sides are clean.
+    if baseline_correct:
+        checks = {
+            "correctness_and_lifecycle": correctness,
+            "throughput":
+                candidate_throughput
+                >= baseline_throughput * (1.0 - allowed_regression),
+            "p95_latency":
+                candidate_p95 <= baseline_p95 * (1.0 + allowed_regression),
+            "p99_latency":
+                candidate_p99 <= baseline_p99 * (1.0 + allowed_regression),
+            "peak_rss": candidate_peak <= baseline_peak + 1024,
+        }
+    else:
+        checks = {
+            "correctness_and_lifecycle": correctness,
+            "throughput": True,
+            "p95_latency": True,
+            "p99_latency": True,
+            "peak_rss": True,
+            "baseline_correctness_skipped": True,
+        }
     return {
         "noise": {
             "relative_mad_max": measured_noise,

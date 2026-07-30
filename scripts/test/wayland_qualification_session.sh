@@ -83,10 +83,10 @@ dbus-run-session -- sh -eu -c '
   unset DISPLAY
 
   # Headless provides the virtual output; libinput attaches kernel input
-  # devices (including UniLume's Backspace-only /dev/uinput node) to the
-  # seat. Direct-only composition (ADR 0005) replaces text by emitting
-  # synthetic Backspaces through that device — without libinput on the
-  # seat the client never observes the deletion/commit sequence.
+  # devices (including UniLume Backspace-only /dev/uinput) to the seat.
+  # Direct-only composition (ADR 0005) replaces text by emitting synthetic
+  # Backspaces through that device. Without libinput on the seat the client
+  # never observes the deletion/commit sequence.
   #
   # Do NOT set WLR_LIBINPUT_NO_DEVICES=1.
   export WLR_BACKENDS=headless,libinput
