@@ -158,7 +158,10 @@ jobs:
       - name: Install build deps
         shell: bash
         run: |
-          pacman -Syu --noconfirm cmake gcc pkg-config gettext fcitx5 make tar sudo fakeroot debugedit github-cli
+          for i in {1..3}; do
+            pacman -Sy --noconfirm archlinux-keyring && \
+            pacman -Syu --noconfirm --needed cmake gcc pkg-config gettext fcitx5 make tar sudo fakeroot debugedit github-cli && break || sleep 5
+          done
 
       - name: Get version
         shell: bash
