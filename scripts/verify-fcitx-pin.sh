@@ -9,6 +9,10 @@ expected_patch=6b1f2be4a303292d3951c562ad89c99ec108423c
 expected_base=7d71627695b49c06a4270f4d8106e84afb75cddb
 
 actual_patch=$(git -C "${fcitx_source}" rev-parse HEAD)
+if ! git -C "${fcitx_source}" cat-file -e "${expected_base}^{commit}" 2>/dev/null; then
+    git -C "${fcitx_source}" fetch --depth=1 origin \
+        refs/tags/5.1.12:refs/tags/5.1.12
+fi
 actual_base=$(git -C "${fcitx_source}" rev-parse HEAD^)
 if [[ "${actual_patch}" != "${expected_patch}" ||
       "${actual_base}" != "${expected_base}" ]]; then
