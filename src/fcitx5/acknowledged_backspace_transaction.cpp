@@ -59,14 +59,6 @@ AcknowledgedBackspaceTransaction::acknowledgeRelease()
                : BackspaceReleaseAcknowledgement::consume_sentinel;
 }
 
-void AcknowledgedBackspaceTransaction::markPressDispatched()
-{
-    const std::size_t total_presses = deletions_ + 1;
-    if (active_ && dispatched_presses_ < total_presses) {
-        ++dispatched_presses_;
-    }
-}
-
 void AcknowledgedBackspaceTransaction::markPressesDispatched(std::size_t count)
 {
     const std::size_t total_presses = deletions_ + 1;
@@ -88,6 +80,11 @@ std::uint64_t AcknowledgedBackspaceTransaction::sequenceId() const
 std::size_t AcknowledgedBackspaceTransaction::deletions() const
 {
     return active_ ? deletions_ : 0;
+}
+
+std::size_t AcknowledgedBackspaceTransaction::pressesToDispatch() const
+{
+    return active_ ? deletions_ + 1 : 0;
 }
 
 std::string_view AcknowledgedBackspaceTransaction::commitText() const

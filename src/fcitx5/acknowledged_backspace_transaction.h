@@ -35,11 +35,11 @@ public:
                  DirectStrategy strategy);
     [[nodiscard]] BackspaceAcknowledgement acknowledge();
     [[nodiscard]] BackspaceReleaseAcknowledgement acknowledgeRelease();
-    void markPressDispatched();
     void markPressesDispatched(std::size_t count);
     [[nodiscard]] bool active() const;
     [[nodiscard]] std::uint64_t sequenceId() const;
     [[nodiscard]] std::size_t deletions() const;
+    [[nodiscard]] std::size_t pressesToDispatch() const;
     [[nodiscard]] std::string_view commitText() const;
     [[nodiscard]] std::size_t outstandingPresses() const;
     [[nodiscard]] bool releasePending() const;

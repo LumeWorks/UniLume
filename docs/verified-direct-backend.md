@@ -15,7 +15,7 @@ cursor. Application identity never bypasses these checks.
 Fcitx `dbus`, `wayland`, and `wayland_v2` are split transports. With the
 Backspace-only uinput device available, the backend dispatches the required
 deletion Backspaces plus one sentinel after the physical triggering key is
-released, with at most one synthetic key pair in flight. The transaction tracks dispatched press/release
+released in one bounded kernel write. The transaction tracks dispatched press/release
 events to consume the sentinel, duplicate events, or cancelled remnants.
 Shortcuts arriving before dispatch cancel safely; shortcuts arriving after dispatch
 pass through immediately, fence context, and leave remnants to be consumed.

@@ -261,10 +261,12 @@ bool FcitxReplacementBackend::startAcknowledgedReplacement()
         return false;
     }
     initial_backspace_pending_ = false;
+    const std::size_t press_count =
+        acknowledged_transaction_.pressesToDispatch();
     const UinputBatchWriteStatus write_status =
-        uinput_device_.emitBackspaces(1);
+        uinput_device_.emitBackspaces(press_count);
     if (write_status == UinputBatchWriteStatus::complete) {
-        acknowledged_transaction_.markPressDispatched();
+        acknowledged_transaction_.markPressesDispatched(press_count);
         return true;
     }
     if (write_status == UinputBatchWriteStatus::partial) {
@@ -283,21 +285,7 @@ BackspaceAcknowledgement FcitxReplacementBackend::acknowledgeBackspace()
 BackspaceReleaseAcknowledgement
 FcitxReplacementBackend::acknowledgeBackspaceRelease()
 {
-    const BackspaceReleaseAcknowledgement acknowledgement =
-        acknowledged_transaction_.acknowledgeRelease();
-    if (acknowledgement !=
-        BackspaceReleaseAcknowledgement::forward_deletion) {
-        return acknowledgement;
-    }
-    const UinputBatchWriteStatus write_status =
-        uinput_device_.emitBackspaces(1);
-    if (write_status == UinputBatchWriteStatus::complete) {
-        acknowledged_transaction_.markPressDispatched();
-    } else {
-        uncertain_dispatch_ = true;
-        poisoned_ = true;
-    }
-    return acknowledgement;
+    return acknowledged_transaction_.acknowledgeRelease();
 }
 
 bool FcitxReplacementBackend::consumeFastSentinelRelease()

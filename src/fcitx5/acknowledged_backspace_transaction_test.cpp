@@ -51,7 +51,8 @@ int main()
                  "valid acknowledged deletion was rejected");
     ok &= expect(transaction.active() &&
                      transaction.sequenceId() == 42 &&
-                     transaction.commitText() == "ế",
+                     transaction.commitText() == "ế" &&
+                     transaction.pressesToDispatch() == 3,
                  "prepared deletion state was not retained exactly");
     ok &= expect(!transaction.prepare(
                      43, 1, "x", DirectStrategy::fast),
