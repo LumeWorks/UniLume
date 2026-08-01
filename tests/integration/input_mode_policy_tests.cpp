@@ -12,12 +12,12 @@ void runInputModePolicyTests(Assertions &assertions)
     platform::InputModePolicy unavailable_at_start;
     unavailable_at_start.observe(false);
     assertions.truth(
-        "automatic without direct backend selects composition",
-        unavailable_at_start.path() == platform::InputPath::preedit);
+        "automatic without atomic backend selects passthrough",
+        unavailable_at_start.path() == platform::InputPath::off);
     unavailable_at_start.observe(true);
     assertions.truth(
-        "restored direct backend does not split composition",
-        unavailable_at_start.path() == platform::InputPath::preedit);
+        "restored direct backend keeps passthrough owner",
+        unavailable_at_start.path() == platform::InputPath::off);
 
     // -- Between compositions, re-evaluation can upgrade --
     unavailable_at_start.resetForCompositionEnd();
@@ -36,12 +36,12 @@ void runInputModePolicyTests(Assertions &assertions)
     // -- Capability loss demotes to passthrough and can re-promote --
     direct_at_start.observe(false);
     assertions.truth(
-        "capability loss returns to composition",
-        direct_at_start.path() == platform::InputPath::preedit);
+        "capability loss returns to passthrough",
+        direct_at_start.path() == platform::InputPath::off);
     direct_at_start.observe(true);
     assertions.truth(
-        "capability restoration keeps composition path",
-        direct_at_start.path() == platform::InputPath::preedit);
+        "capability restoration keeps passthrough path",
+        direct_at_start.path() == platform::InputPath::off);
 
     // -- Between compositions, re-evaluation re-promotes --
     direct_at_start.resetForCompositionEnd();
@@ -59,8 +59,8 @@ void runInputModePolicyTests(Assertions &assertions)
     assertions.truth("reset restores unknown path",
         reset_test.path() == platform::InputPath::unknown);
     reset_test.observe(false);
-    assertions.truth("after reset, unavailable backend picks composition",
-        reset_test.path() == platform::InputPath::preedit);
+    assertions.truth("after reset, unavailable backend picks passthrough",
+        reset_test.path() == platform::InputPath::off);
 
     platform::InputModePolicy explicit_modes;
     explicit_modes.observe(policy::ApplicationMode::safe_preedit, true);

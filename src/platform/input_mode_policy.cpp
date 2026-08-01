@@ -28,18 +28,17 @@ InputPath InputModePolicy::observe(policy::ApplicationMode requested,
         path_ = direct_available ? InputPath::direct : InputPath::off;
         return path_;
     }
-    // Automatic owns one path for the lifetime of a composition. Promoting
-    // preedit to direct halfway through a word would split the text across
-    // two transports and can reorder or duplicate characters in clients.
-    if (path_ == InputPath::preedit) {
+    // Automatic is zero-preedit. Keep direct or passthrough ownership until
+    // a boundary so capability changes cannot mix frontend and engine text.
+    if (path_ == InputPath::off) {
         return path_;
     }
     if (path_ == InputPath::direct && !direct_available) {
-        path_ = InputPath::preedit;
+        path_ = InputPath::off;
         return path_;
     }
     if (path_ == InputPath::unknown) {
-        path_ = direct_available ? InputPath::direct : InputPath::preedit;
+        path_ = direct_available ? InputPath::direct : InputPath::off;
     }
     return path_;
 }

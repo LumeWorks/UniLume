@@ -1,8 +1,12 @@
 # Verified direct replacement backend
 
-Issues #48, #102, and #107 define the two transports of the single in-process
-Fcitx replacement backend. The active ownership decision is
-[ADR 0005](adr/0005-direct-only-fcitx-runtime.md).
+Issues #48, #102, and #107 define the replacement backend. Automatic ownership
+is defined by [ADR 0006](adr/0006-atomic-fcitx-replacement.md).
+
+`automatic` accepts only `AtomicSurroundingTextInputContext`: batched D-Bus or
+single-commit Wayland from the pinned LumeWorks Fcitx fork. It never selects
+uinput or preedit. A missing capability is visible passthrough. The legacy
+split-transport behavior below applies only when the user selects `direct`.
 
 ## Eligibility
 

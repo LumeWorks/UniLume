@@ -69,26 +69,24 @@ the backend requests the minimum surrounding-text deletion and commits the
 replacement in the same synchronous controller transaction. Cursor movement,
 focus changes, reset events, and unhandled Backspace clear composition state.
 
-`VerifiedDirectEnabled` defaults to `True`. Atomic frontends use their verified
-surrounding-text edit. Split D-Bus and Wayland transports use one shared,
-Backspace-only uinput device and emit one deletion at a time after the physical
-triggering key is released. The final deletion release is the ordered commit
-boundary, so `commitString` cannot overtake a deletion still queued in the
-client and leave duplicated forms such as `châậ` or `vơớ`.
-The first synthetic pair waits for the matching physical triggering key release;
-unrelated modifier releases cannot start or be consumed by the transaction.
-`DirectStrategy=Fast` is the default and commits at the final deletion release;
-`DirectStrategy=Guarded` additionally validates the boundary. Vietnamese
-composition never enters Fcitx preedit. If neither backend is available, the
-original key passes through.
+`VerifiedDirectEnabled` defaults to `True`. In `automatic`, only the optional
+atomic replacement interface from the pinned Fcitx fork is eligible. Batched
+D-Bus and single-commit Wayland replace text on one protocol path without
+preedit or uinput. If the capability is absent, the original key passes through
+and the status reports the missing atomic path.
+
+Acknowledged Backspace uinput remains available only in explicit `direct`
+mode. `safe-preedit` is the only mode that intentionally creates preedit.
 
 ## Safety fallback
 
-Atomic replacement requires the Fcitx `SurroundingText` capability and a
-bounded, valid UTF-8 snapshot with an unselected cursor and enough characters.
-Split transport uses the bounded uinput sequence instead. A pre-dispatch
-failure returns the key to the frontend; it does not synthesize a fallback
-commit.
+When the client advertises `SurroundingText`, atomic replacement validates a
+bounded UTF-8 snapshot, cursor and selection before editing it. Clients without
+that capability use UniLume's bounded composition ownership for the deletion
+count while the patched Fcitx batch still guarantees delete/commit ordering.
+Automatic mode never substitutes the bounded uinput sequence. A failed or
+unavailable atomic edit returns the key to the frontend; it does not synthesize
+a fallback commit or preedit update.
 
 The acknowledged backend has a 128-character deletion limit and a fixed
 512-key burst queue. It does not sleep, retry indefinitely, monitor the mouse,

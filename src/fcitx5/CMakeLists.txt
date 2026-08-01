@@ -2,6 +2,20 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 include(GNUInstallDirs)
+include(CheckCXXSourceCompiles)
+
+set(CMAKE_REQUIRED_INCLUDES ${FCITX5_CORE_INCLUDE_DIRS})
+set(_unilume_saved_try_compile_target_type ${CMAKE_TRY_COMPILE_TARGET_TYPE})
+set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
+check_cxx_source_compiles([[#include <fcitx/inputcontext.h>
+int main() {
+  fcitx::AtomicSurroundingTextInputContext *context = nullptr;
+  return context != nullptr;
+}
+]] UNILUME_HAVE_FCITX_ATOMIC_REPLACEMENT)
+set(CMAKE_TRY_COMPILE_TARGET_TYPE ${_unilume_saved_try_compile_target_type})
+unset(_unilume_saved_try_compile_target_type)
+unset(CMAKE_REQUIRED_INCLUDES)
 
 add_library(unilume_fcitx5 MODULE
   acknowledged_backspace_transaction.cpp
@@ -39,6 +53,7 @@ target_compile_definitions(unilume_fcitx5 PRIVATE
   UNILUME_LOCALE_DIR="${CMAKE_INSTALL_FULL_LOCALEDIR}"
   UNILUME_DIAGNOSTIC_UNILUME_VERSION="${PROJECT_VERSION}"
   UNILUME_DIAGNOSTIC_FCITX_VERSION="${FCITX5_CORE_VERSION}"
+  UNILUME_HAVE_FCITX_ATOMIC_REPLACEMENT=$<BOOL:${UNILUME_HAVE_FCITX_ATOMIC_REPLACEMENT}>
 )
 
 set_target_properties(unilume_fcitx5 PROPERTIES

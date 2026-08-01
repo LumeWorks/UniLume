@@ -296,10 +296,10 @@ msgstr ""
 msgid "UniLume mode"
 msgstr ""
 
-msgid "Automatic - Direct"
+msgid "Automatic - Atomic direct"
 msgstr ""
 
-msgid "Automatic - No-format composition"
+msgid "Automatic - Atomic replacement unavailable"
 msgstr ""
 
 msgid "Direct unavailable - Passthrough"

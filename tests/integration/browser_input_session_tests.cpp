@@ -152,11 +152,11 @@ void runBrowserInputSessionTests(Assertions &assertions)
         assertions.truth("session starts with unknown path",
                          unavailable.path() == platform::InputPath::unknown);
         unavailable.synchronize(false);
-        assertions.truth("unavailable backend selects composition",
-                         unavailable.path() == platform::InputPath::preedit);
+        assertions.truth("unavailable backend selects passthrough",
+                         unavailable.path() == platform::InputPath::off);
         unavailable.submitString("tooi ddang ");
-        assertions.equal("composition path transforms exactly",
-                         unavailable.output(), "tôi đang ");
+        assertions.equal("passthrough path preserves native input",
+                         unavailable.output(), "tooi ddang ");
         assertions.equal("off path has no direct backlog",
                          unavailable.metrics().queue_depth, 0);
     }
@@ -166,15 +166,15 @@ void runBrowserInputSessionTests(Assertions &assertions)
         restored.synchronize(false);
         restored.submitString("tooi ");
         restored.synchronize(true);
-        assertions.truth("restored backend keeps active composition",
-                         restored.path() == platform::InputPath::preedit);
+        assertions.truth("restored backend keeps passthrough owner",
+                         restored.path() == platform::InputPath::off);
         const std::size_t before = restored.backendEventCount();
         restored.submitString("ddang gox tieengs Vieetj");
         assertions.equal("raw prefix and direct tail stay ordered",
                          restored.output(),
-                         "tôi đang gõ tiếng Việt");
-        assertions.truth("active composition did not mix transports",
-                         restored.backendEventCount() == before);
+                         "tooi ddang gox tieengs Vieetj");
+        assertions.truth("passthrough tail stayed on native event path",
+                         restored.backendEventCount() > before);
     }
 
     {
@@ -182,11 +182,11 @@ void runBrowserInputSessionTests(Assertions &assertions)
         loss.synchronize(true);
         loss.submitString("tooi ");
         loss.synchronize(false);
-        assertions.truth("capability loss selects composition",
-                         loss.path() == platform::InputPath::preedit);
+        assertions.truth("capability loss selects passthrough",
+                         loss.path() == platform::InputPath::off);
         loss.submitString("ddang ");
         assertions.equal("capability loss preserves committed text",
-                         loss.output(), "tôi đang ");
+                         loss.output(), "tôi ddang ");
         assertions.equal("capability loss leaves no direct queue",
                          loss.metrics().queue_depth, 0);
     }
@@ -197,12 +197,12 @@ void runBrowserInputSessionTests(Assertions &assertions)
         boundaries.submitString("tooi");
         boundaries.shortcutBoundary();
         assertions.equal("shortcut boundary does not commit or delete",
-                         boundaries.output(), "tôi");
+                         boundaries.output(), "tooi");
         assertions.truth("shortcut boundary resets policy",
                          boundaries.path() == platform::InputPath::unknown);
         boundaries.focusReset();
         assertions.equal("focus reset preserves frontend text",
-                         boundaries.output(), "tôi");
+                         boundaries.output(), "tooi");
     }
 
     {

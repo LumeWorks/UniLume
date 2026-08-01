@@ -134,8 +134,8 @@ public:
         switch (state->requestedApplicationMode()) {
         case policy::ApplicationMode::automatic:
             return state->effectiveInputPath() == platform::InputPath::direct
-                       ? _("Automatic - Direct")
-                       : _("Automatic - No-format composition");
+                       ? _("Automatic - Atomic direct")
+                       : _("Automatic - Atomic replacement unavailable");
         case policy::ApplicationMode::direct:
             if (state->effectiveInputPath() != platform::InputPath::direct) {
                 return _("Direct unavailable - Passthrough");

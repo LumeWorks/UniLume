@@ -148,19 +148,19 @@ private:
 
 void runBrowserCapabilityTests(Assertions &assertions)
 {
-    // -- 1. Automatic uses no-format composition without direct support --
+    // -- 1. Automatic is raw passthrough without atomic direct support --
     {
         BrowserPipeline browser{false};
 
         browser.type("tooi ");
         assertions.equal(
             "browser pipeline first word",
-            browser.output(), "tôi ");
+            browser.output(), "tooi ");
 
         browser.type("ddang ");
         assertions.equal(
             "browser pipeline second word",
-            browser.output(), "tôi đang ");
+            browser.output(), "tooi ddang ");
 
         // Full typical browser input (URLs, email, code literals)
         BrowserPipeline corpus{false};
@@ -170,7 +170,7 @@ void runBrowserCapabilityTests(Assertions &assertions)
             "std::vector<int> Console.WriteLine(\"hello\"); "
             "foo_bar->value ");
         const std::string expected =
-            "tôi tiếng đay là bộ gõ tiếng Việt "
+            "tooi tieengs dday laf booj gox tieengs Vieetj "
             "http://abc.com/a1 user@example.com "
             "std::vector<int> Console.WriteLine(\"hello\"); "
             "foo_bar->value ";
@@ -211,8 +211,8 @@ void runBrowserCapabilityTests(Assertions &assertions)
 
         policy.observe(false);
         assertions.truth(
-            "automatic without direct backend selects composition",
-            policy.path() == platform::InputPath::preedit);
+            "automatic without atomic backend selects passthrough",
+            policy.path() == platform::InputPath::off);
 
         policy.resetForCompositionEnd();
         policy.observe(true);
@@ -232,7 +232,7 @@ void runBrowserCapabilityTests(Assertions &assertions)
 
         re_eval.observe(false);
         assertions.truth("demotes immediately on loss",
-            re_eval.path() == platform::InputPath::preedit);
+            re_eval.path() == platform::InputPath::off);
 
         re_eval.resetForCompositionEnd();
         re_eval.observe(true);
@@ -247,8 +247,8 @@ void runBrowserCapabilityTests(Assertions &assertions)
         stable.observe(false);
         stable.observe(true);
         assertions.truth(
-            "restored capability keeps active composition",
-            stable.path() == platform::InputPath::preedit);
+            "restored capability keeps passthrough owner",
+            stable.path() == platform::InputPath::off);
 
         stable.resetForCompositionEnd();
         stable.observe(true);
@@ -269,8 +269,8 @@ void runBrowserCapabilityTests(Assertions &assertions)
 
         focus.observe(false);
         assertions.truth(
-            "post-reset observation picks composition",
-            focus.path() == platform::InputPath::preedit);
+            "post-reset observation picks passthrough",
+            focus.path() == platform::InputPath::off);
     }
 
     // -- 7. IntegrationFixture cross-check --
@@ -287,13 +287,13 @@ void runBrowserCapabilityTests(Assertions &assertions)
             native.metrics().queue_depth, 0);
     }
 
-    // -- 8. Automatic composition transforms instead of raw passthrough --
+    // -- 8. Automatic never silently falls back to composition --
     {
         BrowserPipeline passthrough{false};
         passthrough.type("tooi ");
         assertions.equal(
-            "automatic composition transforms frontend input",
-            passthrough.output(), "tôi ");
+            "automatic leaves unsupported frontend input native",
+            passthrough.output(), "tooi ");
     }
 }
 

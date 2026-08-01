@@ -1,0 +1,4 @@
+[submodule "vendor/fcitx5"]
+	path = vendor/fcitx5
+	url = https://github.com/LumeWorks/fcitx5.git
+	branch = unilume/5.1.12-atomic

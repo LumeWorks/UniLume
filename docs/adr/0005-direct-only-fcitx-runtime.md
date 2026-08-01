@@ -2,7 +2,8 @@
 
 # ADR 0005: Direct-only Fcitx composition runtime
 
-Status: Accepted by Issue #107.
+Status: Superseded for `automatic` by ADR 0006. Retained for explicit
+`direct` compatibility mode.
 
 ## Decision
 

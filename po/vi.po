@@ -329,11 +329,12 @@ msgstr "Tắt"
 msgid "UniLume mode"
 msgstr "Chế độ UniLume"
 
-msgid "Automatic - Direct"
-msgstr "Tự động · Trực tiếp"
+#, fuzzy
+msgid "Automatic - Atomic direct"
+msgstr "Tự động · Trực tiếp nguyên tử"
 
-msgid "Automatic - No-format composition"
-msgstr "Tự động · Soạn thảo không định dạng"
+msgid "Automatic - Atomic replacement unavailable"
+msgstr "Tự động · Không có thay thế nguyên tử"
 
 msgid "Direct unavailable - Passthrough"
 msgstr "Direct không khả dụng - Cho phím đi qua"
@@ -478,6 +479,9 @@ msgstr "Bật hoặc tắt chính sách từ điển cá nhân"
 
 msgid "UniLume status action"
 msgstr "Tác vụ trạng thái UniLume"
+
+#~ msgid "Automatic - No-format composition"
+#~ msgstr "Tự động · Soạn thảo không định dạng"
 
 #~ msgid "Automatic - Safe preedit"
 #~ msgstr "Tự động · Preedit an toàn"

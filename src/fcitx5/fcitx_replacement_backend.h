@@ -62,6 +62,11 @@ public:
     [[nodiscard]] std::uint64_t finishAcknowledgedReplacement();
 
 private:
+    [[nodiscard]] bool atomicReplacementAvailable() const;
+    [[nodiscard]] bool requestAtomicReplacement(
+        std::int32_t delete_before_cursor,
+        std::string_view commit_text);
+
     fcitx::InputContext &input_context_;
     UinputBackspaceDevice &uinput_device_;
     std::uint64_t last_sequence_id_{};
