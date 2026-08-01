@@ -56,8 +56,8 @@ dpkg-buildpackage -b -uc -us
 cp ../*.deb "${output_dir}/"
 
 apt-get install -y "${output_dir}"/*.deb
-if ! nm -D /usr/lib/*/libFcitx5Core.so.* 2>/dev/null | \
-    c++filt | grep -q 'AtomicSurroundingTextInputContext'; then
+atomic_symbols=$(nm -D /usr/lib/*/libFcitx5Core.so.* 2>/dev/null | c++filt)
+if ! grep 'AtomicSurroundingTextInputContext' <<<"${atomic_symbols}" >/dev/null; then
     echo "Installed Fcitx packages do not expose the atomic replacement ABI" >&2
     exit 4
 fi
