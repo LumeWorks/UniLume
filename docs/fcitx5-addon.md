@@ -71,12 +71,14 @@ focus changes, reset events, and unhandled Backspace clear composition state.
 
 `VerifiedDirectEnabled` defaults to `True`. Atomic frontends use their verified
 surrounding-text edit. Split D-Bus and Wayland transports use one shared,
-Backspace-only uinput device and emit the deletion count plus one sentinel in
-one bounded kernel write after the physical triggering key is released.
+Backspace-only uinput device and emit one deletion at a time after the physical
+triggering key is released. The final deletion release is the ordered commit
+boundary, so `commitString` cannot overtake a deletion still queued in the
+client and leave duplicated forms such as `châậ` or `vơớ`.
 The first synthetic pair waits for the matching physical triggering key release;
 unrelated modifier releases cannot start or be consumed by the transaction.
-`DirectStrategy=Fast` is the default and commits at sentinel press;
-`DirectStrategy=Guarded` is opt-in and commits at sentinel release. Vietnamese
+`DirectStrategy=Fast` is the default and commits at the final deletion release;
+`DirectStrategy=Guarded` additionally validates the boundary. Vietnamese
 composition never enters Fcitx preedit. If neither backend is available, the
 original key passes through.
 

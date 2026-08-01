@@ -57,13 +57,13 @@ Features:
 /usr/lib/udev/rules.d/70-unilume-uinput.rules
 
 %changelog
-* Sat Aug 01 2026 Lê Hùng Quang Minh <dismonjames@gmail.com> - 0.1.0-1
+* Sat Aug 01 2026 Lê Hùng Quang Minh <lehungquangminh2011@gmail.com> - 0.1.0-1
 - Promote the tested rc2 input and packaging fixes to the first stable release.
 - Standardize organization production builds on CMake and CTest.
 
-* Sat Aug 01 2026 Lê Hùng Quang Minh <dismonjames@gmail.com> - 0.1.0-0.rc2.1
+* Sat Aug 01 2026 Lê Hùng Quang Minh <lehungquangminh2011@gmail.com> - 0.1.0-0.rc2.1
 - Fix direct-input shortcut handling and fast unchanged-text passthrough.
 - Fix release packaging, optional signing, and CI qualification gates.
 
-* Fri Jul 24 2026 Lê Hùng Quang Minh <dismonjames@gmail.com> - 0.1.0-0.rc1.1
+* Fri Jul 24 2026 Lê Hùng Quang Minh <lehungquangminh2011@gmail.com> - 0.1.0-0.rc1.1
 - Initial release candidate.

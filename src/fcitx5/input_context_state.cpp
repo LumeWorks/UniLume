@@ -63,30 +63,24 @@ void InputContextState::keyEvent(fcitx::KeyEvent &event)
             event.filterAndAccept();
             return;
         }
-        if (backend_.consumeFastSentinelRelease()) {
-            event.filterAndAccept();
-            return;
-        }
         if (!backend_.acknowledgedDeletionPending()) {
             return;
         }
         switch (backend_.acknowledgeBackspaceRelease()) {
-        case BackspaceReleaseAcknowledgement::forward_deletion:
+        case BackspaceReleaseAcknowledgement::emit_next:
             if (backend_.consumeUncertainDispatch()) {
                 direct_controller_.timeout(
                     direct_controller_.activeSequence());
             }
             return;
-        case BackspaceReleaseAcknowledgement::consume_sentinel:
-            event.filterAndAccept();
-            return;
-        case BackspaceReleaseAcknowledgement::complete_guarded: {
-            event.filterAndAccept();
+        case BackspaceReleaseAcknowledgement::complete_guarded:
             if (!backend_.guardedBoundaryValid()) {
                 direct_controller_.timeout(
                     direct_controller_.activeSequence());
                 return;
             }
+            [[fallthrough]];
+        case BackspaceReleaseAcknowledgement::complete_fast: {
             const std::uint64_t sequence =
                 backend_.finishAcknowledgedReplacement();
             direct_controller_.complete(sequence, sequence != 0);
@@ -138,19 +132,6 @@ void InputContextState::keyEvent(fcitx::KeyEvent &event)
             switch (backend_.acknowledgeBackspace()) {
             case BackspaceAcknowledgement::forward_deletion:
                 return;
-            case BackspaceAcknowledgement::consume_sentinel_fast: {
-                event.filterAndAccept();
-                const std::uint64_t sequence =
-                    backend_.finishAcknowledgedReplacement();
-                direct_controller_.complete(sequence, sequence != 0);
-                if (backend_.initialBackspacePending()) {
-                    startPendingAcknowledgedReplacement();
-                }
-                return;
-            }
-            case BackspaceAcknowledgement::consume_sentinel_guarded:
-                event.filterAndAccept();
-                return;
             case BackspaceAcknowledgement::unexpected:
                 event.filterAndAccept();
                 direct_controller_.timeout(
@@ -195,10 +176,9 @@ void InputContextState::reset()
 {
     // Some clients reset the input context after each synthetic Backspace.
     // A real deactivation uses focusReset(), so only those protocol-local
-    // resets are ignored while the bounded batch is returning.
-    if ((backend_.acknowledgedDeletionPending() &&
-         !backend_.initialBackspacePending()) ||
-        backend_.fastSentinelReleasePending()) {
+    // resets are ignored while the bounded deletion sequence is returning.
+    if (backend_.acknowledgedDeletionPending() &&
+        !backend_.initialBackspacePending()) {
         return;
     }
     focusReset();

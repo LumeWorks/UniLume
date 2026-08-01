@@ -14,14 +14,14 @@ cursor. Application identity never bypasses these checks.
 
 Fcitx `dbus`, `wayland`, and `wayland_v2` are split transports. With the
 Backspace-only uinput device available, the backend dispatches the required
-deletion Backspaces plus one sentinel after the physical triggering key is
-released in one bounded kernel write. The transaction tracks dispatched press/release
-events to consume the sentinel, duplicate events, or cancelled remnants.
+deletion Backspaces sequentially after the physical triggering key is released.
+The final deletion release is the commit boundary. The transaction tracks press/release
+events to consume duplicate events or cancelled remnants.
 Shortcuts arriving before dispatch cancel safely; shortcuts arriving after dispatch
 pass through immediately, fence context, and leave remnants to be consumed.
 
-`DirectStrategy=Fast` is the default and commits text at sentinel press.
-`Guarded` is an opt-in strategy that commits at sentinel release while verifying
+`DirectStrategy=Fast` is the default and commits text at the final deletion release.
+`Guarded` is an opt-in strategy that also verifies
 a refreshed surrounding snapshot when the frontend has published it; neither
 strategy is a claim of transport atomicity.
 

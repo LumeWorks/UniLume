@@ -55,8 +55,6 @@ public:
     [[nodiscard]] BackspaceAcknowledgement acknowledgeBackspace();
     [[nodiscard]] BackspaceReleaseAcknowledgement
     acknowledgeBackspaceRelease();
-    [[nodiscard]] bool consumeFastSentinelRelease();
-    [[nodiscard]] bool fastSentinelReleasePending() const;
     [[nodiscard]] bool consumeCancelledBackspace(bool release);
     [[nodiscard]] bool consumeUncertainDispatch();
     [[nodiscard]] bool poisoned() const;
@@ -73,7 +71,6 @@ private:
     AcknowledgedBackspaceTransaction acknowledged_transaction_;
     bool initial_backspace_pending_{};
     bool guarded_snapshot_ready_{};
-    bool fast_sentinel_release_pending_{};
     std::size_t cancelled_backspace_presses_{};
     bool cancelled_backspace_release_pending_{};
     bool uncertain_dispatch_{};

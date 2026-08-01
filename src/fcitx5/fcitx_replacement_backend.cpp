@@ -261,12 +261,10 @@ bool FcitxReplacementBackend::startAcknowledgedReplacement()
         return false;
     }
     initial_backspace_pending_ = false;
-    const std::size_t press_count =
-        acknowledged_transaction_.pressesToDispatch();
     const UinputBatchWriteStatus write_status =
-        uinput_device_.emitBackspaces(press_count);
+        uinput_device_.emitBackspaces(1);
     if (write_status == UinputBatchWriteStatus::complete) {
-        acknowledged_transaction_.markPressesDispatched(press_count);
+        acknowledged_transaction_.markPressDispatched();
         return true;
     }
     if (write_status == UinputBatchWriteStatus::partial) {
@@ -285,19 +283,20 @@ BackspaceAcknowledgement FcitxReplacementBackend::acknowledgeBackspace()
 BackspaceReleaseAcknowledgement
 FcitxReplacementBackend::acknowledgeBackspaceRelease()
 {
-    return acknowledged_transaction_.acknowledgeRelease();
-}
-
-bool FcitxReplacementBackend::consumeFastSentinelRelease()
-{
-    const bool pending = fast_sentinel_release_pending_;
-    fast_sentinel_release_pending_ = false;
-    return pending;
-}
-
-bool FcitxReplacementBackend::fastSentinelReleasePending() const
-{
-    return fast_sentinel_release_pending_;
+    const BackspaceReleaseAcknowledgement acknowledgement =
+        acknowledged_transaction_.acknowledgeRelease();
+    if (acknowledgement != BackspaceReleaseAcknowledgement::emit_next) {
+        return acknowledgement;
+    }
+    const UinputBatchWriteStatus write_status =
+        uinput_device_.emitBackspaces(1);
+    if (write_status == UinputBatchWriteStatus::complete) {
+        acknowledged_transaction_.markPressDispatched();
+    } else {
+        uncertain_dispatch_ = true;
+        poisoned_ = true;
+    }
+    return acknowledgement;
 }
 
 bool FcitxReplacementBackend::consumeCancelledBackspace(bool release)
@@ -362,8 +361,6 @@ std::uint64_t FcitxReplacementBackend::finishAcknowledgedReplacement()
         acknowledged_transaction_.sequenceId();
     const std::string commit_text(
         acknowledged_transaction_.commitText());
-    fast_sentinel_release_pending_ =
-        strategy_ == DirectStrategy::fast;
     acknowledged_transaction_.clear();
     if (!commit_text.empty()) {
         input_context_.commitString(commit_text);

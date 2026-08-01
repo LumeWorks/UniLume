@@ -1,7 +1,7 @@
 Source: unilume
 Section: utils
 Priority: optional
-Maintainer: Lê Hùng Quang Minh <dismonjames@gmail.com>
+Maintainer: Lê Hùng Quang Minh <lehungquangminh2011@gmail.com>
 Build-Depends: cmake (>= 3.16),
                debhelper-compat (= 13),
                pkg-config, gettext,
