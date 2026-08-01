@@ -51,6 +51,12 @@ jobs:
       matrix:
         arch: [amd64]
     steps:
+      - name: Install checkout prerequisites
+        shell: bash
+        run: |
+          apt-get update -qq
+          apt-get install -y ca-certificates git
+
       - name: Checkout
         uses: actions/checkout@v6
         with:
