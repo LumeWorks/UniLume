@@ -12,6 +12,7 @@ if [[ ! -f "${project_root}/vendor/fcitx5/CMakeLists.txt" ]]; then
     echo "Pinned Fcitx source is missing" >&2
     exit 2
 fi
+"${project_root}/scripts/verify-fcitx-pin.sh"
 
 mkdir -p "${output_dir}"
 cd "${work_dir}"

@@ -14,6 +14,7 @@ if [[ ! -f "${fcitx_source}/CMakeLists.txt" ]]; then
     echo "vendor/fcitx5 is missing; run: git submodule update --init --recursive" >&2
     exit 2
 fi
+"${project_root}/scripts/verify-fcitx-pin.sh"
 
 cmake -S "${fcitx_source}" -B "${fcitx_build}" -GNinja \
     -DCMAKE_BUILD_TYPE=Release \
