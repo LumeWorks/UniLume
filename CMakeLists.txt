@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.16)
 
 project(
   UniLume
-  VERSION 0.1.0
+  VERSION 0.1.1
   DESCRIPTION "Bộ gõ tiếng Việt hiện đại, nhẹ và nhanh cho Linux, phát triển trực tiếp từ lõi UniKey."
   LANGUAGES CXX
 )

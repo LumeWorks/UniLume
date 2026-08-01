@@ -3,7 +3,7 @@
 %global srcname unilume
 
 Name:           unilume
-Version:        0.1.0
+Version:        0.1.1
 Release:        1%{?dist}
 Summary:        Modern, lightweight Vietnamese input method for Linux
 
@@ -57,6 +57,10 @@ Features:
 /usr/lib/udev/rules.d/70-unilume-uinput.rules
 
 %changelog
+* Sat Aug 01 2026 Lê Hùng Quang Minh <lehungquangminh2011@gmail.com> - 0.1.1-1
+- Ship the pinned Fcitx atomic zero-preedit product stack.
+- Verify coordinated Debian packages and portable checksums.
+
 * Sat Aug 01 2026 Lê Hùng Quang Minh <lehungquangminh2011@gmail.com> - 0.1.0-1
 - Promote the tested rc2 input and packaging fixes to the first stable release.
 - Standardize organization production builds on CMake and CTest.

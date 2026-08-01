@@ -1,3 +1,10 @@
+unilume (0.1.1-1) stable; urgency=medium
+
+  * Ship automatic atomic zero-preedit replacement with pinned Fcitx 5.1.12.
+  * Publish coordinated, ABI-qualified Debian packages and checksums.
+
+ -- Lê Hùng Quang Minh <lehungquangminh2011@gmail.com>  Sat, 01 Aug 2026 23:30:00 +0700
+
 unilume (0.1.0-1) unstable; urgency=medium
 
   * Promote the tested rc2 input and packaging fixes to the first stable release.
