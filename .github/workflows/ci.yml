@@ -42,34 +42,13 @@ jobs:
             echo "CXX=clang++" >> "$GITHUB_ENV"
           fi
 
-      - name: Install Cippie
-        shell: bash
+      - name: Configure with CMake
         run: |
-          curl --fail --silent --show-error --location \
-            --retry 5 --retry-all-errors --retry-delay 2 \
-            https://raw.githubusercontent.com/dismonjames/cippie/main/scripts/install.sh \
-            --output "$RUNNER_TEMP/cippie-install.sh"
-          bash "$RUNNER_TEMP/cippie-install.sh"
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          cmake -S . -B build/ci -G Ninja \
+            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
 
-      - name: Build with Cippie
-        shell: bash
-        run: |
-          BUILD_FLAG=""
-          if [[ "${{ matrix.build_type }}" == "Release" ]]; then
-            BUILD_FLAG="--release"
-          else
-            BUILD_FLAG="--debug"
-          fi
-          cippie build ${BUILD_FLAG}
+      - name: Build
+        run: cmake --build build/ci --parallel 2
 
-      - name: Test with Cippie
-        shell: bash
-        run: |
-          BUILD_FLAG=""
-          if [[ "${{ matrix.build_type }}" == "Release" ]]; then
-            BUILD_FLAG="--release"
-          else
-            BUILD_FLAG="--debug"
-          fi
-          cippie test ${BUILD_FLAG}
+      - name: Test
+        run: ctest --test-dir build/ci --output-on-failure

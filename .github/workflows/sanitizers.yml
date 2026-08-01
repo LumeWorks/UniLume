@@ -22,27 +22,24 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install Cippie
-        shell: bash
-        run: |
-          curl --fail --silent --show-error --location \
-            --retry 5 --retry-all-errors --retry-delay 2 \
-            https://raw.githubusercontent.com/dismonjames/cippie/main/scripts/install.sh \
-            --output "$RUNNER_TEMP/cippie-install.sh"
-          bash "$RUNNER_TEMP/cippie-install.sh"
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-
-      - name: Build with Cippie
+      - name: Configure AddressSanitizer and UndefinedBehaviorSanitizer build
         env:
           CC: gcc
           CXX: g++
-        run: cippie build --debug
+        run: |
+          cmake -S . -B build/asan-ubsan -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DUNILUME_ENABLE_ASAN=ON \
+            -DUNILUME_ENABLE_UBSAN=ON
 
-      - name: Test with Cippie
+      - name: Build
+        run: cmake --build build/asan-ubsan --parallel 2
+
+      - name: Test
         env:
           ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
           UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
-        run: cippie test --debug
+        run: ctest --test-dir build/asan-ubsan --output-on-failure
 
   tsan:
     name: tsan
