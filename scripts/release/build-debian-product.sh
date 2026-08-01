@@ -71,4 +71,8 @@ cp ../unilume_*.deb "${output_dir}/"
 for package in "${output_dir}"/*.deb; do
     dpkg-deb --info "${package}" >/dev/null
 done
-sha256sum "${output_dir}"/*.deb > "${output_dir}/SHA256SUMS"
+(
+    cd "${output_dir}"
+    sha256sum ./*.deb > SHA256SUMS
+    sha256sum --check SHA256SUMS
+)
