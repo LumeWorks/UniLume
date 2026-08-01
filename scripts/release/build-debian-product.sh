@@ -4,7 +4,12 @@
 set -euo pipefail
 
 project_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
-output_dir=${1:-"${project_root}/dist/packages/deb"}
+requested_output=${1:-"dist/packages/deb"}
+if [[ "${requested_output}" = /* ]]; then
+    output_dir=${requested_output}
+else
+    output_dir="${project_root}/${requested_output}"
+fi
 work_dir=$(mktemp -d)
 trap 'rm -rf "${work_dir}"' EXIT
 
