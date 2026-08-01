@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 pkgname=unilume
-pkgver=0.1.0rc1
+pkgver=0.1.0rc2
 pkgrel=1
 pkgdesc="Modern, lightweight Vietnamese input method for Linux"
 arch=('x86_64' 'aarch64')
