@@ -4,7 +4,7 @@
 
 Name:           unilume
 Version:        0.1.0
-Release:        0.rc2.1%{?dist}
+Release:        1%{?dist}
 Summary:        Modern, lightweight Vietnamese input method for Linux
 
 License:        GPL-2.0-or-later AND LGPL-2.0-or-later
@@ -57,6 +57,10 @@ Features:
 /usr/lib/udev/rules.d/70-unilume-uinput.rules
 
 %changelog
+* Sat Aug 01 2026 Lê Hùng Quang Minh <dismonjames@gmail.com> - 0.1.0-1
+- Promote the tested rc2 input and packaging fixes to the first stable release.
+- Standardize organization production builds on CMake and CTest.
+
 * Sat Aug 01 2026 Lê Hùng Quang Minh <dismonjames@gmail.com> - 0.1.0-0.rc2.1
 - Fix direct-input shortcut handling and fast unchanged-text passthrough.
 - Fix release packaging, optional signing, and CI qualification gates.

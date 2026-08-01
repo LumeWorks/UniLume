@@ -25,7 +25,7 @@ set(UNILUME_VERSION_INCLUDED TRUE)
 set(UNILUME_VERSION_MAJOR 0)
 set(UNILUME_VERSION_MINOR 1)
 set(UNILUME_VERSION_PATCH 0)
-set(UNILUME_VERSION_TWEAK "rc2")   # empty for stable; e.g. "rc1", "rc2"
+set(UNILUME_VERSION_TWEAK "")   # empty for stable; e.g. "rc1", "rc2"
 
 # ---- Derived ----
 if(UNILUME_VERSION_TWEAK STREQUAL "")
