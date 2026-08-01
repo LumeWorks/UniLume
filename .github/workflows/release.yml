@@ -44,20 +44,26 @@ jobs:
     name: Build Debian packages
     needs: prepare-release
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    container:
+      image: debian:trixie
+    timeout-minutes: 45
     strategy:
       matrix:
         arch: [amd64]
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          submodules: recursive
 
       - name: Install build deps
         shell: bash
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y \
-            build-essential cmake g++ pkg-config gettext libfcitx5core-dev libfcitx5config-dev fcitx5-modules-dev debhelper dpkg-dev
+          sed -i 's/^Types: deb$/Types: deb deb-src/' /etc/apt/sources.list.d/debian.sources
+          apt-get update -qq
+          apt-get install -y \
+            build-essential devscripts equivs rsync python3
+          apt-get build-dep -y fcitx5
 
       - name: Get version
         shell: bash
@@ -69,10 +75,7 @@ jobs:
       - name: Build and Package .deb
         shell: bash
         run: |
-          cp -r packaging/debian .
-          dpkg-buildpackage -b -uc -us
-          mkdir -p dist/packages
-          cp ../*.deb dist/packages/
+          scripts/release/build-debian-product.sh dist/packages/deb
 
       - name: Upload GitHub Release asset
         env:
@@ -82,14 +85,15 @@ jobs:
         run: |
           gh release upload "${{ needs.prepare-release.outputs.tag }}" \
             --repo "$GH_REPO" \
-            dist/packages/*.deb \
+            dist/packages/deb/*.deb \
+            dist/packages/deb/SHA256SUMS \
             --clobber
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: deb
-          path: dist/packages/*.deb
+          path: dist/packages/deb/
 
   build-rpm:
     name: Build RPM packages
