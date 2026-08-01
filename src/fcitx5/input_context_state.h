@@ -7,6 +7,7 @@
 #include "dictionary_contract.h"
 #include "fcitx_replacement_backend.h"
 #include "input_mode_policy.h"
+#include "preedit_fallback_controller.h"
 #include "macro_contract.h"
 #include "keymap_contract.h"
 #include "application_policy.h"
@@ -64,10 +65,17 @@ private:
     void compositionBoundary();
     void startPendingAcknowledgedReplacement();
     void synchronizeMode();
+    void handlePreeditEvent(fcitx::KeyEvent &event,
+                            const MappedKey &mapped,
+                            std::uint64_t started_at_ns);
+    void commitPendingPreedit();
+    void updatePreedit();
+    void clearPreedit();
 
     fcitx::InputContext &input_context_;
     FcitxReplacementBackend backend_;
     core::DirectCommitController direct_controller_;
+    core::PreeditFallbackController preedit_controller_;
     platform::InputModePolicy mode_policy_;
     DiagnosticTrace diagnostics_;
     UlInputMethod input_method_{UL_INPUT_METHOD_TELEX};
@@ -80,7 +88,7 @@ private:
     bool direct_replacement_available_{};
     DirectStrategy direct_strategy_{DirectStrategy::fast};
     policy::ApplicationMode policy_mode_{
-        policy::ApplicationMode::direct};
+        policy::ApplicationMode::automatic};
     policy::ResolutionSource policy_source_{
         policy::ResolutionSource::missing_identity};
     std::optional<policy::ApplicationMode> application_mode_override_;

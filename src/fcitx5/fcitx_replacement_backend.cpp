@@ -12,6 +12,36 @@
 
 namespace unilume::fcitx5 {
 
+bool FcitxReplacementBackend::atomicReplacementAvailable() const
+{
+#if UNILUME_HAVE_FCITX_ATOMIC_REPLACEMENT
+    const auto *atomic = dynamic_cast<
+        const fcitx::AtomicSurroundingTextInputContext *>(&input_context_);
+    return atomic &&
+           atomic->supportsAtomicSurroundingTextReplacement();
+#else
+    return false;
+#endif
+}
+
+bool FcitxReplacementBackend::requestAtomicReplacement(
+    std::int32_t delete_before_cursor,
+    std::string_view commit_text)
+{
+#if UNILUME_HAVE_FCITX_ATOMIC_REPLACEMENT
+    auto *atomic = dynamic_cast<
+        fcitx::AtomicSurroundingTextInputContext *>(&input_context_);
+    return atomic && atomic->replaceSurroundingTextAtomically(
+        -delete_before_cursor,
+        static_cast<unsigned int>(delete_before_cursor),
+        std::string(commit_text));
+#else
+    (void)delete_before_cursor;
+    (void)commit_text;
+    return false;
+#endif
+}
+
 FcitxReplacementBackend::FcitxReplacementBackend(
     fcitx::InputContext &input_context,
     UinputBackspaceDevice &uinput_device)
@@ -27,13 +57,21 @@ bool FcitxReplacementBackend::supportsDirectReplacement() const
     observation_.surrounding_available =
         input_context_.capabilityFlags().test(
             fcitx::CapabilityFlag::SurroundingText);
-    observation_.atomic_transport = replacementTransportIsAtomic(
-        input_context_.frontendName());
+    observation_.atomic_transport = atomicReplacementAvailable();
     observation_.acknowledged_uinput =
         !observation_.atomic_transport && uinput_device_.available();
     if (poisoned_) {
         verified_ticket_.clear();
         return false;
+    }
+    if (observation_.atomic_transport &&
+        !observation_.surrounding_available) {
+        observation_.surrounding_bytes = 0;
+        observation_.cursor_valid = true;
+        observation_.within_resource_limit = true;
+        observation_.utf8_valid = true;
+        verified_ticket_.clear();
+        return true;
     }
     if (observation_.acknowledged_uinput) {
         observation_.surrounding_bytes = 0;
@@ -72,20 +110,31 @@ bool FcitxReplacementBackend::canReplace(
     observation_.surrounding_available =
         input_context_.capabilityFlags().test(
             fcitx::CapabilityFlag::SurroundingText);
-    observation_.atomic_transport = replacementTransportIsAtomic(
-        input_context_.frontendName());
+    observation_.atomic_transport = atomicReplacementAvailable();
     observation_.acknowledged_uinput =
         !observation_.atomic_transport && uinput_device_.available();
     observation_.cursor_valid = false;
     observation_.utf8_valid = false;
     observation_.within_resource_limit = false;
     if (delete_before_cursor < 0 ||
-        (!observation_.acknowledged_uinput &&
+        (!observation_.atomic_transport &&
+         !observation_.acknowledged_uinput &&
          !observation_.surrounding_available)) {
         verified_ticket_.clear();
         return false;
     }
     if (observation_.acknowledged_uinput) {
+        observation_.surrounding_bytes = 0;
+        observation_.cursor_valid = true;
+        observation_.within_resource_limit =
+            delete_before_cursor <= static_cast<std::int32_t>(
+                AcknowledgedBackspaceTransaction::maximum_deletions);
+        observation_.utf8_valid = true;
+        verified_ticket_.clear();
+        return observation_.within_resource_limit;
+    }
+    if (observation_.atomic_transport &&
+        !observation_.surrounding_available) {
         observation_.surrounding_bytes = 0;
         observation_.cursor_valid = true;
         observation_.within_resource_limit =
@@ -152,13 +201,8 @@ FcitxReplacementBackend::requestReplacement(
         initial_backspace_pending_ = true;
         return platform::ReplacementStatus::pending;
     }
-    if (delete_count != 0) {
-        input_context_.deleteSurroundingText(
-            -delete_before_cursor,
-            static_cast<unsigned int>(delete_count));
-    }
-    if (!commit_text.empty()) {
-        input_context_.commitString(std::string(commit_text));
+    if (!requestAtomicReplacement(delete_before_cursor, commit_text)) {
+        return platform::ReplacementStatus::failed;
     }
     last_sequence_id_ = sequence_id;
     return platform::ReplacementStatus::completed;
@@ -285,8 +329,7 @@ FcitxReplacementBackend::acknowledgeBackspaceRelease()
 {
     const BackspaceReleaseAcknowledgement acknowledgement =
         acknowledged_transaction_.acknowledgeRelease();
-    if (acknowledgement !=
-        BackspaceReleaseAcknowledgement::forward_deletion) {
+    if (acknowledgement != BackspaceReleaseAcknowledgement::emit_next) {
         return acknowledgement;
     }
     const UinputBatchWriteStatus write_status =
@@ -298,18 +341,6 @@ FcitxReplacementBackend::acknowledgeBackspaceRelease()
         poisoned_ = true;
     }
     return acknowledgement;
-}
-
-bool FcitxReplacementBackend::consumeFastSentinelRelease()
-{
-    const bool pending = fast_sentinel_release_pending_;
-    fast_sentinel_release_pending_ = false;
-    return pending;
-}
-
-bool FcitxReplacementBackend::fastSentinelReleasePending() const
-{
-    return fast_sentinel_release_pending_;
 }
 
 bool FcitxReplacementBackend::consumeCancelledBackspace(bool release)
@@ -374,8 +405,6 @@ std::uint64_t FcitxReplacementBackend::finishAcknowledgedReplacement()
         acknowledged_transaction_.sequenceId();
     const std::string commit_text(
         acknowledged_transaction_.commitText());
-    fast_sentinel_release_pending_ =
-        strategy_ == DirectStrategy::fast;
     acknowledged_transaction_.clear();
     if (!commit_text.empty()) {
         input_context_.commitString(commit_text);

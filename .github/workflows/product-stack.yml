@@ -1,0 +1,58 @@
+name: Product stack
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  atomic-fcitx-unilume:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake ninja-build extra-cmake-modules gettext pkg-config ripgrep \
+            libdbus-1-dev libfmt-dev libsystemd-dev libuv1-dev uuid-dev \
+            libxkbcommon-dev libwayland-dev wayland-protocols \
+            libcairo2-dev libpango1.0-dev libgdk-pixbuf-2.0-dev \
+            librsvg2-dev libjson-c-dev libexpat1-dev libenchant-2-dev iso-codes \
+            libxcb-util-dev libxcb-xkb-dev libxcb-xfixes0-dev \
+            libxcb-shape0-dev libxcb-icccm4-dev libxcb-xinerama0-dev \
+            libxcb-randr0-dev libxcb-ewmh-dev libxcb-keysyms1-dev \
+            libxcb-imdkit-dev libxkbcommon-x11-dev libxkbfile-dev
+      - name: Build pinned Fcitx and UniLume
+        run: scripts/build-product.sh
+
+  debian-product-packages:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    container:
+      image: debian:trixie
+    steps:
+      - name: Install checkout prerequisites
+        run: |
+          apt-get update -qq
+          apt-get install -y ca-certificates git
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install Debian source build dependencies
+        run: |
+          sed -i 's/^Types: deb$/Types: deb deb-src/' /etc/apt/sources.list.d/debian.sources
+          apt-get update -qq
+          apt-get install -y build-essential devscripts equivs rsync python3
+          apt-get build-dep -y fcitx5
+      - name: Build installable atomic stack
+        run: scripts/release/build-debian-product.sh dist/packages/deb
+      - uses: actions/upload-artifact@v4
+        with:
+          name: unilume-atomic-debian-stack
+          path: dist/packages/deb/

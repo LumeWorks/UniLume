@@ -32,11 +32,11 @@ bool validPattern(std::string_view pattern)
 bool parseMode(std::string_view text, ApplicationMode &mode)
 {
     if (text == "automatic") {
-        mode = ApplicationMode::direct;
+        mode = ApplicationMode::automatic;
     } else if (text == "direct") {
         mode = ApplicationMode::direct;
     } else if (text == "safe-preedit") {
-        mode = ApplicationMode::off;
+        mode = ApplicationMode::safe_preedit;
     } else if (text == "off") {
         mode = ApplicationMode::off;
     } else {
@@ -62,14 +62,15 @@ bool prefixLess(const Rule &left, const Rule &right)
 
 std::string_view modeName(ApplicationMode mode)
 {
-    switch (normalizeMode(mode)) {
+    switch (mode) {
+    case ApplicationMode::automatic:
+        return "automatic";
     case ApplicationMode::direct:
         return "direct";
+    case ApplicationMode::safe_preedit:
+        return "safe-preedit";
     case ApplicationMode::off:
         return "off";
-    case ApplicationMode::automatic:
-    case ApplicationMode::safe_preedit:
-        break;
     }
     return {};
 }
@@ -239,7 +240,7 @@ Resolution resolve(const Snapshot &snapshot,
                    std::string_view application_identity)
 {
     if (!snapshot.table || application_identity.empty()) {
-        return {ApplicationMode::direct,
+        return {ApplicationMode::automatic,
                 ResolutionSource::missing_identity, {}};
     }
     const Table &table = *snapshot.table;
@@ -251,16 +252,16 @@ Resolution resolve(const Snapshot &snapshot,
         });
     if (exact != table.exact_rules.end() &&
         exact->pattern == application_identity) {
-        return {normalizeMode(exact->mode),
+        return {exact->mode,
                 ResolutionSource::exact_rule, exact->pattern};
     }
     for (const Rule &rule : table.prefix_rules) {
         if (application_identity.starts_with(rule.pattern)) {
-            return {normalizeMode(rule.mode),
+            return {rule.mode,
                     ResolutionSource::prefix_rule, rule.pattern};
         }
     }
-    return {normalizeMode(table.default_mode),
+    return {table.default_mode,
             ResolutionSource::default_rule, {}};
 }
 

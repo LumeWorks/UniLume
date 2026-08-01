@@ -281,13 +281,25 @@ msgstr ""
 msgid "Search Fcitx emoji data without network access"
 msgstr ""
 
+msgid "Automatic"
+msgstr ""
+
 msgid "Direct"
+msgstr ""
+
+msgid "Safe preedit"
 msgstr ""
 
 msgid "Off"
 msgstr ""
 
 msgid "UniLume mode"
+msgstr ""
+
+msgid "Automatic - Atomic direct"
+msgstr ""
+
+msgid "Automatic - Atomic replacement unavailable"
 msgstr ""
 
 msgid "Direct unavailable - Passthrough"

@@ -1,8 +1,12 @@
 # Verified direct replacement backend
 
-Issues #48, #102, and #107 define the two transports of the single in-process
-Fcitx replacement backend. The active ownership decision is
-[ADR 0005](adr/0005-direct-only-fcitx-runtime.md).
+Issues #48, #102, and #107 define the replacement backend. Automatic ownership
+is defined by [ADR 0006](adr/0006-atomic-fcitx-replacement.md).
+
+`automatic` accepts only `AtomicSurroundingTextInputContext`: batched D-Bus or
+single-commit Wayland from the pinned LumeWorks Fcitx fork. It never selects
+uinput or preedit. A missing capability is visible passthrough. The legacy
+split-transport behavior below applies only when the user selects `direct`.
 
 ## Eligibility
 
@@ -14,14 +18,14 @@ cursor. Application identity never bypasses these checks.
 
 Fcitx `dbus`, `wayland`, and `wayland_v2` are split transports. With the
 Backspace-only uinput device available, the backend dispatches the required
-deletion Backspaces plus one sentinel after the physical triggering key is
-released, with at most one synthetic key pair in flight. The transaction tracks dispatched press/release
-events to consume the sentinel, duplicate events, or cancelled remnants.
+deletion Backspaces sequentially after the physical triggering key is released.
+The final deletion release is the commit boundary. The transaction tracks press/release
+events to consume duplicate events or cancelled remnants.
 Shortcuts arriving before dispatch cancel safely; shortcuts arriving after dispatch
 pass through immediately, fence context, and leave remnants to be consumed.
 
-`DirectStrategy=Fast` is the default and commits text at sentinel press.
-`Guarded` is an opt-in strategy that commits at sentinel release while verifying
+`DirectStrategy=Fast` is the default and commits text at the final deletion release.
+`Guarded` is an opt-in strategy that also verifies
 a refreshed surrounding snapshot when the frontend has published it; neither
 strategy is a claim of transport atomicity.
 

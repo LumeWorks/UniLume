@@ -55,8 +55,6 @@ public:
     [[nodiscard]] BackspaceAcknowledgement acknowledgeBackspace();
     [[nodiscard]] BackspaceReleaseAcknowledgement
     acknowledgeBackspaceRelease();
-    [[nodiscard]] bool consumeFastSentinelRelease();
-    [[nodiscard]] bool fastSentinelReleasePending() const;
     [[nodiscard]] bool consumeCancelledBackspace(bool release);
     [[nodiscard]] bool consumeUncertainDispatch();
     [[nodiscard]] bool poisoned() const;
@@ -64,6 +62,11 @@ public:
     [[nodiscard]] std::uint64_t finishAcknowledgedReplacement();
 
 private:
+    [[nodiscard]] bool atomicReplacementAvailable() const;
+    [[nodiscard]] bool requestAtomicReplacement(
+        std::int32_t delete_before_cursor,
+        std::string_view commit_text);
+
     fcitx::InputContext &input_context_;
     UinputBackspaceDevice &uinput_device_;
     std::uint64_t last_sequence_id_{};
@@ -73,7 +76,6 @@ private:
     AcknowledgedBackspaceTransaction acknowledged_transaction_;
     bool initial_backspace_pending_{};
     bool guarded_snapshot_ready_{};
-    bool fast_sentinel_release_pending_{};
     std::size_t cancelled_backspace_presses_{};
     bool cancelled_backspace_release_pending_{};
     bool uncertain_dispatch_{};

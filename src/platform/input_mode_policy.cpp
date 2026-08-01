@@ -6,13 +6,12 @@ namespace unilume::platform {
 
 InputPath InputModePolicy::observe(bool direct_available)
 {
-    return observe(policy::ApplicationMode::direct, direct_available);
+    return observe(policy::ApplicationMode::automatic, direct_available);
 }
 
 InputPath InputModePolicy::observe(policy::ApplicationMode requested,
                                    bool direct_available)
 {
-    requested = policy::normalizeMode(requested);
     if (requested != requested_) {
         path_ = InputPath::unknown;
         requested_ = requested;
@@ -21,7 +20,26 @@ InputPath InputModePolicy::observe(policy::ApplicationMode requested,
         path_ = InputPath::off;
         return path_;
     }
-    path_ = direct_available ? InputPath::direct : InputPath::off;
+    if (requested == policy::ApplicationMode::safe_preedit) {
+        path_ = InputPath::preedit;
+        return path_;
+    }
+    if (requested == policy::ApplicationMode::direct) {
+        path_ = direct_available ? InputPath::direct : InputPath::off;
+        return path_;
+    }
+    // Automatic is zero-preedit. Keep direct or passthrough ownership until
+    // a boundary so capability changes cannot mix frontend and engine text.
+    if (path_ == InputPath::off) {
+        return path_;
+    }
+    if (path_ == InputPath::direct && !direct_available) {
+        path_ = InputPath::off;
+        return path_;
+    }
+    if (path_ == InputPath::unknown) {
+        path_ = direct_available ? InputPath::direct : InputPath::off;
+    }
     return path_;
 }
 
@@ -35,7 +53,7 @@ void InputModePolicy::resetForCompositionEnd()
 void InputModePolicy::reset()
 {
     path_ = InputPath::unknown;
-    requested_ = policy::ApplicationMode::direct;
+    requested_ = policy::ApplicationMode::automatic;
 }
 
 InputPath InputModePolicy::path() const

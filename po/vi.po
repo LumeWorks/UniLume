@@ -314,14 +314,27 @@ msgstr "Xóa danh sách emoji dùng gần đây được giới hạn trên máy
 msgid "Search Fcitx emoji data without network access"
 msgstr "Tìm dữ liệu emoji của Fcitx mà không truy cập mạng"
 
+msgid "Automatic"
+msgstr "Tự động"
+
 msgid "Direct"
 msgstr "Trực tiếp"
+
+msgid "Safe preedit"
+msgstr "Preedit an toàn"
 
 msgid "Off"
 msgstr "Tắt"
 
 msgid "UniLume mode"
 msgstr "Chế độ UniLume"
+
+#, fuzzy
+msgid "Automatic - Atomic direct"
+msgstr "Tự động · Trực tiếp nguyên tử"
+
+msgid "Automatic - Atomic replacement unavailable"
+msgstr "Tự động · Không có thay thế nguyên tử"
 
 msgid "Direct unavailable - Passthrough"
 msgstr "Direct không khả dụng - Cho phím đi qua"
@@ -467,14 +480,8 @@ msgstr "Bật hoặc tắt chính sách từ điển cá nhân"
 msgid "UniLume status action"
 msgstr "Tác vụ trạng thái UniLume"
 
-#~ msgid "Automatic"
-#~ msgstr "Tự động"
-
-#~ msgid "Safe preedit"
-#~ msgstr "Preedit an toàn"
-
-#~ msgid "Automatic - Direct"
-#~ msgstr "Tự động · Trực tiếp"
+#~ msgid "Automatic - No-format composition"
+#~ msgstr "Tự động · Soạn thảo không định dạng"
 
 #~ msgid "Automatic - Safe preedit"
 #~ msgstr "Tự động · Preedit an toàn"

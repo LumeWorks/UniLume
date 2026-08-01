@@ -12,12 +12,12 @@ void runInputModePolicyTests(Assertions &assertions)
     platform::InputModePolicy unavailable_at_start;
     unavailable_at_start.observe(false);
     assertions.truth(
-        "unavailable direct backend selects passthrough",
+        "automatic without atomic backend selects passthrough",
         unavailable_at_start.path() == platform::InputPath::off);
     unavailable_at_start.observe(true);
     assertions.truth(
-        "restored direct backend is selected immediately",
-        unavailable_at_start.path() == platform::InputPath::direct);
+        "restored direct backend keeps passthrough owner",
+        unavailable_at_start.path() == platform::InputPath::off);
 
     // -- Between compositions, re-evaluation can upgrade --
     unavailable_at_start.resetForCompositionEnd();
@@ -40,8 +40,8 @@ void runInputModePolicyTests(Assertions &assertions)
         direct_at_start.path() == platform::InputPath::off);
     direct_at_start.observe(true);
     assertions.truth(
-        "capability restoration selects direct without preedit",
-        direct_at_start.path() == platform::InputPath::direct);
+        "capability restoration keeps passthrough path",
+        direct_at_start.path() == platform::InputPath::off);
 
     // -- Between compositions, re-evaluation re-promotes --
     direct_at_start.resetForCompositionEnd();
@@ -65,8 +65,8 @@ void runInputModePolicyTests(Assertions &assertions)
     platform::InputModePolicy explicit_modes;
     explicit_modes.observe(policy::ApplicationMode::safe_preedit, true);
     assertions.truth(
-        "legacy safe preedit maps to off",
-        explicit_modes.path() == platform::InputPath::off);
+        "safe preedit selects recognizable composition",
+        explicit_modes.path() == platform::InputPath::preedit);
     explicit_modes.observe(policy::ApplicationMode::off, true);
     assertions.truth(
         "off mode bypasses both processing paths",
@@ -78,7 +78,7 @@ void runInputModePolicyTests(Assertions &assertions)
 
     explicit_modes.observe(policy::ApplicationMode::automatic, true);
     assertions.truth(
-        "legacy automatic maps to direct",
+        "automatic uses direct when atomic backend is available",
         explicit_modes.path() == platform::InputPath::direct);
     explicit_modes.resetForCompositionEnd();
     explicit_modes.observe(policy::ApplicationMode::direct, true);

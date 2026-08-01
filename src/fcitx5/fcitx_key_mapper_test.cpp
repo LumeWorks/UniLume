@@ -65,7 +65,8 @@ int main()
 
     for (const FcitxKeySym symbol : {
              FcitxKey_Tab, FcitxKey_Left, FcitxKey_Delete,
-             FcitxKey_Escape,
+             FcitxKey_Escape, FcitxKey_Print, FcitxKey_Sys_Req,
+             FcitxKey_F1, FcitxKey_AudioMute,
          }) {
         const fcitx::Key key(symbol);
         expect(mapKey(key, key).status == MappingStatus::shortcut_fence,
