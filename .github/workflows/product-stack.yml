@@ -30,3 +30,29 @@ jobs:
             libxcb-imdkit-dev libxkbcommon-x11-dev libxkbfile-dev
       - name: Build pinned Fcitx and UniLume
         run: scripts/build-product.sh
+
+  debian-product-packages:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    container:
+      image: debian:trixie
+    steps:
+      - name: Install checkout prerequisites
+        run: |
+          apt-get update -qq
+          apt-get install -y ca-certificates git
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install Debian source build dependencies
+        run: |
+          sed -i 's/^Types: deb$/Types: deb deb-src/' /etc/apt/sources.list.d/debian.sources
+          apt-get update -qq
+          apt-get install -y build-essential devscripts equivs rsync python3
+          apt-get build-dep -y fcitx5
+      - name: Build installable atomic stack
+        run: scripts/release/build-debian-product.sh dist/packages/deb
+      - uses: actions/upload-artifact@v4
+        with:
+          name: unilume-atomic-debian-stack
+          path: dist/packages/deb/
