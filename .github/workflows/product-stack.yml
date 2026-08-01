@@ -23,7 +23,7 @@ jobs:
             libdbus-1-dev libfmt-dev libsystemd-dev libuv1-dev uuid-dev \
             libxkbcommon-dev libwayland-dev wayland-protocols \
             libcairo2-dev libpango1.0-dev libgdk-pixbuf-2.0-dev \
-            librsvg2-dev libjson-c-dev libexpat1-dev iso-codes \
+            librsvg2-dev libjson-c-dev libexpat1-dev libenchant-2-dev iso-codes \
             libxcb-util-dev libxcb-xkb-dev libxcb-xfixes0-dev \
             libxcb-shape0-dev libxcb-icccm4-dev libxcb-xinerama0-dev \
             libxcb-randr0-dev libxcb-ewmh-dev libxcb-keysyms1-dev \
