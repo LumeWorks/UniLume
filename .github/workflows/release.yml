@@ -83,18 +83,6 @@ jobs:
         run: |
           scripts/release/build-debian-product.sh dist/packages/deb
 
-      - name: Upload GitHub Release asset
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-        shell: bash
-        run: |
-          gh release upload "${{ needs.prepare-release.outputs.tag }}" \
-            --repo "$GH_REPO" \
-            dist/packages/deb/*.deb \
-            dist/packages/deb/SHA256SUMS \
-            --clobber
-
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -146,17 +134,6 @@ jobs:
             -ba "${RPM_TOPDIR}/SPECS/unilume.spec"
           mkdir -p dist/packages
           cp "${RPM_TOPDIR}"/RPMS/*/*.rpm dist/packages/
-
-      - name: Upload GitHub Release asset
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-        shell: bash
-        run: |
-          gh release upload "${{ needs.prepare-release.outputs.tag }}" \
-            --repo "$GH_REPO" \
-            dist/packages/*.rpm \
-            --clobber
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -211,17 +188,6 @@ jobs:
           "
           mkdir -p "$GITHUB_WORKSPACE/dist/packages"
           cp packaging/arch/*.pkg.tar.zst "$GITHUB_WORKSPACE/dist/packages/"
-
-      - name: Upload GitHub Release asset
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-        shell: bash
-        run: |
-          gh release upload "${{ needs.prepare-release.outputs.tag }}" \
-            --repo "$GH_REPO" \
-            dist/packages/*.pkg.tar.zst \
-            --clobber
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -307,7 +273,8 @@ jobs:
               -name '*.rpm' -o \
               -name '*.pkg.tar.zst' -o \
               -name '*.tar.zst' -o \
-              -name '*.asc' \
+              -name '*.asc' -o \
+              -name 'SHA256SUMS*' \
             \) -print0 | sort -zu
           )
           if [[ "${#release_assets[@]}" -eq 0 ]]; then
