@@ -261,6 +261,11 @@ jobs:
           signed_any=0
           for dir in dist/packages/*/; do
             scripts/release/sign-all.sh "$dir"
+            package_family=$(basename "$dir")
+            if [[ -f "${dir}SHA256SUMS.asc" ]]; then
+              mv "${dir}SHA256SUMS.asc" \
+                "${dir}${package_family}-SHA256SUMS.asc"
+            fi
             signed_any=1
           done
           if [[ "$signed_any" -ne 1 ]]; then
