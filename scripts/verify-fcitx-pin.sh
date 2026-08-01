@@ -13,7 +13,8 @@ if ! git -C "${fcitx_source}" cat-file -e "${expected_base}^{commit}" 2>/dev/nul
     git -C "${fcitx_source}" fetch --depth=1 origin \
         refs/tags/5.1.12:refs/tags/5.1.12
 fi
-actual_base=$(git -C "${fcitx_source}" rev-parse HEAD^)
+actual_base=$(git -C "${fcitx_source}" cat-file -p HEAD | \
+    sed -n 's/^parent //p' | head -n1)
 if [[ "${actual_patch}" != "${expected_patch}" ||
       "${actual_base}" != "${expected_base}" ]]; then
     echo "Pinned Fcitx source does not match the reviewed 5.1.12 backport" >&2
@@ -22,7 +23,8 @@ if [[ "${actual_patch}" != "${expected_patch}" ||
     exit 5
 fi
 
-if [[ $(git -C "${fcitx_source}" describe --exact-match --tags HEAD^ 2>/dev/null) != "5.1.12" ]]; then
+tag_base=$(git -C "${fcitx_source}" rev-list -n1 5.1.12)
+if [[ "${tag_base}" != "${expected_base}" ]]; then
     echo "Pinned Fcitx base is not the signed 5.1.12 tag" >&2
     exit 6
 fi
