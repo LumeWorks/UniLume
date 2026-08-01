@@ -30,7 +30,19 @@ done
 # Generate checksums
 echo "Generating SHA256SUMS..."
 cd "$DIR"
-sha256sum ./*.deb ./*.rpm ./*.pkg.tar.zst ./*.tar.zst 2>/dev/null > SHA256SUMS
+mapfile -d '' packages < <(
+  find . -type f \( \
+    -name '*.deb' -o \
+    -name '*.rpm' -o \
+    -name '*.pkg.tar.zst' -o \
+    -name '*.tar.zst' \
+  \) -print0 | sort -z
+)
+if [[ "${#packages[@]}" -eq 0 ]]; then
+  echo "Error: no packages found in ${DIR}"
+  exit 1
+fi
+sha256sum "${packages[@]}" > SHA256SUMS
 SIGNING_KEY="${UNILUME_SIGNING_KEY:-}"
 if [[ -z "$SIGNING_KEY" ]]; then
   SIGNING_KEY="$(gpg --list-secret-keys --with-colons --batch 2>/dev/null | awk -F: '$1=="sec" {print $5; exit}')" || true

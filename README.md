@@ -35,18 +35,20 @@ coi là sẵn sàng để sử dụng hằng ngày.
 
 ## Build và test
 
-Luồng phát triển core dùng [Cippie](https://github.com/dismonjames/cippie) (đã kiểm tra với 0.1.6) và compiler C++23
-trên Linux. Cippie không cần CMake để build hoặc chạy test core, và build mặc
-định không tải dependency từ Internet.
+Luồng build production dùng CMake và CTest với compiler C++23 trên Linux. Khi
+dự án chuyển từ repository cá nhân sang organization, build chính thức được
+chuẩn hóa trên toolchain phổ biến, có version trong distribution và không tải
+installer thực thi từ một dự án cá nhân trong lúc CI chạy.
 
 ```sh
-cippie build --offline
-cippie test --offline
+cmake -S . -B build/core -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build build/core --parallel
+ctest --test-dir build/core --output-on-failure
 ```
 
-Lệnh trên tạo thư viện core; `cippie test` cũng build và chạy engine lẫn
-integration test. CMake 3.16 trở lên vẫn được giữ cho các luồng chưa do Cippie
-quản lý: sanitizer, benchmark, addon Fcitx5 và install/package.
+Lệnh trên tạo thư viện core rồi chạy engine và integration test. Cùng một CMake
+project cũng quản lý sanitizer, benchmark, addon Fcitx5, install và packaging,
+giúp local build và CI dùng chung một dependency graph production.
 
 Để chạy ASan và UBSan cục bộ qua CMake:
 
