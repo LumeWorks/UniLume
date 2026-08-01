@@ -97,6 +97,7 @@ jobs:
 
   build-rpm:
     name: Build RPM packages
+    if: ${{ false }} # Atomic Fcitx RPM packaging is not qualified yet.
     needs: prepare-release
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -159,6 +160,7 @@ jobs:
 
   build-arch:
     name: Build Arch packages
+    if: ${{ false }} # Atomic Fcitx Arch packaging is not qualified yet.
     needs: prepare-release
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -223,7 +225,7 @@ jobs:
 
   publish:
     name: Publish packages
-    needs: [prepare-release, build-deb, build-rpm, build-arch]
+    needs: [prepare-release, build-deb]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: release
