@@ -234,19 +234,38 @@ jobs:
 
       - name: Setup signing
         shell: bash
+        env:
+          UNILUME_GPG_PRIVATE_KEY: ${{ secrets.UNILUME_GPG_PRIVATE_KEY }}
+          UNILUME_GPG_PASSPHRASE: ${{ secrets.UNILUME_GPG_PASSPHRASE }}
         run: |
-          if [[ -n "${UNILUME_GPG_PRIVATE_KEY:-}" ]]; then
-            scripts/release/import-gpg-key.sh
+          if [[ -z "${UNILUME_GPG_PRIVATE_KEY:-}" ]]; then
+            echo "UNILUME_GPG_PRIVATE_KEY is not configured; packages will be unsigned"
+            exit 0
           fi
+          scripts/release/import-gpg-key.sh
 
       - name: Sign packages
         shell: bash
+        env:
+          UNILUME_GPG_PASSPHRASE: ${{ secrets.UNILUME_GPG_PASSPHRASE }}
         run: |
-          if command -v gpg &>/dev/null && gpg --list-secret-keys --with-colons 2>/dev/null | grep -q '^sec' && [[ -d dist/packages ]]; then
-            shopt -s nullglob
-            for dir in dist/packages/*/; do
-              scripts/release/sign-all.sh "$dir"
-            done
+          if [[ -z "${GNUPGHOME:-}" ]]; then
+            echo "No GNUPGHOME from Setup signing; skipping package signatures"
+            exit 0
+          fi
+          if ! gpg --list-secret-keys --with-colons --batch 2>/dev/null | grep -q '^sec:'; then
+            echo "Error: GNUPGHOME is set but no secret key is available"
+            exit 1
+          fi
+          shopt -s nullglob
+          signed_any=0
+          for dir in dist/packages/*/; do
+            scripts/release/sign-all.sh "$dir"
+            signed_any=1
+          done
+          if [[ "$signed_any" -ne 1 ]]; then
+            echo "Error: no package directories found under dist/packages"
+            exit 1
           fi
 
       - name: Upload to Cloudflare R2

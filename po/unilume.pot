@@ -194,6 +194,9 @@ msgstr ""
 msgid "Verified direct replacement"
 msgstr ""
 
+msgid "Split-transport direct strategy"
+msgstr ""
+
 msgid "Spell check"
 msgstr ""
 
@@ -372,9 +375,6 @@ msgid "Validated personal dictionary"
 msgstr ""
 
 msgid "Enable capability-gated verified direct replacement"
-msgstr ""
-
-msgid "Split-transport direct strategy"
 msgstr ""
 
 msgid "Enable per-application input policy"

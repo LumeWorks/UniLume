@@ -33,10 +33,12 @@ cd "$DIR"
 sha256sum ./*.deb ./*.rpm ./*.pkg.tar.zst ./*.tar.zst 2>/dev/null > SHA256SUMS
 SIGNING_KEY="${UNILUME_SIGNING_KEY:-}"
 if [[ -z "$SIGNING_KEY" ]]; then
-  SIGNING_KEY="$(gpg --list-secret-keys --with-colons 2>/dev/null | awk -F: '$1=="sec" {print $5; exit}')" || true
+  SIGNING_KEY="$(gpg --list-secret-keys --with-colons --batch 2>/dev/null | awk -F: '$1=="sec" {print $5; exit}')" || true
 fi
-
-if [[ -n "$SIGNING_KEY" ]]; then
+if [[ -z "$SIGNING_KEY" ]]; then
+  rm -f SHA256SUMS
+  echo "Skipping SHA256SUMS.asc generation: no GPG secret key available"
+else
   PASSPHRASE_FLAGS=()
   if [[ -n "${UNILUME_GPG_PASSPHRASE:-}" ]]; then
     PASSPHRASE_FLAGS=(--pinentry-mode loopback --passphrase "${UNILUME_GPG_PASSPHRASE}")
@@ -48,7 +50,4 @@ if [[ -n "$SIGNING_KEY" ]]; then
     SHA256SUMS
   rm -f SHA256SUMS
   echo "Created SHA256SUMS.asc"
-else
-  rm -f SHA256SUMS
-  echo "Skipping SHA256SUMS.asc generation: no GPG secret key available"
 fi

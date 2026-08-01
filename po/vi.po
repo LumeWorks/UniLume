@@ -227,6 +227,9 @@ msgstr "Bảng mã đầu ra"
 msgid "Verified direct replacement"
 msgstr "Thay thế trực tiếp đã kiểm chứng"
 
+msgid "Split-transport direct strategy"
+msgstr "Chiến lược direct cho transport phân tách"
+
 msgid "Spell check"
 msgstr "Kiểm tra chính tả"
 
@@ -406,9 +409,6 @@ msgstr "Từ điển cá nhân đã kiểm tra"
 
 msgid "Enable capability-gated verified direct replacement"
 msgstr "Bật thay thế trực tiếp đã kiểm chứng theo khả năng"
-
-msgid "Split-transport direct strategy"
-msgstr "Chiến lược direct cho transport phân tách"
 
 msgid "Enable per-application input policy"
 msgstr "Bật chính sách nhập theo ứng dụng"
