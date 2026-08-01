@@ -8,6 +8,7 @@
 #include "deterministic_backend.h"
 #include "direct_commit_controller.h"
 #include "input_mode_policy.h"
+#include "preedit_fallback_controller.h"
 #include "test_assertions.h"
 #include "test_suites.h"
 
@@ -34,8 +35,11 @@ public:
         const platform::InputPath current =
             policy_.observe(direct_available);
         if (previous == platform::InputPath::direct &&
-            current == platform::InputPath::off) {
+            current == platform::InputPath::preedit) {
             direct_.resetForFocus();
+        } else if (previous == platform::InputPath::preedit &&
+                   current == platform::InputPath::direct) {
+            commitPreedit();
         }
         return current;
     }
@@ -49,7 +53,13 @@ public:
                 std::string_view{&key, 1},
                 false, false, false,
             };
-            if (policy_.path() == platform::InputPath::off) {
+            if (policy_.path() == platform::InputPath::preedit) {
+                const core::PreeditAction action = preedit_.submit(event);
+                if (!action.commit_text.empty() &&
+                    !backend_.forwardRaw(0, action.commit_text)) {
+                    throw std::runtime_error("preedit handoff failed");
+                }
+            } else if (policy_.path() == platform::InputPath::off) {
                 direct_.resetForFocus();
                 if (!backend_.forwardRaw(0, event.text)) {
                     throw std::runtime_error("raw passthrough failed");
@@ -69,18 +79,23 @@ public:
 
     void shortcutBoundary()
     {
+        commitPreedit();
         direct_.resetForFocus();
         policy_.resetForCompositionEnd();
     }
 
     void focusReset()
     {
+        commitPreedit();
         direct_.resetForFocus();
         policy_.reset();
     }
 
     [[nodiscard]] platform::InputPath path() const { return policy_.path(); }
-    [[nodiscard]] const std::string &output() const { return backend_.text(); }
+    [[nodiscard]] std::string output() const
+    {
+        return backend_.text() + std::string(preedit_.preedit());
+    }
     [[nodiscard]] std::size_t backendEventCount() const
     {
         return backend_.eventLog().size();
@@ -91,6 +106,14 @@ public:
     }
 
 private:
+    void commitPreedit()
+    {
+        if (!preedit_.preedit().empty()) {
+            backend_.forwardRaw(0, preedit_.preedit());
+        }
+        preedit_.reset();
+    }
+
     void drain()
     {
         for (std::size_t step = 0; step < 10000; ++step) {
@@ -114,6 +137,9 @@ private:
     DeterministicBackend backend_;
     platform::InputModePolicy policy_;
     core::DirectCommitController direct_;
+    core::PreeditFallbackController preedit_{
+        UL_INPUT_METHOD_TELEX,
+        core::PreeditCommitPolicy::composition_boundary};
     bool direct_available_{};
 };
 
@@ -126,11 +152,11 @@ void runBrowserInputSessionTests(Assertions &assertions)
         assertions.truth("session starts with unknown path",
                          unavailable.path() == platform::InputPath::unknown);
         unavailable.synchronize(false);
-        assertions.truth("unavailable backend selects off",
-                         unavailable.path() == platform::InputPath::off);
+        assertions.truth("unavailable backend selects composition",
+                         unavailable.path() == platform::InputPath::preedit);
         unavailable.submitString("tooi ddang ");
-        assertions.equal("off path is exact raw passthrough",
-                         unavailable.output(), "tooi ddang ");
+        assertions.equal("composition path transforms exactly",
+                         unavailable.output(), "tôi đang ");
         assertions.equal("off path has no direct backlog",
                          unavailable.metrics().queue_depth, 0);
     }
@@ -140,15 +166,15 @@ void runBrowserInputSessionTests(Assertions &assertions)
         restored.synchronize(false);
         restored.submitString("tooi ");
         restored.synchronize(true);
-        assertions.truth("restored backend selects direct",
-                         restored.path() == platform::InputPath::direct);
+        assertions.truth("restored backend keeps active composition",
+                         restored.path() == platform::InputPath::preedit);
         const std::size_t before = restored.backendEventCount();
         restored.submitString("ddang gox tieengs Vieetj");
         assertions.equal("raw prefix and direct tail stay ordered",
                          restored.output(),
-                         "tooi đang gõ tiếng Việt");
-        assertions.truth("direct tail used replacement transactions",
-                         restored.backendEventCount() > before);
+                         "tôi đang gõ tiếng Việt");
+        assertions.truth("active composition did not mix transports",
+                         restored.backendEventCount() == before);
     }
 
     {
@@ -156,11 +182,11 @@ void runBrowserInputSessionTests(Assertions &assertions)
         loss.synchronize(true);
         loss.submitString("tooi ");
         loss.synchronize(false);
-        assertions.truth("capability loss selects off",
-                         loss.path() == platform::InputPath::off);
+        assertions.truth("capability loss selects composition",
+                         loss.path() == platform::InputPath::preedit);
         loss.submitString("ddang ");
         assertions.equal("capability loss preserves committed text",
-                         loss.output(), "tôi ddang ");
+                         loss.output(), "tôi đang ");
         assertions.equal("capability loss leaves no direct queue",
                          loss.metrics().queue_depth, 0);
     }
@@ -171,12 +197,12 @@ void runBrowserInputSessionTests(Assertions &assertions)
         boundaries.submitString("tooi");
         boundaries.shortcutBoundary();
         assertions.equal("shortcut boundary does not commit or delete",
-                         boundaries.output(), "tooi");
+                         boundaries.output(), "tôi");
         assertions.truth("shortcut boundary resets policy",
                          boundaries.path() == platform::InputPath::unknown);
         boundaries.focusReset();
         assertions.equal("focus reset preserves frontend text",
-                         boundaries.output(), "tooi");
+                         boundaries.output(), "tôi");
     }
 
     {

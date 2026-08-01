@@ -17,6 +17,7 @@
 #include "direct_commit_controller.h"
 #include "input_mode_policy.h"
 #include "integration_fixture.h"
+#include "preedit_fallback_controller.h"
 #include "test_assertions.h"
 #include "test_suites.h"
 
@@ -57,6 +58,11 @@ public:
             }
             drain();
             policy_.resetForCompositionEnd();
+        } else if (lastPath_ == platform::InputPath::preedit) {
+            const core::PreeditAction action = preedit_.submit(input);
+            if (!action.commit_text.empty()) {
+                backend_.forwardRaw(0, action.commit_text);
+            }
         } else {
             backend_.forwardRaw(
                 input.kind == core::KeyKind::backspace ? 1 : 0,
@@ -84,7 +90,7 @@ public:
 
     [[nodiscard]] std::string output() const
     {
-        return backend_.text();
+        return backend_.text() + std::string(preedit_.preedit());
     }
 
     [[nodiscard]] platform::InputPath path() const
@@ -132,6 +138,9 @@ private:
     DeterministicBackend backend_;
     platform::InputModePolicy policy_;
     core::DirectCommitController direct_;
+    core::PreeditFallbackController preedit_{
+        UL_INPUT_METHOD_TELEX,
+        core::PreeditCommitPolicy::composition_boundary};
     platform::InputPath lastPath_{platform::InputPath::unknown};
 };
 
@@ -139,19 +148,19 @@ private:
 
 void runBrowserCapabilityTests(Assertions &assertions)
 {
-    // -- 1. An unavailable direct backend passes raw keys through --
+    // -- 1. Automatic uses no-format composition without direct support --
     {
         BrowserPipeline browser{false};
 
         browser.type("tooi ");
         assertions.equal(
             "browser pipeline first word",
-            browser.output(), "tooi ");
+            browser.output(), "tôi ");
 
         browser.type("ddang ");
         assertions.equal(
             "browser pipeline second word",
-            browser.output(), "tooi ddang ");
+            browser.output(), "tôi đang ");
 
         // Full typical browser input (URLs, email, code literals)
         BrowserPipeline corpus{false};
@@ -161,7 +170,7 @@ void runBrowserCapabilityTests(Assertions &assertions)
             "std::vector<int> Console.WriteLine(\"hello\"); "
             "foo_bar->value ");
         const std::string expected =
-            "tooi tieengs dday laf booj gox tieengs Vieetj "
+            "tôi tiếng đay là bộ gõ tiếng Việt "
             "http://abc.com/a1 user@example.com "
             "std::vector<int> Console.WriteLine(\"hello\"); "
             "foo_bar->value ";
@@ -202,8 +211,8 @@ void runBrowserCapabilityTests(Assertions &assertions)
 
         policy.observe(false);
         assertions.truth(
-            "no direct backend selects passthrough",
-            policy.path() == platform::InputPath::off);
+            "automatic without direct backend selects composition",
+            policy.path() == platform::InputPath::preedit);
 
         policy.resetForCompositionEnd();
         policy.observe(true);
@@ -223,7 +232,7 @@ void runBrowserCapabilityTests(Assertions &assertions)
 
         re_eval.observe(false);
         assertions.truth("demotes immediately on loss",
-            re_eval.path() == platform::InputPath::off);
+            re_eval.path() == platform::InputPath::preedit);
 
         re_eval.resetForCompositionEnd();
         re_eval.observe(true);
@@ -231,15 +240,15 @@ void runBrowserCapabilityTests(Assertions &assertions)
             re_eval.path() == platform::InputPath::direct);
     }
 
-    // -- 5. Restored capability never enters preedit --
+    // -- 5. Restored capability cannot split an active composition --
     {
         platform::InputModePolicy stable;
 
         stable.observe(false);
         stable.observe(true);
         assertions.truth(
-            "restored capability selects direct",
-            stable.path() == platform::InputPath::direct);
+            "restored capability keeps active composition",
+            stable.path() == platform::InputPath::preedit);
 
         stable.resetForCompositionEnd();
         stable.observe(true);
@@ -260,8 +269,8 @@ void runBrowserCapabilityTests(Assertions &assertions)
 
         focus.observe(false);
         assertions.truth(
-            "post-reset observation picks passthrough",
-            focus.path() == platform::InputPath::off);
+            "post-reset observation picks composition",
+            focus.path() == platform::InputPath::preedit);
     }
 
     // -- 7. IntegrationFixture cross-check --
@@ -278,13 +287,13 @@ void runBrowserCapabilityTests(Assertions &assertions)
             native.metrics().queue_depth, 0);
     }
 
-    // -- 8. Passthrough never invokes a preedit controller --
+    // -- 8. Automatic composition transforms instead of raw passthrough --
     {
         BrowserPipeline passthrough{false};
         passthrough.type("tooi ");
         assertions.equal(
-            "off path preserves raw frontend input",
-            passthrough.output(), "tooi ");
+            "automatic composition transforms frontend input",
+            passthrough.output(), "tôi ");
     }
 }
 

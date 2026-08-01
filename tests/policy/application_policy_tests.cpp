@@ -43,20 +43,20 @@ int main()
                     longest.pattern == "org.example.special",
                 "longest prefix rule did not win");
         require(resolve(decoded.snapshot, "org.example.other").mode ==
-                    ApplicationMode::off,
-                "legacy safe-preedit rule did not map to off");
+                    ApplicationMode::safe_preedit,
+                "safe-preedit rule was not preserved");
         require(resolve(decoded.snapshot, "org.other").mode ==
-                    ApplicationMode::direct,
-                "legacy automatic default did not map to direct");
+                    ApplicationMode::automatic,
+                "automatic default was not preserved");
         const Resolution missing = resolve(decoded.snapshot, "");
-        require(missing.mode == ApplicationMode::direct &&
+        require(missing.mode == ApplicationMode::automatic &&
                     missing.source == ResolutionSource::missing_identity,
                 "missing identity did not select direct mode");
-        require(encode(decoded.snapshot).find("automatic") ==
+        require(encode(decoded.snapshot).find("automatic") !=
                     std::string::npos &&
-                    encode(decoded.snapshot).find("safe-preedit") ==
+                    encode(decoded.snapshot).find("safe-preedit") !=
                     std::string::npos,
-                "legacy modes were not serialized canonically");
+                "public modes were not serialized losslessly");
 
         require(!decode(
                     "unilume_app_policy_version=1\n"
@@ -95,7 +95,7 @@ int main()
                                : "org.example.other";
             const ApplicationMode expected =
                 index % 2 == 0 ? ApplicationMode::direct
-                               : ApplicationMode::off;
+                               : ApplicationMode::safe_preedit;
             require(resolve(decoded.snapshot, identity).mode == expected,
                     "focus burst produced a non-deterministic resolution");
         }

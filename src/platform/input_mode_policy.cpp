@@ -6,13 +6,12 @@ namespace unilume::platform {
 
 InputPath InputModePolicy::observe(bool direct_available)
 {
-    return observe(policy::ApplicationMode::direct, direct_available);
+    return observe(policy::ApplicationMode::automatic, direct_available);
 }
 
 InputPath InputModePolicy::observe(policy::ApplicationMode requested,
                                    bool direct_available)
 {
-    requested = policy::normalizeMode(requested);
     if (requested != requested_) {
         path_ = InputPath::unknown;
         requested_ = requested;
@@ -21,7 +20,27 @@ InputPath InputModePolicy::observe(policy::ApplicationMode requested,
         path_ = InputPath::off;
         return path_;
     }
-    path_ = direct_available ? InputPath::direct : InputPath::off;
+    if (requested == policy::ApplicationMode::safe_preedit) {
+        path_ = InputPath::preedit;
+        return path_;
+    }
+    if (requested == policy::ApplicationMode::direct) {
+        path_ = direct_available ? InputPath::direct : InputPath::off;
+        return path_;
+    }
+    // Automatic owns one path for the lifetime of a composition. Promoting
+    // preedit to direct halfway through a word would split the text across
+    // two transports and can reorder or duplicate characters in clients.
+    if (path_ == InputPath::preedit) {
+        return path_;
+    }
+    if (path_ == InputPath::direct && !direct_available) {
+        path_ = InputPath::preedit;
+        return path_;
+    }
+    if (path_ == InputPath::unknown) {
+        path_ = direct_available ? InputPath::direct : InputPath::preedit;
+    }
     return path_;
 }
 
@@ -35,7 +54,7 @@ void InputModePolicy::resetForCompositionEnd()
 void InputModePolicy::reset()
 {
     path_ = InputPath::unknown;
-    requested_ = policy::ApplicationMode::direct;
+    requested_ = policy::ApplicationMode::automatic;
 }
 
 InputPath InputModePolicy::path() const

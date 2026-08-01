@@ -4,6 +4,10 @@
 
 #include "fcitx_key_mapper.h"
 
+#include <fcitx-utils/capabilityflags.h>
+#include <fcitx/inputpanel.h>
+#include <fcitx/text.h>
+#include <fcitx/userinterface.h>
 #include <string>
 
 namespace unilume::fcitx5 {
@@ -14,6 +18,9 @@ InputContextState::InputContextState(fcitx::InputContext &input_context,
     : input_context_(input_context),
       backend_(input_context, uinput_device),
       direct_controller_(backend_, method),
+      preedit_controller_(
+          method,
+          core::PreeditCommitPolicy::composition_boundary),
       input_method_(method)
 {
 }
@@ -103,12 +110,19 @@ void InputContextState::keyEvent(fcitx::KeyEvent &event)
         return;
     }
 
+    // Only key presses that can reach an engine may change composition
+    // ownership. Release events above never cause a direct/preedit handoff.
+    synchronizeMode();
+
     if (mapped.status == MappingStatus::shortcut_fence ||
         mapped.status == MappingStatus::reset) {
         diagnostics_.recordReset(
             mapped.has_control_modifier
                 ? TraceResetReason::control_shortcut
                 : TraceResetReason::navigation);
+        if (mode_policy_.path() == platform::InputPath::preedit) {
+            commitPendingPreedit();
+        }
         direct_controller_.resetForFocus();
         initial_release_key_ = fcitx::Key();
         mode_policy_.resetForCompositionEnd();
@@ -117,9 +131,22 @@ void InputContextState::keyEvent(fcitx::KeyEvent &event)
 
     if (mapped.status == MappingStatus::line_break) {
         diagnostics_.recordReset(TraceResetReason::navigation);
+        if (mode_policy_.path() == platform::InputPath::preedit) {
+            commitPendingPreedit();
+            preedit_controller_.lineBreak();
+            clearPreedit();
+        }
         direct_controller_.lineBreak();
         initial_release_key_ = fcitx::Key();
         mode_policy_.resetForCompositionEnd();
+        return;
+    }
+
+    if (mode_policy_.path() == platform::InputPath::off) {
+        return;
+    }
+    if (mode_policy_.path() == platform::InputPath::preedit) {
+        handlePreeditEvent(event, mapped, started_at_ns);
         return;
     }
 
@@ -139,11 +166,6 @@ void InputContextState::keyEvent(fcitx::KeyEvent &event)
                 return;
             }
         }
-    }
-
-    synchronizeMode();
-    if (mode_policy_.path() == platform::InputPath::off) {
-        return;
     }
 
     const bool initial_backspace_was_pending =
@@ -188,6 +210,8 @@ void InputContextState::focusReset()
 {
     diagnostics_.recordReset(TraceResetReason::focus);
     direct_controller_.resetForFocus();
+    preedit_controller_.reset();
+    clearPreedit();
     initial_release_key_ = fcitx::Key();
     backend_.clearFailure();
     mode_policy_.reset();
@@ -209,7 +233,12 @@ void InputContextState::setInputMethod(UlInputMethod method)
         return;
     }
 
+    if (mode_policy_.path() == platform::InputPath::preedit) {
+        commitPendingPreedit();
+    }
     direct_controller_.setInputMethod(method);
+    preedit_controller_.setInputMethod(method);
+    clearPreedit();
     mode_policy_.resetForCompositionEnd();
     input_method_ = method;
 }
@@ -222,7 +251,12 @@ void InputContextState::setOptions(const UlEngineOptions &options)
         options.auto_restore == options_.auto_restore) {
         return;
     }
+    if (mode_policy_.path() == platform::InputPath::preedit) {
+        commitPendingPreedit();
+    }
     direct_controller_.setOptions(options);
+    preedit_controller_.setOptions(options);
+    clearPreedit();
     mode_policy_.resetForCompositionEnd();
     options_ = options;
 }
@@ -233,7 +267,12 @@ void InputContextState::setTypingOptions(
     if (options == typing_options_) {
         return;
     }
+    if (mode_policy_.path() == platform::InputPath::preedit) {
+        commitPendingPreedit();
+    }
     direct_controller_.setTypingOptions(options);
+    preedit_controller_.setTypingOptions(options);
+    clearPreedit();
     mode_policy_.resetForCompositionEnd();
     typing_options_ = options;
 }
@@ -244,7 +283,12 @@ void InputContextState::setMacros(const macro::Snapshot &snapshot,
     if (generation == macro_generation_) {
         return;
     }
+    if (mode_policy_.path() == platform::InputPath::preedit) {
+        commitPendingPreedit();
+    }
     direct_controller_.setMacros(snapshot);
+    preedit_controller_.setMacros(snapshot);
+    clearPreedit();
     mode_policy_.resetForCompositionEnd();
     macro_generation_ = generation;
 }
@@ -255,7 +299,12 @@ void InputContextState::setKeymap(const keymap::Snapshot &snapshot,
     if (generation == keymap_generation_) {
         return;
     }
+    if (mode_policy_.path() == platform::InputPath::preedit) {
+        commitPendingPreedit();
+    }
     direct_controller_.setKeymap(snapshot);
+    preedit_controller_.setKeymap(snapshot);
+    clearPreedit();
     mode_policy_.resetForCompositionEnd();
     keymap_generation_ = generation;
 }
@@ -267,7 +316,12 @@ void InputContextState::setDictionary(
     if (generation == dictionary_generation_) {
         return;
     }
+    if (mode_policy_.path() == platform::InputPath::preedit) {
+        commitPendingPreedit();
+    }
     direct_controller_.setDictionary(snapshot);
+    preedit_controller_.setDictionary(snapshot);
+    clearPreedit();
     mode_policy_.resetForCompositionEnd();
     dictionary_generation_ = generation;
 }
@@ -335,7 +389,6 @@ bool InputContextState::applicationPolicyIsCurrent(
 
 void InputContextState::selectApplicationMode(policy::ApplicationMode mode)
 {
-    mode = policy::normalizeMode(mode);
     if (application_mode_override_ &&
         *application_mode_override_ == mode) {
         return;
@@ -348,23 +401,25 @@ void InputContextState::selectApplicationMode(policy::ApplicationMode mode)
 
 void InputContextState::cycleApplicationMode()
 {
-    switch (policy::normalizeMode(requestedApplicationMode())) {
+    switch (requestedApplicationMode()) {
+    case policy::ApplicationMode::automatic:
+        selectApplicationMode(policy::ApplicationMode::direct);
+        break;
     case policy::ApplicationMode::direct:
+        selectApplicationMode(policy::ApplicationMode::safe_preedit);
+        break;
+    case policy::ApplicationMode::safe_preedit:
         selectApplicationMode(policy::ApplicationMode::off);
         break;
     case policy::ApplicationMode::off:
-        selectApplicationMode(policy::ApplicationMode::direct);
-        break;
-    case policy::ApplicationMode::automatic:
-    case policy::ApplicationMode::safe_preedit:
+        selectApplicationMode(policy::ApplicationMode::automatic);
         break;
     }
 }
 
 policy::ApplicationMode InputContextState::requestedApplicationMode() const
 {
-    return policy::normalizeMode(
-        application_mode_override_.value_or(policy_mode_));
+    return application_mode_override_.value_or(policy_mode_);
 }
 
 platform::InputPath InputContextState::effectiveInputPath() const
@@ -394,7 +449,12 @@ std::string_view InputContextState::applicationPolicyPattern() const
 
 void InputContextState::compositionBoundary()
 {
+    if (mode_policy_.path() == platform::InputPath::preedit) {
+        commitPendingPreedit();
+    }
     direct_controller_.resetForFocus();
+    preedit_controller_.reset();
+    clearPreedit();
     initial_release_key_ = fcitx::Key();
     mode_policy_.reset();
 }
@@ -418,23 +478,100 @@ void InputContextState::synchronizeMode()
     const platform::InputPath previous = mode_policy_.path();
     direct_replacement_available_ =
         backend_.supportsDirectReplacement();
-    const platform::InputPath current = mode_policy_.observe(
-        requestedApplicationMode(),
-        verified_direct_enabled_ &&
-            direct_replacement_available_);
+    const policy::ApplicationMode requested = requestedApplicationMode();
+    const bool automatic_direct =
+        backend_.lastObservation().atomic_transport;
+    const bool direct_available =
+        verified_direct_enabled_ && direct_replacement_available_ &&
+        (requested != policy::ApplicationMode::automatic ||
+         automatic_direct);
+    const platform::InputPath current =
+        mode_policy_.observe(requested, direct_available);
     if (previous == current) {
         return;
     }
-    if (current == platform::InputPath::off &&
+    if (current == platform::InputPath::preedit &&
         previous == platform::InputPath::direct) {
         diagnostics_.recordReset(
             TraceResetReason::capability_loss);
         direct_controller_.resetForFocus();
     }
+    preedit_controller_.reset();
+    clearPreedit();
     if (current != platform::InputPath::off) {
         diagnostics_.recordModeChange(
-            false,
+            current == platform::InputPath::preedit,
             backend_.lastObservation());
+    }
+}
+
+void InputContextState::handlePreeditEvent(
+    fcitx::KeyEvent &event,
+    const MappedKey &mapped,
+    std::uint64_t started_at_ns)
+{
+    const core::PreeditAction action =
+        preedit_controller_.submit(mapped.input());
+    if (!action.commit_text.empty()) {
+        diagnostics_.recordPreeditHandoff(backend_.lastObservation());
+        input_context_.commitString(std::string(action.commit_text));
+    }
+    if (preedit_controller_.preedit().empty()) {
+        mode_policy_.resetForCompositionEnd();
+    }
+    updatePreedit();
+    diagnostics_.recordPreedit(
+        action, backend_.lastObservation(), started_at_ns);
+    if (action.handled) {
+        event.filterAndAccept();
+    }
+}
+
+void InputContextState::commitPendingPreedit()
+{
+    const std::string_view pending = preedit_controller_.preedit();
+    if (!pending.empty()) {
+        diagnostics_.recordPreeditHandoff(backend_.lastObservation());
+        input_context_.commitString(std::string(pending));
+    }
+    preedit_controller_.reset();
+    clearPreedit();
+}
+
+void InputContextState::updatePreedit()
+{
+    const std::string_view value = preedit_controller_.preedit();
+    fcitx::Text text;
+    const bool client_preedit =
+        input_context_.capabilityFlags().test(fcitx::CapabilityFlag::Preedit);
+    if (!value.empty()) {
+        text.append(
+            std::string(value),
+            requestedApplicationMode() == policy::ApplicationMode::safe_preedit
+                ? fcitx::TextFormatFlag::Underline
+                : fcitx::TextFormatFlag::NoFlag);
+    }
+    text.setCursor(static_cast<int>(value.size()));
+    if (client_preedit) {
+        input_context_.inputPanel().setClientPreedit(text);
+        input_context_.updatePreedit();
+    } else {
+        input_context_.inputPanel().setPreedit(text);
+        input_context_.updateUserInterface(
+            fcitx::UserInterfaceComponent::InputPanel);
+    }
+}
+
+void InputContextState::clearPreedit()
+{
+    input_context_.inputPanel().reset();
+    const bool client_preedit =
+        input_context_.capabilityFlags().test(fcitx::CapabilityFlag::Preedit);
+    if (client_preedit) {
+        input_context_.updatePreedit();
+    } else {
+        input_context_.updateUserInterface(
+            fcitx::UserInterfaceComponent::InputPanel);
     }
 }
 
