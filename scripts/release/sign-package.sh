@@ -11,20 +11,15 @@ SIGNING_KEY="${UNILUME_SIGNING_KEY:-}"
 if [[ -z "$SIGNING_KEY" ]]; then
   SIGNING_KEY="$(gpg --list-secret-keys --with-colons 2>/dev/null | awk -F: '$1=="sec" {print $5; exit}')" || true
 fi
-SIGNING_KEY="${SIGNING_KEY:-unilume@dismon.me}"
+
+if [[ -z "$SIGNING_KEY" ]]; then
+  echo "Skipping GPG signature for ${FILE}: no secret key in GPG keyring"
+  exit 0
+fi
 
 if [[ ! -f "$FILE" ]]; then
   echo "Error: file not found: $FILE"
   exit 1
-fi
-
-if [[ -z "${GNUPGHOME:-}" ]]; then
-  if [[ -d "${HOME}/.gnupg" ]] || gpg --list-secret-keys &>/dev/null; then
-    export GNUPGHOME="${HOME}/.gnupg"
-  else
-    echo "Error: GNUPGHOME not set and no default key found"
-    exit 1
-  fi
 fi
 
 PASSPHRASE_FLAGS=()

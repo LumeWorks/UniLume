@@ -242,7 +242,7 @@ jobs:
       - name: Sign packages
         shell: bash
         run: |
-          if command -v gpg &>/dev/null && gpg --list-secret-keys &>/dev/null && [[ -d dist/packages ]]; then
+          if command -v gpg &>/dev/null && gpg --list-secret-keys --with-colons 2>/dev/null | grep -q '^sec' && [[ -d dist/packages ]]; then
             shopt -s nullglob
             for dir in dist/packages/*/; do
               scripts/release/sign-all.sh "$dir"
