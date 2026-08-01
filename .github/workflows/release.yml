@@ -284,7 +284,20 @@ jobs:
           GH_REPO: ${{ github.repository }}
         shell: bash
         run: |
+          mapfile -d '' release_assets < <(
+            find dist/packages -type f \( \
+              -name '*.deb' -o \
+              -name '*.rpm' -o \
+              -name '*.pkg.tar.zst' -o \
+              -name '*.tar.zst' -o \
+              -name '*.asc' \
+            \) -print0 | sort -zu
+          )
+          if [[ "${#release_assets[@]}" -eq 0 ]]; then
+            echo "Error: no release assets found under dist/packages"
+            exit 1
+          fi
           gh release upload "${{ needs.prepare-release.outputs.tag }}" \
             --repo "$GH_REPO" \
-            dist/packages/**/*.{deb,rpm,pkg.tar.zst,tar.zst,asc} \
+            "${release_assets[@]}" \
             --clobber
