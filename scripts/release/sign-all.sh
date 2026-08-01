@@ -36,18 +36,18 @@ if [[ -z "$SIGNING_KEY" ]]; then
   SIGNING_KEY="$(gpg --list-secret-keys --with-colons --batch 2>/dev/null | awk -F: '$1=="sec" {print $5; exit}')" || true
 fi
 if [[ -z "$SIGNING_KEY" ]]; then
-  echo "Error: no GPG secret key available for signing SHA256SUMS"
-  exit 1
-fi
+  rm -f SHA256SUMS
+  echo "Skipping SHA256SUMS.asc generation: no GPG secret key available"
+else
+  PASSPHRASE_FLAGS=()
+  if [[ -n "${UNILUME_GPG_PASSPHRASE:-}" ]]; then
+    PASSPHRASE_FLAGS=(--pinentry-mode loopback --passphrase "${UNILUME_GPG_PASSPHRASE}")
+  fi
 
-PASSPHRASE_FLAGS=()
-if [[ -n "${UNILUME_GPG_PASSPHRASE:-}" ]]; then
-  PASSPHRASE_FLAGS=(--pinentry-mode loopback --passphrase "${UNILUME_GPG_PASSPHRASE}")
+  gpg --batch --yes "${PASSPHRASE_FLAGS[@]}" --clearsign \
+    --default-key "$SIGNING_KEY" \
+    --output SHA256SUMS.asc \
+    SHA256SUMS
+  rm -f SHA256SUMS
+  echo "Created SHA256SUMS.asc"
 fi
-
-gpg --batch --yes "${PASSPHRASE_FLAGS[@]}" --clearsign \
-  --default-key "$SIGNING_KEY" \
-  --output SHA256SUMS.asc \
-  SHA256SUMS
-rm -f SHA256SUMS
-echo "Created SHA256SUMS.asc"

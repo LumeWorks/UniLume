@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-name: Wayland Qualification
+name: Wayland Harness Checks
 
 on:
   push:
@@ -10,11 +10,6 @@ on:
     branches:
       - main
   workflow_dispatch:
-    inputs:
-      soak_seconds:
-        description: Wall-clock soak duration per compositor
-        required: false
-        default: "0"
 
 permissions:
   contents: read
@@ -32,7 +27,7 @@ jobs:
       - name: Run qualification harness unit tests
         run: python3 -B tests/wayland/qualify_wayland_compositor_test.py
 
-      - name: Lint the disposable session script
+      - name: Lint the qualification scripts
         run: |
           sudo apt-get update
           sudo apt-get install --yes shellcheck
@@ -40,205 +35,15 @@ jobs:
             scripts/test/nested_wayland_qualification_session.sh \
             scripts/test/wayland_qualification_session.sh
 
-  wlroots-qualification:
-    name: wlroots native Wayland qualification
-    runs-on: ubuntu-latest
-    timeout-minutes: 50
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Install Fcitx5, a headless compositor and the injection tools
+      - name: Explain the runtime qualification boundary
         run: |
-          sudo apt-get update
-          sudo apt-get install --yes \
-            dbus-x11 \
-            fcitx5 \
-            fcitx5-modules-dev \
-            foot \
-            gettext \
-            libfcitx5config-dev \
-            libfcitx5core-dev \
-            locales \
-            pkg-config \
-            sway \
-            wtype
-          sudo modprobe uinput 2>/dev/null || true
-          sudo cp data/70-unilume-uinput.rules /etc/udev/rules.d/
-          sudo udevadm control --reload-rules && sudo udevadm trigger 2>/dev/null || true
-          # GitHub-hosted runners have no logind seat for TAG+=uaccess, and
-          # usermod group membership is not effective in the current job shell.
-          # Direct-only composition needs a writable /dev/uinput node so the
-          # Backspace backend can open, and libinput must be able to read the
-          # resulting /dev/input/event* nodes to deliver synthetic Backspaces
-          # into the headless sway seat. World-writable is acceptable on the
-          # ephemeral CI VM (real desktops still use the udev uaccess rule).
-          sudo chown root:root /dev/uinput 2>/dev/null || true
-          sudo chmod 0666 /dev/uinput 2>/dev/null || true
-          sudo chmod 0666 /dev/input/event* 2>/dev/null || true
-          # New uinput-created event nodes inherit restrictive perms; a udev
-          # rule keeps later UniLume devices readable by the runner/libinput.
-          printf '%s\n' \
-            'KERNEL=="event*", SUBSYSTEM=="input", MODE="0666"' \
-            'KERNEL=="uinput", SUBSYSTEM=="misc", MODE="0666"' \
-            | sudo tee /etc/udev/rules.d/99-unilume-ci-input.rules >/dev/null
-          sudo udevadm control --reload-rules && sudo udevadm trigger 2>/dev/null || true
-          if [[ ! -w /dev/uinput ]]; then
-            echo "error: /dev/uinput is not writable by the runner" >&2
-            ls -la /dev/uinput >&2 || true
-            exit 1
-          fi
+          cat <<'EOF'
+          Runtime qualification is intentionally not run on a GitHub-hosted
+          nested/headless compositor. Its synthetic injector and UniLume's
+          uinput replacement device do not share a real compositor seat, so
+          such a run cannot qualify the native Wayland input path.
 
-      - name: Generate the locales the addon tests require
-        run: |
-          sudo localedef -i en_US -f UTF-8 en_US.UTF-8
-          sudo localedef -i vi_VN -f UTF-8 vi_VN.UTF-8
-
-      - name: Build and install the Fcitx5 addon
-        run: |
-          cmake -S . -B build/fcitx5 \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DUNILUME_BUILD_FCITX5_ADDON=ON
-          cmake --build build/fcitx5 --parallel 2
-          cmake --install build/fcitx5 --prefix "$RUNNER_TEMP/unilume-wayland"
-
-      - name: Qualify a disposable wlroots session
-        env:
-          SOAK_SECONDS: ${{ inputs.soak_seconds || '0' }}
-          UNILUME_WAYLAND_LOG_DIR: ${{ runner.temp }}/wayland-logs
-        run: |
-          status=0
-          ./scripts/test/wayland_qualification_session.sh \
-            "$RUNNER_TEMP/unilume-wayland" \
-            --burst-rounds 3 \
-            --stress-rounds 2 \
-            --soak-seconds "$SOAK_SECONDS" \
-            --output "$RUNNER_TEMP/wlroots-sway.json" || status=$?
-          echo "harness exit status: $status"
-          if [ -f "$RUNNER_TEMP/wlroots-sway.json" ]; then
-            echo "--- verdict ---"
-            python3 -c 'import json,sys; \
-              print(json.dumps(json.load(open(sys.argv[1]))["qualification"], indent=2))' \
-              "$RUNNER_TEMP/wlroots-sway.json"
-          else
-            echo "no result file was produced; the run failed before measuring"
-          fi
-          exit "$status"
-
-      - name: Upload the qualification evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: wayland-qualification-wlroots
-          path: |
-            ${{ runner.temp }}/wlroots-sway.json
-            ${{ runner.temp }}/wayland-logs
-          if-no-files-found: warn
-
-  nested-compositor-qualification:
-    name: ${{ matrix.family }} ${{ matrix.client }} native Wayland qualification
-    runs-on: ubuntu-latest
-    timeout-minutes: 50
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - family: kwin
-            compositor_packages: kwin-wayland xdotool x11-utils xvfb
-            client: gtk3-probe
-            browser: ""
-          - family: kwin
-            compositor_packages: kwin-wayland xdotool x11-utils xvfb
-            client: browser-probe
-            browser: google-chrome
-          - family: mutter
-            compositor_packages: gnome-shell gir1.2-gtk-3.0 python3-gi
-            client: gtk3-probe
-            browser: ""
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Install Fcitx5 and the native compositor stack
-        env:
-          COMPOSITOR_PACKAGES: ${{ matrix.compositor_packages }}
-        run: |
-          sudo apt-get update
-          sudo apt-get install --yes \
-            dbus-x11 \
-            fcitx5 \
-            fcitx5-frontend-gtk3 \
-            fcitx5-modules-dev \
-            gettext \
-            gir1.2-gtk-3.0 \
-            libfcitx5config-dev \
-            libfcitx5core-dev \
-            locales \
-            mesa-utils \
-            pkg-config \
-            $COMPOSITOR_PACKAGES
-          sudo modprobe uinput 2>/dev/null || true
-          sudo cp data/70-unilume-uinput.rules /etc/udev/rules.d/
-          sudo udevadm control --reload-rules && sudo udevadm trigger 2>/dev/null || true
-          # Same CI seat limitation as the wlroots job: force writable input.
-          sudo chown root:root /dev/uinput 2>/dev/null || true
-          sudo chmod 0666 /dev/uinput 2>/dev/null || true
-          sudo chmod 0666 /dev/input/event* 2>/dev/null || true
-          printf '%s\n' \
-            'KERNEL=="event*", SUBSYSTEM=="input", MODE="0666"' \
-            'KERNEL=="uinput", SUBSYSTEM=="misc", MODE="0666"' \
-            | sudo tee /etc/udev/rules.d/99-unilume-ci-input.rules >/dev/null
-          sudo udevadm control --reload-rules && sudo udevadm trigger 2>/dev/null || true
-          if [[ ! -w /dev/uinput ]]; then
-            echo "error: /dev/uinput is not writable by the runner" >&2
-            ls -la /dev/uinput >&2 || true
-            exit 1
-          fi
-
-      - name: Generate the locales the addon tests require
-        run: |
-          sudo localedef -i en_US -f UTF-8 en_US.UTF-8
-          sudo localedef -i vi_VN -f UTF-8 vi_VN.UTF-8
-
-      - name: Build and install the Fcitx5 addon
-        run: |
-          cmake -S . -B build/fcitx5 \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DUNILUME_BUILD_FCITX5_ADDON=ON
-          cmake --build build/fcitx5 --parallel 2
-          cmake --install build/fcitx5 --prefix "$RUNNER_TEMP/unilume-wayland"
-
-      - name: Qualify the native input path
-        env:
-          COMPOSITOR_FAMILY: ${{ matrix.family }}
-          CLIENT: ${{ matrix.client }}
-          BROWSER: ${{ matrix.browser }}
-          SOAK_SECONDS: ${{ inputs.soak_seconds || '0' }}
-          UNILUME_WAYLAND_LOG_DIR: ${{ runner.temp }}/wayland-logs
-        run: |
-          browser_args=()
-          if [ -n "$BROWSER" ]; then
-            browser_args=(--browser "$BROWSER")
-          fi
-          ./scripts/test/nested_wayland_qualification_session.sh \
-            "$RUNNER_TEMP/unilume-wayland" \
-            "$COMPOSITOR_FAMILY" \
-            --client "$CLIENT" \
-            "${browser_args[@]}" \
-            --burst-rounds 3 \
-            --stress-rounds 2 \
-            --soak-seconds "$SOAK_SECONDS" \
-            --output \
-              "$RUNNER_TEMP/wayland-$COMPOSITOR_FAMILY.json"
-
-      - name: Upload the qualification evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: wayland-qualification-${{ matrix.family }}-${{ matrix.client }}
-          path: |
-            ${{ runner.temp }}/wayland-${{ matrix.family }}.json
-            ${{ runner.temp }}/wayland-logs
-          if-no-files-found: warn
+          Run scripts/test/qualify_wayland_compositor.py in an actual logged-in
+          KWin, Mutter, or wlroots Wayland session and retain its JSON evidence.
+          See docs/wayland-validation.md.
+          EOF

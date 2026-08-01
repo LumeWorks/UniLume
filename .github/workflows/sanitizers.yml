@@ -25,7 +25,11 @@ jobs:
       - name: Install Cippie
         shell: bash
         run: |
-          curl -fsSL https://raw.githubusercontent.com/dismonjames/cippie/main/scripts/install.sh | bash
+          curl --fail --silent --show-error --location \
+            --retry 5 --retry-all-errors --retry-delay 2 \
+            https://raw.githubusercontent.com/dismonjames/cippie/main/scripts/install.sh \
+            --output "$RUNNER_TEMP/cippie-install.sh"
+          bash "$RUNNER_TEMP/cippie-install.sh"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Build with Cippie

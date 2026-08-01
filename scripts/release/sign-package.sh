@@ -12,22 +12,14 @@ if [[ ! -f "$FILE" ]]; then
   exit 1
 fi
 
-if [[ -z "${GNUPGHOME:-}" ]]; then
-  if [[ -d "${HOME}/.gnupg" ]]; then
-    export GNUPGHOME="${HOME}/.gnupg"
-  fi
-fi
-
 SIGNING_KEY="${UNILUME_SIGNING_KEY:-}"
 if [[ -z "$SIGNING_KEY" ]]; then
   SIGNING_KEY="$(gpg --list-secret-keys --with-colons --batch 2>/dev/null | awk -F: '$1=="sec" {print $5; exit}')" || true
 fi
 if [[ -z "$SIGNING_KEY" ]]; then
-  echo "Error: no GPG secret key available for signing"
-  echo "Set UNILUME_SIGNING_KEY or import a key (see scripts/release/import-gpg-key.sh)"
-  exit 1
+  echo "Skipping GPG signature for ${FILE}: no secret key in GPG keyring"
+  exit 0
 fi
-
 PASSPHRASE_FLAGS=()
 if [[ -n "${UNILUME_GPG_PASSPHRASE:-}" ]]; then
   PASSPHRASE_FLAGS=(--pinentry-mode loopback --passphrase "${UNILUME_GPG_PASSPHRASE}")

@@ -28,7 +28,7 @@ remains a capability trace, not a key/output result.
 All Wayland-related compile paths are verified through the CI matrix. A compile
 check is never accepted as runtime validation.
 
-## Automated qualification
+## Runtime qualification
 
 ```sh
 cmake -S . -B build/fcitx5 \
@@ -36,31 +36,29 @@ cmake -S . -B build/fcitx5 \
 cmake --build build/fcitx5
 cmake --install build/fcitx5 --prefix /tmp/ul-prefix
 
-./scripts/test/wayland_qualification_session.sh /tmp/ul-prefix \
+scripts/test/qualify_wayland_compositor.py \
   --burst-rounds 5 --stress-rounds 3 --soak-seconds 120 \
-  --output /tmp/wlroots-sway.json
+  --output /tmp/wayland-session.json
 ```
 
-`scripts/test/wayland_qualification_session.sh` builds a disposable wlroots
-session: a headless sway compositor, a private D-Bus session, a private Fcitx
-profile and a private addon directory. It never touches the operator's desktop.
-`scripts/test/nested_wayland_qualification_session.sh` does the same for KWin
-and Mutter:
+Runtime evidence must be collected inside the actual logged-in native Wayland
+session being qualified. The input injector and UniLume's Backspace-only
+uinput replacement device must belong to the same compositor seat.
 
-```sh
-./scripts/test/nested_wayland_qualification_session.sh \
-  /tmp/ul-prefix kwin --burst-rounds 5 --output /tmp/kwin.json
-./scripts/test/nested_wayland_qualification_session.sh \
-  /tmp/ul-prefix mutter --burst-rounds 5 --output /tmp/mutter.json
-```
+The disposable scripts remain useful for developing the harness, but their
+headless/nested results are not qualification evidence. `wtype`, XTEST and
+Mutter RemoteDesktop inject into virtual seats, while a kernel uinput device is
+attached through the host's libinput seat. GitHub-hosted runners do not provide
+one real logged-in seat shared by both paths. Treating those environments as
+native qualification produced the false failure where Fcitx was selected but
+never received the injected `aa` events.
 
-To qualify a compositor you are already running, invoke
-`scripts/test/qualify_wayland_compositor.py` directly inside that session.
-The same harness can launch a browser with `--client browser-probe --browser
-google-chrome`. It removes `DISPLAY` from the browser environment, forces the
-native Wayland Chromium IME path, and obtains live and committed textarea
-values through a token-authenticated loopback endpoint. A visual inspection or
-window title is not accepted as output evidence.
+Invoke `scripts/test/qualify_wayland_compositor.py` directly inside the real
+session. The same harness can launch a browser with `--client browser-probe
+--browser google-chrome`. It removes `DISPLAY` from the browser environment,
+forces the native Wayland Chromium IME path, and obtains live and committed
+textarea values through a token-authenticated loopback endpoint. A visual
+inspection or window title is not accepted as output evidence.
 
 For Firefox, the harness creates the disposable profile before passing it to
 `--profile`, disables first-run UI in that profile, forces native Wayland and
@@ -96,7 +94,9 @@ python3 -B tests/wayland/qualify_wayland_compositor_test.py
 The harness refuses to report a result unless the session is really native
 Wayland, and it verifies that the engine actually transforms keystrokes before
 measuring anything. Selecting the input method is not sufficient evidence,
-because raw passthrough reproduces plain ASCII unchanged.
+because raw passthrough reproduces plain ASCII unchanged. CI runs the harness
+decision-logic tests and shell lint only; it does not publish fabricated
+runtime evidence from a nested compositor.
 
 ### Phases and what each one gates
 
