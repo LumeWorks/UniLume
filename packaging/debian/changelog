@@ -1,3 +1,10 @@
+unilume (0.1.0-1) unstable; urgency=medium
+
+  * Promote the tested rc2 input and packaging fixes to the first stable release.
+  * Standardize organization production builds on CMake and CTest.
+
+ -- Lê Hùng Quang Minh <dismonjames@gmail.com>  Sat, 01 Aug 2026 20:35:00 +0700
+
 unilume (0.1.0~rc2-1) unstable; urgency=medium
 
   * Fix direct-input shortcut handling and fast unchanged-text passthrough.
