@@ -29,7 +29,8 @@ void runDuplicateTests(Assertions &assertions)
 
     const std::uint64_t completed =
         tieengs.metrics().completed_transactions;
-    tieengs.controller().complete(1, true);
+    tieengs.controller().complete(
+        1, platform::ReplacementOutcome::applied);
     assertions.equal(
         "stale callback cannot commit",
         tieengs.metrics().completed_transactions,

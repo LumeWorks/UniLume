@@ -89,7 +89,17 @@ void InputContextState::keyEvent(fcitx::KeyEvent &event)
             }
             const std::uint64_t sequence =
                 backend_.finishAcknowledgedReplacement();
-            direct_controller_.complete(sequence, sequence != 0);
+            if (sequence == 0) {
+                direct_controller_.timeout(
+                    direct_controller_.activeSequence());
+                return;
+            }
+            // A guarded sentinel ACK, even with a validated surrounding
+            // snapshot, does not prove the target application applied the
+            // delete-and-insert.  A valid snapshot is not sufficient proof
+            // by itself per Issue #119, so the outcome must be uncertain.
+            direct_controller_.complete(
+                sequence, platform::ReplacementOutcome::uncertain);
             if (backend_.initialBackspacePending()) {
                 startPendingAcknowledgedReplacement();
             }
@@ -142,7 +152,17 @@ void InputContextState::keyEvent(fcitx::KeyEvent &event)
                 event.filterAndAccept();
                 const std::uint64_t sequence =
                     backend_.finishAcknowledgedReplacement();
-                direct_controller_.complete(sequence, sequence != 0);
+                if (sequence == 0) {
+                    direct_controller_.timeout(
+                        direct_controller_.activeSequence());
+                    return;
+                }
+                // A fast sentinel ACK only proves the synthetic press/release
+                // pair went through the frontend.  It does not prove the
+                // target application applied the delete-and-insert, so it
+                // must be uncertain per Issue #119.
+                direct_controller_.complete(
+                    sequence, platform::ReplacementOutcome::uncertain);
                 if (backend_.initialBackspacePending()) {
                     startPendingAcknowledgedReplacement();
                 }
@@ -429,7 +449,8 @@ void InputContextState::startPendingAcknowledgedReplacement()
         direct_controller_.timeout(direct_controller_.activeSequence());
     } else {
         direct_controller_.complete(
-            direct_controller_.activeSequence(), false);
+            direct_controller_.activeSequence(),
+            platform::ReplacementOutcome::not_applied);
     }
 }
 

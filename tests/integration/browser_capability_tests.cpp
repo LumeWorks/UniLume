@@ -113,7 +113,10 @@ private:
     void pump()
     {
         for (const BackendCompletion &c : backend_.advance()) {
-            direct_.complete(c.sequence_id, c.success);
+            direct_.complete(c.sequence_id,
+                              c.success
+                                  ? platform::ReplacementOutcome::applied
+                                  : platform::ReplacementOutcome::not_applied);
         }
     }
 

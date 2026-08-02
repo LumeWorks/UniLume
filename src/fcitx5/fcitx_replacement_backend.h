@@ -44,7 +44,7 @@ public:
         std::uint64_t sequence_id,
         std::string_view commit_text) override;
     bool cancel(std::uint64_t sequence_id) override;
-
+    void markUncertainOutcome() override;
     void reset() override;
     void setDirectStrategy(DirectStrategy strategy);
     void clearFailure();
@@ -61,6 +61,7 @@ public:
     [[nodiscard]] bool consumeUncertainDispatch();
     [[nodiscard]] bool poisoned() const;
     [[nodiscard]] bool guardedBoundaryValid() const;
+    [[nodiscard]] bool guardedSnapshotReady() const;
     [[nodiscard]] std::uint64_t finishAcknowledgedReplacement();
 
 private:

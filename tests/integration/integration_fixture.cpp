@@ -55,7 +55,10 @@ void IntegrationFixture::focusChange()
 void IntegrationFixture::pump(std::size_t events)
 {
     for (const BackendCompletion &completion : backend_.advance(events)) {
-        controller_.complete(completion.sequence_id, completion.success);
+        controller_.complete(completion.sequence_id,
+                               completion.success
+                                   ? platform::ReplacementOutcome::applied
+                                   : platform::ReplacementOutcome::not_applied);
     }
 }
 

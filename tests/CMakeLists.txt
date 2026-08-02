@@ -216,6 +216,8 @@ add_executable(unilume_integration_tests
   integration/options_tests.cpp
   integration/integration_test_main.cpp
   integration/preedit_fallback_tests.cpp
+  integration/split_transport_backend.cpp
+  integration/split_transport_tests.cpp
   integration/stability_recovery_tests.cpp
   integration/transaction_tests.cpp
   integration/typing_pipeline_tests.cpp
@@ -251,6 +253,7 @@ foreach(suite IN ITEMS
     stability-recovery
     zero-preedit-architecture
     zero-preedit-soak
+    outcome-containment
 )
   add_test(
     NAME "integration-${suite}"

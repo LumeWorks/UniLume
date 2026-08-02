@@ -18,6 +18,7 @@ struct TransactionMetrics {
     std::uint64_t reset_count{};
     std::uint64_t queue_overflow_count{};
     std::uint64_t uncertain_outcome_count{};
+    std::uint64_t discarded_queued_input_count{};
     std::uint64_t fallback_failure_count{};
 };
 

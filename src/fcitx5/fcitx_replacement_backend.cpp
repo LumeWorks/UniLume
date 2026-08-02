@@ -207,6 +207,22 @@ bool FcitxReplacementBackend::cancel(std::uint64_t sequence_id)
     return false;
 }
 
+void FcitxReplacementBackend::markUncertainOutcome()
+{
+    ++generation_;
+    if (generation_ == 0) {
+        ++generation_;
+    }
+    observation_.generation = generation_;
+    poisoned_ = true;
+    uncertain_dispatch_ = false;
+    acknowledged_transaction_.clear();
+    initial_backspace_pending_ = false;
+    fast_sentinel_release_pending_ = false;
+    cancelled_backspace_presses_ = 0;
+    cancelled_backspace_release_pending_ = false;
+}
+
 void FcitxReplacementBackend::reset()
 {
     ++generation_;
@@ -363,6 +379,11 @@ bool FcitxReplacementBackend::guardedBoundaryValid() const
     // valid cursor at the release boundary. Navigation is fenced before this
     // point by the key classifier.
     return validation.allowsReplacement();
+}
+
+bool FcitxReplacementBackend::guardedSnapshotReady() const
+{
+    return guarded_snapshot_ready_;
 }
 
 std::uint64_t FcitxReplacementBackend::finishAcknowledgedReplacement()
