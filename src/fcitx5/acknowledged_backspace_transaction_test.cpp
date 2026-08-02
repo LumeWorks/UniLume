@@ -59,32 +59,40 @@ int main()
     ok &= expect(transaction.acknowledge() ==
                      BackspaceAcknowledgement::unexpected,
                  "undispatched Backspace was acknowledged");
-    transaction.markPressDispatched();
+    transaction.markPressesDispatched(3);
     ok &= expect(transaction.acknowledge() ==
                      BackspaceAcknowledgement::forward_deletion,
                  "first deletion press was not acknowledged");
     ok &= expect(transaction.releasePending() &&
-                     transaction.outstandingPresses() == 0,
-                 "first deletion did not retain its release boundary");
+                     transaction.outstandingPresses() == 2,
+                 "first deletion did not retain remaining dispatched presses");
     ok &= expect(transaction.acknowledge() ==
                      BackspaceAcknowledgement::unexpected,
                  "second deletion press bypassed its release");
     ok &= expect(transaction.releasePending() &&
-                     transaction.outstandingPresses() == 0,
+                     transaction.outstandingPresses() == 2,
                  "duplicate press corrupted the successor fence");
     ok &= expect(transaction.acknowledgeRelease() ==
-                     BackspaceReleaseAcknowledgement::emit_next,
-                 "first deletion release did not request its successor");
-    transaction.markPressDispatched();
+                     BackspaceReleaseAcknowledgement::forward_deletion,
+                 "first deletion release was not forwarded");
     ok &= expect(transaction.acknowledge() ==
                      BackspaceAcknowledgement::forward_deletion,
                  "second deletion press was not acknowledged");
     ok &= expect(transaction.acknowledgeRelease() ==
-                     BackspaceReleaseAcknowledgement::complete_fast,
-                 "final deletion release did not complete fast mode");
+                     BackspaceReleaseAcknowledgement::forward_deletion,
+                 "second deletion release was not forwarded");
+    ok &= expect(transaction.acknowledge() ==
+                     BackspaceAcknowledgement::consume_sentinel_fast,
+                 "fast sentinel press was not consumed at commit boundary");
+    ok &= expect(transaction.releasePending() &&
+                     transaction.outstandingPresses() == 0,
+                 "fast sentinel did not leave exactly one release pending");
+    ok &= expect(transaction.acknowledgeRelease() ==
+                     BackspaceReleaseAcknowledgement::consume_sentinel,
+                 "fast sentinel release was not consumed");
     ok &= expect(transaction.acknowledgeRelease() ==
                      BackspaceReleaseAcknowledgement::unexpected,
-                 "final deletion release was acknowledged twice");
+                 "sentinel release was acknowledged twice");
     transaction.clear();
     ok &= expect(!transaction.active() && transaction.sequenceId() == 0 &&
                      transaction.commitText().empty(),
@@ -93,12 +101,18 @@ int main()
     ok &= expect(transaction.prepare(
                      43, 1, "đ", DirectStrategy::guarded),
                  "valid guarded transaction was rejected");
-    transaction.markPressDispatched();
+    transaction.markPressesDispatched(2);
     ok &= expect(transaction.acknowledge() ==
                      BackspaceAcknowledgement::forward_deletion,
                  "guarded deletion press was not forwarded");
     ok &= expect(transaction.acknowledgeRelease() ==
+                     BackspaceReleaseAcknowledgement::forward_deletion,
+                 "guarded deletion release was not forwarded");
+    ok &= expect(transaction.acknowledge() ==
+                     BackspaceAcknowledgement::consume_sentinel_guarded,
+                 "guarded sentinel press committed too early");
+    ok &= expect(transaction.acknowledgeRelease() ==
                      BackspaceReleaseAcknowledgement::complete_guarded,
-                 "guarded deletion release did not complete");
+                 "guarded sentinel release did not complete");
     return ok ? 0 : 1;
 }

@@ -251,6 +251,22 @@ bool FcitxReplacementBackend::cancel(std::uint64_t sequence_id)
     return false;
 }
 
+void FcitxReplacementBackend::markUncertainOutcome()
+{
+    ++generation_;
+    if (generation_ == 0) {
+        ++generation_;
+    }
+    observation_.generation = generation_;
+    poisoned_ = true;
+    uncertain_dispatch_ = false;
+    acknowledged_transaction_.clear();
+    initial_backspace_pending_ = false;
+    fast_sentinel_release_pending_ = false;
+    cancelled_backspace_presses_ = 0;
+    cancelled_backspace_release_pending_ = false;
+}
+
 void FcitxReplacementBackend::reset()
 {
     ++generation_;
@@ -329,7 +345,7 @@ FcitxReplacementBackend::acknowledgeBackspaceRelease()
 {
     const BackspaceReleaseAcknowledgement acknowledgement =
         acknowledged_transaction_.acknowledgeRelease();
-    if (acknowledgement != BackspaceReleaseAcknowledgement::emit_next) {
+    if (acknowledgement != BackspaceReleaseAcknowledgement::forward_deletion) {
         return acknowledgement;
     }
     const UinputBatchWriteStatus write_status =
@@ -364,6 +380,18 @@ bool FcitxReplacementBackend::consumeCancelledBackspace(bool release)
     return true;
 }
 
+bool FcitxReplacementBackend::consumeFastSentinelRelease()
+{
+    const bool pending = fast_sentinel_release_pending_;
+    fast_sentinel_release_pending_ = false;
+    return pending;
+}
+
+bool FcitxReplacementBackend::fastSentinelReleasePending() const
+{
+    return fast_sentinel_release_pending_;
+}
+
 bool FcitxReplacementBackend::consumeUncertainDispatch()
 {
     const bool uncertain = uncertain_dispatch_;
@@ -396,6 +424,11 @@ bool FcitxReplacementBackend::guardedBoundaryValid() const
     return validation.allowsReplacement();
 }
 
+bool FcitxReplacementBackend::guardedSnapshotReady() const
+{
+    return guarded_snapshot_ready_;
+}
+
 std::uint64_t FcitxReplacementBackend::finishAcknowledgedReplacement()
 {
     if (!acknowledged_transaction_.active()) {
@@ -405,6 +438,8 @@ std::uint64_t FcitxReplacementBackend::finishAcknowledgedReplacement()
         acknowledged_transaction_.sequenceId();
     const std::string commit_text(
         acknowledged_transaction_.commitText());
+    fast_sentinel_release_pending_ =
+        strategy_ == DirectStrategy::fast;
     acknowledged_transaction_.clear();
     if (!commit_text.empty()) {
         input_context_.commitString(commit_text);

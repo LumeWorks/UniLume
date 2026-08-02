@@ -46,7 +46,9 @@ SubmissionStatus DirectCommitController::submit(const KeyInput &input)
     return processNow(input);
 }
 
-void DirectCommitController::complete(std::uint64_t sequence_id, bool success)
+void DirectCommitController::complete(
+    std::uint64_t sequence_id,
+    platform::ReplacementOutcome outcome)
 {
     if (!transaction_.active() ||
         sequence_id != transaction_.sequenceId()) {
@@ -54,7 +56,7 @@ void DirectCommitController::complete(std::uint64_t sequence_id, bool success)
         ++metrics_.duplicate_prevention_count;
         return;
     }
-    finishActive(success, false);
+    finishActive(outcome, false);
 }
 
 void DirectCommitController::timeout(std::uint64_t sequence_id)
@@ -65,12 +67,11 @@ void DirectCommitController::timeout(std::uint64_t sequence_id)
         return;
     }
     const bool cancelled = backend_.cancel(sequence_id);
-    if (!cancelled) {
-        ++metrics_.stale_result_count;
-        ++metrics_.uncertain_outcome_count;
-        backend_.reset();
+    if (cancelled) {
+        finishActive(platform::ReplacementOutcome::not_applied, true);
+    } else {
+        finishActive(platform::ReplacementOutcome::uncertain, false);
     }
-    finishActive(false, cancelled);
 }
 
 void DirectCommitController::resetForFocus()
@@ -196,13 +197,13 @@ SubmissionStatus DirectCommitController::startTransaction(
         transaction_.commitText());
     switch (status) {
     case platform::ReplacementStatus::completed:
-        finishActive(true);
+        finishActive(platform::ReplacementOutcome::applied);
         return SubmissionStatus::handled;
     case platform::ReplacementStatus::pending:
         return SubmissionStatus::handled;
     case platform::ReplacementStatus::failed:
         ++metrics_.duplicate_prevention_count;
-        (void)finishActive(false, false);
+        (void)finishActive(platform::ReplacementOutcome::not_applied, false);
         return SubmissionStatus::unhandled;
     }
     return SubmissionStatus::fallback;
@@ -247,14 +248,17 @@ KeyInput DirectCommitController::view(const QueuedInput &input)
     };
 }
 
-bool DirectCommitController::finishActive(bool success,
-                                          bool fallback_allowed)
+bool DirectCommitController::finishActive(
+    platform::ReplacementOutcome outcome,
+    bool fallback_allowed)
 {
-    bool fallback_succeeded = false;
-    if (success) {
+    switch (outcome) {
+    case platform::ReplacementOutcome::applied:
         transaction_.complete();
         ++metrics_.completed_transactions;
-    } else {
+        break;
+    case platform::ReplacementOutcome::not_applied:
+    {
         const std::uint64_t sequence = transaction_.sequenceId();
         const std::string_view fallback_text = transaction_.fallbackText();
         transaction_.abort();
@@ -262,20 +266,66 @@ bool DirectCommitController::finishActive(bool success,
         engine_.reset();
         ++metrics_.reset_count;
         if (fallback_allowed && !fallback_text.empty()) {
-            fallback_succeeded =
-                backend_.requestFallbackCommit(sequence, fallback_text) ==
-                platform::ReplacementStatus::completed;
-            if (!fallback_succeeded) {
+            const platform::ReplacementStatus fallback_status =
+                backend_.requestFallbackCommit(sequence, fallback_text);
+            if (fallback_status != platform::ReplacementStatus::completed) {
                 ++metrics_.fallback_failure_count;
             }
         }
+        break;
+    }
+    case platform::ReplacementOutcome::uncertain:
+    {
+        const std::uint64_t uncertain_sequence = transaction_.sequenceId();
+        transaction_.abort();
+        ++metrics_.aborted_transactions;
+        // Exactly once per uncertain terminal: the caller guards on an active
+        // matching transaction, so a stale duplicate callback never reaches
+        // this branch.
+        ++metrics_.uncertain_outcome_count;
+        engine_.reset();
+        ++metrics_.reset_count;
+        releaseQueuedAsLiteral(uncertain_sequence);
+        backend_.markUncertainOutcome();
+        break;
+    }
     }
     transaction_.clear();
     metrics_.active_transaction = false;
     if (!draining_) {
         drainQueue();
     }
-    return success || fallback_succeeded;
+    return outcome == platform::ReplacementOutcome::applied;
+}
+
+std::size_t DirectCommitController::releaseQueuedAsLiteral(
+    std::uint64_t sequence)
+{
+    // After an uncertain terminal the queue must never be replayed through
+    // stale Vietnamese engine state. Preserve plain printable text with a
+    // safe commit-only fallback (zero deletion, order preserved); discard
+    // every other queued input instead of guessing a transformation.
+    std::size_t discarded = 0;
+    while (queue_size_ != 0) {
+        const QueuedInput queued = dequeue();
+        const bool plain_text =
+            queued.kind == KeyKind::text && queued.text_size != 0 &&
+            queued.text_size <= queued_text_capacity;
+        if (!plain_text) {
+            ++discarded;
+            continue;
+        }
+        const platform::ReplacementStatus status =
+            backend_.requestFallbackCommit(
+                sequence,
+                std::string_view{queued.text.data(), queued.text_size});
+        if (status != platform::ReplacementStatus::completed) {
+            ++discarded;
+        }
+    }
+    updateQueueMetrics();
+    metrics_.discarded_queued_input_count += discarded;
+    return discarded;
 }
 
 void DirectCommitController::drainQueue()

@@ -120,6 +120,18 @@ bool DeterministicBackend::cancel(std::uint64_t sequence_id)
     return true;
 }
 
+void DeterministicBackend::markUncertainOutcome()
+{
+    poisoned_ = true;
+    pending_ = {};
+    injected_.clear();
+}
+
+bool DeterministicBackend::poisoned() const
+{
+    return poisoned_;
+}
+
 void DeterministicBackend::reset()
 {
     pending_ = {};

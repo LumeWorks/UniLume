@@ -29,6 +29,7 @@ int main(int argc, char **argv)
         runStabilityRecoveryTests(assertions);
         runZeroPreeditArchitectureTests(assertions);
         runZeroPreeditSoakTests(assertions);
+        runOutcomeContainmentTests(assertions);
     } else {
         const std::string_view suite{argv[1]};
         if (suite == "immediate") {
@@ -65,6 +66,8 @@ int main(int argc, char **argv)
             runZeroPreeditArchitectureTests(assertions);
         } else if (suite == "zero-preedit-soak") {
             runZeroPreeditSoakTests(assertions);
+        } else if (suite == "outcome-containment") {
+            runOutcomeContainmentTests(assertions);
         } else {
             std::cerr << "unknown integration suite: " << suite << '\n';
             return 2;
