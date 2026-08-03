@@ -240,6 +240,7 @@ add_library(unilume_core STATIC
   src/core/typing_pipeline.cpp
   src/core/utf8_validation.cpp
   src/platform/adaptive_router.cpp
+  src/platform/capability_builder.cpp
   src/platform/input_mode_policy.cpp
   src/platform/route_health_registry.cpp
 )

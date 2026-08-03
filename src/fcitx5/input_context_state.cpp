@@ -8,9 +8,28 @@
 #include <fcitx/inputpanel.h>
 #include <fcitx/text.h>
 #include <fcitx/userinterface.h>
+#include <cstdint>
 #include <string>
 
 namespace unilume::fcitx5 {
+
+namespace {
+
+// Reduce the 16-byte input-context UUID to a 64-bit health key component.
+// A simple FNV-1a walk is enough: the value only needs to be stable for a
+// given context and distinguish one context from another on the same
+// frontend/display.
+std::uint64_t hashContextUuid(const std::array<std::uint8_t, 16> &uuid)
+{
+    std::uint64_t hash = 0xcbf29ce484222325ULL;
+    for (const std::uint8_t byte : uuid) {
+        hash ^= static_cast<std::uint64_t>(byte);
+        hash *= 0x100000001b3ULL;
+    }
+    return hash;
+}
+
+} // namespace
 
 InputContextState::InputContextState(fcitx::InputContext &input_context,
                                      UinputBackspaceDevice &uinput_device,
@@ -103,6 +122,7 @@ void InputContextState::keyEvent(fcitx::KeyEvent &event)
             // by itself per Issue #119, so the outcome must be uncertain.
             direct_controller_.complete(
                 sequence, platform::ReplacementOutcome::uncertain);
+            handleUncertainCompletion();
             if (backend_.initialBackspacePending()) {
                 startPendingAcknowledgedReplacement();
             }
@@ -137,7 +157,7 @@ void InputContextState::keyEvent(fcitx::KeyEvent &event)
         }
         direct_controller_.resetForFocus();
         initial_release_key_ = fcitx::Key();
-        mode_policy_.resetForCompositionEnd();
+        resetRouteForCompositionEnd();
         return;
     }
 
@@ -150,7 +170,7 @@ void InputContextState::keyEvent(fcitx::KeyEvent &event)
         }
         direct_controller_.lineBreak();
         initial_release_key_ = fcitx::Key();
-        mode_policy_.resetForCompositionEnd();
+        resetRouteForCompositionEnd();
         return;
     }
 
@@ -186,6 +206,7 @@ void InputContextState::keyEvent(fcitx::KeyEvent &event)
                 // must be uncertain per Issue #119.
                 direct_controller_.complete(
                     sequence, platform::ReplacementOutcome::uncertain);
+                handleUncertainCompletion();
                 if (backend_.initialBackspacePending()) {
                     startPendingAcknowledgedReplacement();
                 }
@@ -250,6 +271,10 @@ void InputContextState::focusReset()
     initial_release_key_ = fcitx::Key();
     backend_.clearFailure();
     mode_policy_.reset();
+    // Clear the active route but NOT the health registry: quarantine
+    // survives a focus reset when the context+signature are unchanged
+    // (Issue #127).  The next composition re-routes and re-checks it.
+    current_route_ = {};
     if (application_mode_override_) {
         application_mode_override_.reset();
         ++application_mode_revision_;
@@ -274,7 +299,7 @@ void InputContextState::setInputMethod(UlInputMethod method)
     direct_controller_.setInputMethod(method);
     preedit_controller_.setInputMethod(method);
     clearPreedit();
-    mode_policy_.resetForCompositionEnd();
+    resetRouteForCompositionEnd();
     input_method_ = method;
 }
 
@@ -292,7 +317,7 @@ void InputContextState::setOptions(const UlEngineOptions &options)
     direct_controller_.setOptions(options);
     preedit_controller_.setOptions(options);
     clearPreedit();
-    mode_policy_.resetForCompositionEnd();
+    resetRouteForCompositionEnd();
     options_ = options;
 }
 
@@ -308,7 +333,7 @@ void InputContextState::setTypingOptions(
     direct_controller_.setTypingOptions(options);
     preedit_controller_.setTypingOptions(options);
     clearPreedit();
-    mode_policy_.resetForCompositionEnd();
+    resetRouteForCompositionEnd();
     typing_options_ = options;
 }
 
@@ -324,7 +349,7 @@ void InputContextState::setMacros(const macro::Snapshot &snapshot,
     direct_controller_.setMacros(snapshot);
     preedit_controller_.setMacros(snapshot);
     clearPreedit();
-    mode_policy_.resetForCompositionEnd();
+    resetRouteForCompositionEnd();
     macro_generation_ = generation;
 }
 
@@ -340,7 +365,7 @@ void InputContextState::setKeymap(const keymap::Snapshot &snapshot,
     direct_controller_.setKeymap(snapshot);
     preedit_controller_.setKeymap(snapshot);
     clearPreedit();
-    mode_policy_.resetForCompositionEnd();
+    resetRouteForCompositionEnd();
     keymap_generation_ = generation;
 }
 
@@ -357,7 +382,7 @@ void InputContextState::setDictionary(
     direct_controller_.setDictionary(snapshot);
     preedit_controller_.setDictionary(snapshot);
     clearPreedit();
-    mode_policy_.resetForCompositionEnd();
+    resetRouteForCompositionEnd();
     dictionary_generation_ = generation;
 }
 
@@ -492,6 +517,7 @@ void InputContextState::compositionBoundary()
     clearPreedit();
     initial_release_key_ = fcitx::Key();
     mode_policy_.reset();
+    current_route_ = {};
 }
 
 void InputContextState::startPendingAcknowledgedReplacement()
@@ -515,14 +541,104 @@ void InputContextState::synchronizeMode()
     direct_replacement_available_ =
         backend_.supportsDirectReplacement();
     const policy::ApplicationMode requested = requestedApplicationMode();
-    const bool automatic_direct =
-        backend_.lastObservation().atomic_transport;
+
+    // Automatic is the only mode driven by the adaptive router.  The
+    // explicit modes (direct / safe_preedit / off) keep the legacy
+    // boolean observe() contract so their behaviour, including the
+    // experimental uinput direct path, is unchanged.
+    if (requested == policy::ApplicationMode::automatic) {
+        synchronizeAdaptive(requested);
+        return;
+    }
+    synchronizeLegacy(previous, requested);
+}
+
+void InputContextState::synchronizeLegacy(
+    platform::InputPath previous,
+    policy::ApplicationMode requested)
+{
+    // The adaptive router is not authoritative here: clear any stale
+    // router state so quarantine is never consulted for explicit modes.
+    current_route_ = {};
+
     const bool direct_available =
-        verified_direct_enabled_ && direct_replacement_available_ &&
-        (requested != policy::ApplicationMode::automatic ||
-         automatic_direct);
+        verified_direct_enabled_ && direct_replacement_available_;
     const platform::InputPath current =
         mode_policy_.observe(requested, direct_available);
+    applyModeChange(previous, current);
+}
+
+void InputContextState::synchronizeAdaptive(
+    policy::ApplicationMode requested)
+{
+    const ReplacementObservation &obs = backend_.lastObservation();
+
+    // Resolve replacement semantics from the refreshed observation.
+    // Uinput (split_unverified) is reflected so the router can decide;
+    // the router never selects it as atomic_direct for Automatic, which
+    // is the contract of Issue #127.  Poison and the global verified
+    // toggle both suppress the atomic path.
+    platform::ReplacementSemantics replacement =
+        platform::ReplacementSemantics::none;
+    if (verified_direct_enabled_ && !backend_.poisoned()) {
+        if (obs.atomic_transport) {
+            replacement =
+                platform::ReplacementSemantics::client_atomic_event;
+        } else if (obs.acknowledged_uinput) {
+            replacement =
+                platform::ReplacementSemantics::split_unverified;
+        }
+    }
+
+    const platform::PreeditSemantics preedit =
+        input_context_.capabilityFlags().test(
+            fcitx::CapabilityFlag::Preedit)
+            ? platform::PreeditSemantics::client
+            : platform::PreeditSemantics::server;
+
+    const bool snapshot_valid =
+        obs.cursor_valid && obs.utf8_valid &&
+        obs.within_resource_limit;
+    // Selection-collapse is not yet observed from the frontend; default to
+    // collapsed so the atomic path is not falsely blocked.  A follow-up
+    // can read the surrounding-text anchor to refine this.
+    const platform::InputCapabilities caps = platform::buildCapabilities(
+        replacement, preedit, obs.surrounding_available, snapshot_valid,
+        true, obs.generation);
+
+    resolveHealthIdentity();
+    const platform::RouteHealthKey key{
+        context_id_, frontend_, display_,
+        caps.replacement, caps.signature};
+    const bool quarantined = health_registry_.isQuarantined(key);
+
+    // Composition stickiness: a non-passthrough route is held to the
+    // composition boundary.  A capability loss that makes the current
+    // route unsafe fences first, then re-routes.
+    if (platform::AdaptiveRouter::shouldHoldRoute(current_route_, caps)) {
+        if (platform::AdaptiveRouter::requiresFence(
+                current_route_, caps)) {
+            compositionBoundary();
+        } else {
+            return;
+        }
+    }
+
+    const platform::RouteDecision decision =
+        platform::AdaptiveRouter::route(caps, quarantined, false);
+    current_route_ = decision;
+    current_health_key_ = key;
+
+    const platform::InputPath previous_now = mode_policy_.path();
+    const platform::InputPath current = mapAdaptivePath(decision.path);
+    mode_policy_.assignPath(current, requested);
+    applyModeChange(previous_now, current);
+}
+
+void InputContextState::applyModeChange(
+    platform::InputPath previous,
+    platform::InputPath current)
+{
     if (previous == current) {
         return;
     }
@@ -541,6 +657,55 @@ void InputContextState::synchronizeMode()
     }
 }
 
+platform::InputPath InputContextState::mapAdaptivePath(
+    platform::AdaptivePath path) const
+{
+    switch (path) {
+    case platform::AdaptivePath::atomic_direct:
+        return platform::InputPath::direct;
+    case platform::AdaptivePath::client_preedit:
+    case platform::AdaptivePath::server_preedit:
+        return platform::InputPath::preedit;
+    case platform::AdaptivePath::passthrough:
+        return platform::InputPath::off;
+    }
+    return platform::InputPath::off;
+}
+
+void InputContextState::resetRouteForCompositionEnd()
+{
+    mode_policy_.resetForCompositionEnd();
+    current_route_ = {};
+}
+
+void InputContextState::resolveHealthIdentity()
+{
+    if (health_identity_resolved_) {
+        return;
+    }
+    context_id_ = hashContextUuid(input_context_.uuid());
+    frontend_.assign(input_context_.frontend());
+    display_ = input_context_.display();
+    health_identity_resolved_ = true;
+}
+
+void InputContextState::handleUncertainCompletion()
+{
+    // An uncertain terminal proves the atomic route is untrustworthy for
+    // this transport+capability signature.  Quarantine it so the next
+    // composition with the same signature falls back to preedit instead
+    // of retrying atomic direct.  The quarantine survives focus resets
+    // (per Issue #127) until the capability signature changes.
+    if (current_route_.path == platform::AdaptivePath::atomic_direct) {
+        health_registry_.quarantine(
+            current_health_key_,
+            backend_.lastObservation().generation);
+    }
+    // The uncertain terminal ends the composition: clear the route so
+    // the next key re-routes and consults the registry.
+    current_route_ = {};
+}
+
 void InputContextState::handlePreeditEvent(
     fcitx::KeyEvent &event,
     const MappedKey &mapped,
@@ -553,7 +718,7 @@ void InputContextState::handlePreeditEvent(
         input_context_.commitString(std::string(action.commit_text));
     }
     if (preedit_controller_.preedit().empty()) {
-        mode_policy_.resetForCompositionEnd();
+        resetRouteForCompositionEnd();
     }
     updatePreedit();
     diagnostics_.recordPreedit(

@@ -43,6 +43,13 @@ InputPath InputModePolicy::observe(policy::ApplicationMode requested,
     return path_;
 }
 
+void InputModePolicy::assignPath(InputPath path,
+                                 policy::ApplicationMode requested)
+{
+    requested_ = requested;
+    path_ = path;
+}
+
 void InputModePolicy::resetForCompositionEnd()
 {
     // Between compositions, reset to unknown so the next composition

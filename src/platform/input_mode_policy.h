@@ -18,6 +18,10 @@ public:
     InputPath observe(bool direct_available);
     InputPath observe(policy::ApplicationMode requested,
                       bool direct_available);
+    // Set the path directly.  Used by the adaptive router, which owns
+    // composition stickiness itself; observe()'s internal stickiness does
+    // not apply when the router drives the decision.
+    void assignPath(InputPath path, policy::ApplicationMode requested);
     void resetForCompositionEnd();
     void reset();
     [[nodiscard]] InputPath path() const;

@@ -167,6 +167,35 @@ set_target_properties(unilume_adaptive_router_tests PROPERTIES
 )
 add_test(NAME adaptive-router COMMAND unilume_adaptive_router_tests)
 
+add_executable(unilume_capability_builder_tests
+  platform/capability_builder_tests.cpp
+)
+target_link_libraries(unilume_capability_builder_tests PRIVATE
+  unilume_core
+  unilume_sanitizer_options
+)
+set_target_properties(unilume_capability_builder_tests PROPERTIES
+  CXX_STANDARD 23
+  CXX_STANDARD_REQUIRED YES
+  CXX_EXTENSIONS NO
+)
+add_test(NAME capability-builder COMMAND unilume_capability_builder_tests)
+
+add_executable(unilume_adaptive_routing_pipeline_tests
+  platform/adaptive_routing_pipeline_tests.cpp
+)
+target_link_libraries(unilume_adaptive_routing_pipeline_tests PRIVATE
+  unilume_core
+  unilume_sanitizer_options
+)
+set_target_properties(unilume_adaptive_routing_pipeline_tests PROPERTIES
+  CXX_STANDARD 23
+  CXX_STANDARD_REQUIRED YES
+  CXX_EXTENSIONS NO
+)
+add_test(NAME adaptive-routing-pipeline
+         COMMAND unilume_adaptive_routing_pipeline_tests)
+
 add_executable(unilume_property_tests
   ../fuzz/property_test_main.cpp
   ../fuzz/support/fuzz_harness.cpp
