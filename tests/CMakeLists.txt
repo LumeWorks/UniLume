@@ -153,6 +153,20 @@ set_target_properties(unilume_application_policy_tests PROPERTIES
 )
 add_test(NAME application-policy COMMAND unilume_application_policy_tests)
 
+add_executable(unilume_adaptive_router_tests
+  platform/adaptive_router_tests.cpp
+)
+target_link_libraries(unilume_adaptive_router_tests PRIVATE
+  unilume_core
+  unilume_sanitizer_options
+)
+set_target_properties(unilume_adaptive_router_tests PROPERTIES
+  CXX_STANDARD 23
+  CXX_STANDARD_REQUIRED YES
+  CXX_EXTENSIONS NO
+)
+add_test(NAME adaptive-router COMMAND unilume_adaptive_router_tests)
+
 add_executable(unilume_property_tests
   ../fuzz/property_test_main.cpp
   ../fuzz/support/fuzz_harness.cpp
