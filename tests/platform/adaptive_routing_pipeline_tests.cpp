@@ -295,6 +295,37 @@ void testQuarantineSurvivesFocusReset()
            "quarantine survives focus reset -> client_preedit");
 }
 
+void testQuarantineSurvivesSnapshotOnlyChange()
+{
+    RouteHealthRegistry registry;
+    RouteState route;
+    const Identity id;
+    // Atomic direct with surrounding-text capability + valid snapshot.
+    routeOnce(atomicValidState(), id, registry, route);
+    const RouteHealthKey quarantined_key = route.key;
+    uncertainTerminal(route, registry, 1);
+    expect(registry.isQuarantined(quarantined_key),
+           "quarantined after uncertain");
+    // Simulate "text changed around the cursor": a new snapshot
+    // generation arrives but the surrounding-text CAPABILITY is unchanged.
+    // The signature must be identical, so the quarantine key still matches
+    // and the next composition falls back to preedit instead of retrying
+    // atomic.  This is the regression guard for Issue #127: quarantine must
+    // not drop when only the snapshot content changes.
+    RuntimeState text_changed = atomicValidState();
+    text_changed.generation = 99;
+    expect(text_changed.surrounding_available,
+           "capability unchanged after text edit");
+    const auto after =
+        routeOnce(text_changed, id, registry, route);
+    expect(route.key == quarantined_key,
+           "snapshot-only change keeps same signature/key");
+    expect(registry.isQuarantined(route.key),
+           "quarantine survives snapshot-only change");
+    expect(after.decision.path == AdaptivePath::client_preedit,
+           "quarantine forces preedit despite valid atomic snapshot");
+}
+
 void testQuarantineClearsOnSignatureChange()
 {
     RouteHealthRegistry registry;
@@ -377,6 +408,7 @@ int main()
     testFenceOnAtomicLoss();
     testUncertainQuarantinesToPreedit();
     testQuarantineSurvivesFocusReset();
+    testQuarantineSurvivesSnapshotOnlyChange();
     testQuarantineClearsOnSignatureChange();
     testQuarantineClearsOnTransportChange();
     testDeveloperClearAll();

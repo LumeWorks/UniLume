@@ -602,6 +602,13 @@ void InputContextState::synchronizeAdaptive(
     // Selection-collapse is not yet observed from the frontend; default to
     // collapsed so the atomic path is not falsely blocked.  A follow-up
     // can read the surrounding-text anchor to refine this.
+    //
+    // `obs.surrounding_available` is the client-advertised
+    // CapabilityFlag::SurroundingText — a STABLE support capability, not
+    // whether the current snapshot has text.  It feeds the capability
+    // signature (via buildCapabilities) so quarantine does not lift when
+    // only the snapshot content changes (cursor moves, text edited); the
+    // transient `snapshot_valid` is excluded from the signature.
     const platform::InputCapabilities caps = platform::buildCapabilities(
         replacement, preedit, obs.surrounding_available, snapshot_valid,
         true, obs.generation);
