@@ -117,6 +117,7 @@ public:
     {
         if (mode_) {
             switch (*mode_) {
+            case policy::ApplicationMode::adaptive:
             case policy::ApplicationMode::automatic:
                 return _("Automatic");
             case policy::ApplicationMode::direct:
@@ -132,6 +133,7 @@ public:
             return _("UniLume mode");
         }
         switch (state->requestedApplicationMode()) {
+        case policy::ApplicationMode::adaptive:
         case policy::ApplicationMode::automatic:
             return state->effectiveInputPath() == platform::InputPath::direct
                        ? _("Automatic - Atomic direct")
@@ -718,7 +720,9 @@ bool UniLumeAddon::prepareApplicationPolicyUpdate(
         if (decoded.legacy_modes && !legacy_policy_warning_emitted_) {
             FCITX_WARN()
                 << "UniLume application policy uses legacy modes; "
-                   "automatic maps to direct and safe-preedit maps to off";
+                   "automatic/direct/safe-preedit have been migrated to "
+                   "adaptive per Issue #127. The original file was backed "
+                   "up with a .legacy.bak suffix.";
             legacy_policy_warning_emitted_ = true;
         }
         snapshot = std::move(decoded.snapshot);

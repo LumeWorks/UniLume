@@ -15,6 +15,7 @@ inline constexpr std::size_t max_identity_bytes = 128;
 inline constexpr std::size_t max_serialized_bytes = 1024 * 1024;
 
 enum class ApplicationMode {
+    adaptive,
     automatic,
     direct,
     safe_preedit,
@@ -26,10 +27,24 @@ enum class ApplicationMode {
     return mode;
 }
 
+// A legacy mode is one that was removed by the Issue #127 migration.
+// `adaptive` and `off` are the only modes the v1 migration target emits;
+// `automatic`, `direct` and `safe_preedit` are accepted on decode for
+// migration and downgraded to `adaptive`, but they must never round-trip
+// back to disk.
 [[nodiscard]] constexpr bool isLegacyMode(ApplicationMode mode)
 {
     return mode == ApplicationMode::automatic ||
+           mode == ApplicationMode::direct ||
            mode == ApplicationMode::safe_preedit;
+}
+
+// Map any legacy mode to its migration target.  `adaptive` and `off`
+// are returned unchanged; `automatic`, `direct` and `safe_preedit` are
+// collapsed to `adaptive` per Issue #127.
+[[nodiscard]] constexpr ApplicationMode migrateMode(ApplicationMode mode)
+{
+    return isLegacyMode(mode) ? ApplicationMode::adaptive : mode;
 }
 
 enum class MatchKind {
@@ -47,13 +62,13 @@ enum class ResolutionSource {
 struct Rule {
     MatchKind kind{MatchKind::exact};
     std::string pattern;
-    ApplicationMode mode{ApplicationMode::automatic};
+    ApplicationMode mode{ApplicationMode::adaptive};
 
     friend bool operator==(const Rule &, const Rule &) = default;
 };
 
 struct Table {
-    ApplicationMode default_mode{ApplicationMode::automatic};
+    ApplicationMode default_mode{ApplicationMode::adaptive};
     std::vector<Rule> exact_rules;
     std::vector<Rule> prefix_rules;
 
@@ -84,7 +99,7 @@ struct DecodeResult {
 };
 
 struct Resolution {
-    ApplicationMode mode{ApplicationMode::automatic};
+    ApplicationMode mode{ApplicationMode::adaptive};
     ResolutionSource source{ResolutionSource::missing_identity};
     std::string_view pattern;
 };

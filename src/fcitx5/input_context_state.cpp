@@ -462,6 +462,7 @@ void InputContextState::selectApplicationMode(policy::ApplicationMode mode)
 void InputContextState::cycleApplicationMode()
 {
     switch (requestedApplicationMode()) {
+    case policy::ApplicationMode::adaptive:
     case policy::ApplicationMode::automatic:
         selectApplicationMode(policy::ApplicationMode::direct);
         break;
@@ -542,11 +543,14 @@ void InputContextState::synchronizeMode()
         backend_.supportsDirectReplacement();
     const policy::ApplicationMode requested = requestedApplicationMode();
 
-    // Automatic is the only mode driven by the adaptive router.  The
-    // explicit modes (direct / safe_preedit / off) keep the legacy
-    // boolean observe() contract so their behaviour, including the
-    // experimental uinput direct path, is unchanged.
-    if (requested == policy::ApplicationMode::automatic) {
+    // Adaptive (and the legacy `automatic` alias) is the mode driven by
+    // the adaptive router.  The explicit modes (direct / safe_preedit /
+    // off) keep the legacy boolean observe() contract so their
+    // behaviour, including the experimental uinput direct path, is
+    // unchanged.  `automatic` still routes through the router for
+    // backwards compatibility with pre-migration configs.
+    if (requested == policy::ApplicationMode::adaptive ||
+        requested == policy::ApplicationMode::automatic) {
         synchronizeAdaptive(requested);
         return;
     }

@@ -109,7 +109,7 @@ private:
     bool direct_replacement_available_{};
     DirectStrategy direct_strategy_{DirectStrategy::fast};
     policy::ApplicationMode policy_mode_{
-        policy::ApplicationMode::automatic};
+        policy::ApplicationMode::adaptive};
     policy::ResolutionSource policy_source_{
         policy::ResolutionSource::missing_identity};
     std::optional<policy::ApplicationMode> application_mode_override_;
