@@ -60,9 +60,6 @@ private:
 
     struct ModeHotkeys {
         fcitx::Key cycle{"Control+Alt+u"};
-        fcitx::Key automatic;
-        fcitx::Key direct;
-        fcitx::Key safe_preedit;
         fcitx::Key off;
         fcitx::Key emoji{"Control+Alt+period"};
     };
@@ -129,9 +126,7 @@ private:
     fcitx::FactoryFor<InputContextState> state_factory_;
     std::unique_ptr<fcitx::Menu> mode_menu_;
     std::unique_ptr<ModeAction> mode_action_;
-    std::unique_ptr<ModeAction> automatic_mode_action_;
-    std::unique_ptr<ModeAction> direct_mode_action_;
-    std::unique_ptr<ModeAction> safe_preedit_mode_action_;
+    std::unique_ptr<ModeAction> adaptive_mode_action_;
     std::unique_ptr<ModeAction> off_mode_action_;
     std::unique_ptr<ConfigAction> telex_action_;
     std::unique_ptr<ConfigAction> vni_action_;

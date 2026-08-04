@@ -464,16 +464,12 @@ void InputContextState::cycleApplicationMode()
     switch (requestedApplicationMode()) {
     case policy::ApplicationMode::adaptive:
     case policy::ApplicationMode::automatic:
-        selectApplicationMode(policy::ApplicationMode::direct);
-        break;
     case policy::ApplicationMode::direct:
-        selectApplicationMode(policy::ApplicationMode::safe_preedit);
-        break;
     case policy::ApplicationMode::safe_preedit:
         selectApplicationMode(policy::ApplicationMode::off);
         break;
     case policy::ApplicationMode::off:
-        selectApplicationMode(policy::ApplicationMode::automatic);
+        selectApplicationMode(policy::ApplicationMode::adaptive);
         break;
     }
 }

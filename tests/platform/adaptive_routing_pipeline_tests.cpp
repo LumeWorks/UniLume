@@ -11,10 +11,12 @@
 // fcitx::InputContext, so these tests cover the testable decision core.
 
 #include "adaptive_router.h"
+#include "application_policy.h"
 #include "capability_builder.h"
 #include "route_health_registry.h"
 
 #include <iostream>
+#include <string>
 
 namespace {
 
@@ -393,6 +395,95 @@ void testDeveloperClearAll()
            "after clearAll, atomic_direct available again");
 }
 
+// Issue #127 Step 6 commit 1: UI/status/hotkey collapses to Adaptive ↔ Off.
+using namespace unilume::policy;
+
+ApplicationMode cycleNext(ApplicationMode current)
+{
+    // Mirrors InputContextState::cycleApplicationMode after Step 6.
+    switch (current) {
+    case ApplicationMode::adaptive:
+    case ApplicationMode::automatic:
+    case ApplicationMode::direct:
+    case ApplicationMode::safe_preedit:
+        return ApplicationMode::off;
+    case ApplicationMode::off:
+        return ApplicationMode::adaptive;
+    }
+    return ApplicationMode::off;
+}
+
+void testCycleAdaptiveOff()
+{
+    expect(cycleNext(ApplicationMode::adaptive) ==
+               ApplicationMode::off,
+           "cycle adaptive -> off");
+    expect(cycleNext(ApplicationMode::off) ==
+               ApplicationMode::adaptive,
+           "cycle off -> adaptive");
+    expect(cycleNext(ApplicationMode::automatic) ==
+               ApplicationMode::off,
+           "cycle legacy automatic -> off");
+    expect(cycleNext(ApplicationMode::direct) ==
+               ApplicationMode::off,
+           "cycle legacy direct -> off");
+    expect(cycleNext(ApplicationMode::safe_preedit) ==
+               ApplicationMode::off,
+           "cycle legacy safe_preedit -> off");
+
+    // A full cycle returns to the start.
+    ApplicationMode mode = ApplicationMode::adaptive;
+    mode = cycleNext(mode);
+    expect(mode == ApplicationMode::off, "cycle step 1 -> off");
+    mode = cycleNext(mode);
+    expect(mode == ApplicationMode::adaptive,
+           "cycle step 2 -> adaptive (back to start)");
+
+    // Repeated cycling stays within {adaptive, off}.
+    for (std::size_t i = 0; i < 20; ++i) {
+        mode = cycleNext(mode);
+        expect(mode == ApplicationMode::adaptive ||
+                   mode == ApplicationMode::off,
+               "cycle stays within {adaptive, off}");
+    }
+}
+
+const char *statusLabel(ApplicationMode mode, bool direct)
+{
+    // Mirrors UniLumeAddon::ModeAction::shortText after Step 6.
+    if (mode == ApplicationMode::off) return "Off";
+    if (mode == ApplicationMode::adaptive ||
+        mode == ApplicationMode::automatic) {
+        return direct ? "Adaptive - Atomic direct"
+                      : "Adaptive - Preedit fallback";
+    }
+    // Legacy overrides (direct/safe_preedit) fall through to Adaptive.
+    return "Adaptive";
+}
+
+void testStatusRouteAdaptive()
+{
+    expect(std::string(statusLabel(ApplicationMode::adaptive, true)) ==
+               "Adaptive - Atomic direct",
+           "adaptive + direct -> Atomic direct");
+    expect(std::string(statusLabel(ApplicationMode::adaptive, false)) ==
+               "Adaptive - Preedit fallback",
+           "adaptive + preedit -> Preedit fallback");
+    expect(std::string(statusLabel(ApplicationMode::automatic, true)) ==
+               "Adaptive - Atomic direct",
+           "legacy automatic + direct -> Atomic direct (aliased)");
+    expect(std::string(statusLabel(ApplicationMode::off, false)) == "Off",
+           "off -> Off");
+    expect(std::string(statusLabel(ApplicationMode::off, true)) == "Off",
+           "off + direct still Off");
+    expect(std::string(statusLabel(ApplicationMode::direct, true)) ==
+               "Adaptive",
+           "legacy direct override renders as Adaptive");
+    expect(std::string(statusLabel(ApplicationMode::safe_preedit, false)) ==
+               "Adaptive",
+           "legacy safe_preedit override renders as Adaptive");
+}
+
 } // namespace
 
 int main()
@@ -412,6 +503,8 @@ int main()
     testQuarantineClearsOnSignatureChange();
     testQuarantineClearsOnTransportChange();
     testDeveloperClearAll();
+    testCycleAdaptiveOff();
+    testStatusRouteAdaptive();
 
     if (failures != 0) {
         std::cerr << failures << " test(s) failed\n";

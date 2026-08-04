@@ -118,12 +118,14 @@ public:
         if (mode_) {
             switch (*mode_) {
             case policy::ApplicationMode::adaptive:
+                return _("Adaptive");
             case policy::ApplicationMode::automatic:
-                return _("Automatic");
             case policy::ApplicationMode::direct:
-                return _("Direct");
             case policy::ApplicationMode::safe_preedit:
-                return _("Safe preedit");
+                // Legacy modes migrated to adaptive on decode; they should
+                // never be the active override but render as Adaptive for
+                // safety if a stale override survives.
+                return _("Adaptive");
             case policy::ApplicationMode::off:
                 return _("Off");
             }
@@ -136,8 +138,8 @@ public:
         case policy::ApplicationMode::adaptive:
         case policy::ApplicationMode::automatic:
             return state->effectiveInputPath() == platform::InputPath::direct
-                       ? _("Automatic - Atomic direct")
-                       : _("Automatic - Atomic replacement unavailable");
+                       ? _("Adaptive - Atomic direct")
+                       : _("Adaptive - Preedit fallback");
         case policy::ApplicationMode::direct:
             if (state->effectiveInputPath() != platform::InputPath::direct) {
                 return _("Direct unavailable - Passthrough");
@@ -233,12 +235,8 @@ UniLumeAddon::UniLumeAddon(fcitx::Instance &instance)
         "unilume-input-context", &state_factory_);
     mode_menu_ = std::make_unique<fcitx::Menu>();
     mode_action_ = std::make_unique<ModeAction>(*this, std::nullopt);
-    automatic_mode_action_ = std::make_unique<ModeAction>(
-        *this, policy::ApplicationMode::automatic);
-    direct_mode_action_ = std::make_unique<ModeAction>(
-        *this, policy::ApplicationMode::direct);
-    safe_preedit_mode_action_ = std::make_unique<ModeAction>(
-        *this, policy::ApplicationMode::safe_preedit);
+    adaptive_mode_action_ = std::make_unique<ModeAction>(
+        *this, policy::ApplicationMode::adaptive);
     off_mode_action_ = std::make_unique<ModeAction>(
         *this, policy::ApplicationMode::off);
     telex_action_ = std::make_unique<ConfigAction>(
@@ -260,12 +258,8 @@ UniLumeAddon::UniLumeAddon(fcitx::Instance &instance)
         std::make_unique<EmojiAction>(*this, true);
     mode_action_->registerAction(
         "unilume-mode", &instance_.userInterfaceManager());
-    automatic_mode_action_->registerAction(
-        "unilume-mode-automatic", &instance_.userInterfaceManager());
-    direct_mode_action_->registerAction(
-        "unilume-mode-direct", &instance_.userInterfaceManager());
-    safe_preedit_mode_action_->registerAction(
-        "unilume-mode-safe-preedit", &instance_.userInterfaceManager());
+    adaptive_mode_action_->registerAction(
+        "unilume-mode-adaptive", &instance_.userInterfaceManager());
     off_mode_action_->registerAction(
         "unilume-mode-off", &instance_.userInterfaceManager());
     telex_action_->registerAction(
@@ -287,9 +281,7 @@ UniLumeAddon::UniLumeAddon(fcitx::Instance &instance)
     clear_emoji_history_action_->registerAction(
         "unilume-clear-emoji-history",
         &instance_.userInterfaceManager());
-    mode_menu_->addAction(automatic_mode_action_.get());
-    mode_menu_->addAction(direct_mode_action_.get());
-    mode_menu_->addAction(safe_preedit_mode_action_.get());
+    mode_menu_->addAction(adaptive_mode_action_.get());
     mode_menu_->addAction(off_mode_action_.get());
     mode_menu_->addAction(telex_action_.get());
     mode_menu_->addAction(vni_action_.get());
@@ -475,14 +467,6 @@ bool UniLumeAddon::handleModeHotkey(const ModeHotkeys &hotkeys,
     const fcitx::Key key = event.key();
     if (hotkeys.cycle.isValid() && key.check(hotkeys.cycle)) {
         state.cycleApplicationMode();
-    } else if (hotkeys.automatic.isValid() &&
-               key.check(hotkeys.automatic)) {
-        state.selectApplicationMode(policy::ApplicationMode::automatic);
-    } else if (hotkeys.direct.isValid() && key.check(hotkeys.direct)) {
-        state.selectApplicationMode(policy::ApplicationMode::direct);
-    } else if (hotkeys.safe_preedit.isValid() &&
-               key.check(hotkeys.safe_preedit)) {
-        state.selectApplicationMode(policy::ApplicationMode::safe_preedit);
     } else if (hotkeys.off.isValid() && key.check(hotkeys.off)) {
         state.selectApplicationMode(policy::ApplicationMode::off);
     } else {
@@ -520,9 +504,7 @@ void UniLumeAddon::selectModeFromAction(
 void UniLumeAddon::updateModeActions(fcitx::InputContext *input_context)
 {
     mode_action_->update(input_context);
-    automatic_mode_action_->update(input_context);
-    direct_mode_action_->update(input_context);
-    safe_preedit_mode_action_->update(input_context);
+    adaptive_mode_action_->update(input_context);
     off_mode_action_->update(input_context);
     telex_action_->update(input_context);
     vni_action_->update(input_context);
@@ -748,9 +730,6 @@ bool UniLumeAddon::prepareModeHotkeyUpdate(
     };
     const bool has_update =
         source.valueByPath("CycleModeHotkey") ||
-        source.valueByPath("AutomaticModeHotkey") ||
-        source.valueByPath("DirectModeHotkey") ||
-        source.valueByPath("SafePreeditModeHotkey") ||
         source.valueByPath("OffModeHotkey") ||
         source.valueByPath("EmojiHotkey");
     if (!has_update) {
@@ -758,28 +737,18 @@ bool UniLumeAddon::prepareModeHotkeyUpdate(
     }
     const std::string cycle = effective(
         "CycleModeHotkey", *current.cycle_mode_hotkey);
-    const std::string automatic = effective(
-        "AutomaticModeHotkey", *current.automatic_mode_hotkey);
-    const std::string direct = effective(
-        "DirectModeHotkey", *current.direct_mode_hotkey);
-    const std::string safe_preedit = effective(
-        "SafePreeditModeHotkey", *current.safe_preedit_mode_hotkey);
     const std::string off = effective(
         "OffModeHotkey", *current.off_mode_hotkey);
     const std::string emoji = effective(
         "EmojiHotkey", *current.emoji_hotkey);
     ModeHotkeys parsed{
         cycle.empty() ? fcitx::Key() : fcitx::Key(cycle),
-        automatic.empty() ? fcitx::Key() : fcitx::Key(automatic),
-        direct.empty() ? fcitx::Key() : fcitx::Key(direct),
-        safe_preedit.empty() ? fcitx::Key() : fcitx::Key(safe_preedit),
         off.empty() ? fcitx::Key() : fcitx::Key(off),
         emoji.empty() ? fcitx::Key() : fcitx::Key(emoji),
     };
     std::set<std::string> seen;
     for (const fcitx::Key *key :
-         {&parsed.cycle, &parsed.automatic, &parsed.direct,
-          &parsed.safe_preedit, &parsed.off, &parsed.emoji}) {
+         {&parsed.cycle, &parsed.off, &parsed.emoji}) {
         if (!key->isValid()) {
             continue;
         }
