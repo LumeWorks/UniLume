@@ -76,6 +76,7 @@ private:
         bool verified_direct_enabled{
             verified_direct_enabled_by_default};
         DirectStrategy direct_strategy{DirectStrategy::fast};
+        std::string developer_route_override;
         bool emoji_enabled{};
         policy::Snapshot application_policy_snapshot;
         std::uint64_t application_policy_generation{};

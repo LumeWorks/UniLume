@@ -397,6 +397,17 @@ void InputContextState::setVerifiedDirectEnabled(bool enabled)
     synchronizeMode();
 }
 
+void InputContextState::setDeveloperRouteOverride(std::string_view value)
+{
+    if (value == developer_route_override_) {
+        return;
+    }
+    compositionBoundary();
+    developer_route_override_.assign(value);
+    ++application_mode_revision_;
+    synchronizeMode();
+}
+
 void InputContextState::setDirectStrategy(DirectStrategy strategy)
 {
     if (strategy == direct_strategy_) {
@@ -561,8 +572,16 @@ void InputContextState::synchronizeLegacy(
     // router state so quarantine is never consulted for explicit modes.
     current_route_ = {};
 
+    // Uinput (split_unverified transport) is Experimental and must only be
+    // reachable when the developer explicitly opts in via
+    // `developer_route_override=direct_experimental`.  Without the
+    // override, the legacy `direct` mode falls back to passthrough so
+    // Adaptive can never reach uinput (Issue #127).
+    const bool direct_experimental_allowed =
+        developer_route_override_ == "direct_experimental";
     const bool direct_available =
-        verified_direct_enabled_ && direct_replacement_available_;
+        verified_direct_enabled_ && direct_replacement_available_ &&
+        direct_experimental_allowed;
     const platform::InputPath current =
         mode_policy_.observe(requested, direct_available);
     applyModeChange(previous, current);

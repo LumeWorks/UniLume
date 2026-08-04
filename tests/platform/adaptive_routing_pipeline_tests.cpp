@@ -15,8 +15,10 @@
 #include "capability_builder.h"
 #include "route_health_registry.h"
 
+#include <cstdint>
 #include <iostream>
 #include <string>
+#include <string_view>
 
 namespace {
 
@@ -484,6 +486,82 @@ void testStatusRouteAdaptive()
            "legacy safe_preedit override renders as Adaptive");
 }
 
+// Issue #127 Step 6 commit 2: uinput is Experimental and only reachable
+// via developer_route_override=direct_experimental.  Adaptive never
+// reaches uinput.  These tests mirror the direct_available gate in
+// synchronizeLegacy and the replacement-semantics resolution in
+// synchronizeAdaptive.
+
+bool legacyDirectAvailable(bool verified_direct_enabled,
+                          bool direct_replacement_available,
+                          std::string_view developer_override)
+{
+    // Mirrors InputContextState::synchronizeLegacy after Step 6 commit 2.
+    const bool experimental = developer_override == "direct_experimental";
+    return verified_direct_enabled && direct_replacement_available &&
+           experimental;
+}
+
+void testUinputExperimentalGate()
+{
+    // Without the developer override, direct is never available even when
+    // the backend reports a replacement is possible (uinput present).
+    expect(!legacyDirectAvailable(true, true, ""),
+           "direct blocked without override");
+    expect(!legacyDirectAvailable(true, true, "off"),
+           "direct blocked with wrong override");
+    expect(!legacyDirectAvailable(true, true, "adaptive"),
+           "direct blocked with adaptive override");
+    // Only the exact override token unlocks the experimental direct path.
+    expect(legacyDirectAvailable(true, true, "direct_experimental"),
+           "direct allowed with direct_experimental");
+    // verified_direct_enabled=false still blocks even with the override.
+    expect(!legacyDirectAvailable(false, true, "direct_experimental"),
+           "direct blocked when verified_direct disabled");
+    // No backend replacement capability still blocks.
+    expect(!legacyDirectAvailable(true, false, "direct_experimental"),
+           "direct blocked when backend has no replacement");
+}
+
+void testAdaptiveNeverReachesUinput()
+{
+    // Adaptive builds ReplacementSemantics from the observation.  When
+    // the only transport is uinput (acknowledged_uinput, no atomic), the
+    // resolved semantics are split_unverified, and the router selects
+    // preedit (or passthrough if no preedit) — never atomic_direct.
+    RouteHealthRegistry registry;
+    RouteState route;
+    const Identity id;
+
+    // uinput + client preedit → client_preedit (never direct).
+    const auto r1 = routeOnce(uinputWithClientPreeditState(), id, registry, route);
+    expect(r1.decision.path == AdaptivePath::client_preedit,
+           "adaptive + uinput + client preedit -> client_preedit");
+    expect(r1.decision.path != AdaptivePath::atomic_direct,
+           "adaptive never selects atomic_direct for uinput");
+
+    // uinput + no preedit → passthrough (never direct).
+    const auto r2 = routeOnce(noCapabilityState(), id, registry, route);
+    expect(r2.decision.path == AdaptivePath::passthrough,
+           "adaptive + uinput + no preedit -> passthrough");
+    expect(r2.decision.path != AdaptivePath::atomic_direct,
+           "adaptive never selects atomic_direct when no capability");
+
+    // Even if a stale override tried to force direct, the adaptive
+    // router ignores it: split_unverified is never atomic.  Verify the
+    // router decision is independent of the override.
+    RuntimeState uinput = uinputWithClientPreeditState();
+    expect(uinput.acknowledged_uinput, "fixture has uinput");
+    const InputCapabilities uinput_caps = buildCapabilities(
+        ReplacementSemantics::split_unverified, PreeditSemantics::client,
+        false, false, true, 1);
+    expect(!uinput_caps.atomicReplacement(),
+           "split_unverified is not atomic");
+    const auto d = AdaptiveRouter::route(uinput_caps, false, false);
+    expect(d.path != AdaptivePath::atomic_direct,
+           "router never picks atomic_direct for split_unverified");
+}
+
 } // namespace
 
 int main()
@@ -505,6 +583,8 @@ int main()
     testDeveloperClearAll();
     testCycleAdaptiveOff();
     testStatusRouteAdaptive();
+    testUinputExperimentalGate();
+    testAdaptiveNeverReachesUinput();
 
     if (failures != 0) {
         std::cerr << failures << " test(s) failed\n";

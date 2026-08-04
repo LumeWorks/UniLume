@@ -413,6 +413,8 @@ void UniLumeAddon::setConfigForInputMethod(
         *configFor(entry).verified_direct_enabled;
     prepared.direct_strategy = toDirectStrategy(
         *configFor(entry).direct_strategy);
+    prepared.developer_route_override =
+        *configFor(entry).developer_route_override;
     prepared.emoji_enabled = *configFor(entry).emoji_enabled;
     resourcesFor(entry) = std::move(prepared);
     instance_.inputContextManager().foreach(
@@ -448,6 +450,7 @@ void UniLumeAddon::synchronizeState(
                         resources.dictionary_generation);
     state.setVerifiedDirectEnabled(resources.verified_direct_enabled);
     state.setDirectStrategy(resources.direct_strategy);
+    state.setDeveloperRouteOverride(resources.developer_route_override);
     const std::string &identity = input_context.program();
     if (!state.applicationPolicyIsCurrent(
             resources.application_policy_generation, identity)) {

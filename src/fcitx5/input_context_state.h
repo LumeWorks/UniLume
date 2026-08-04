@@ -48,6 +48,7 @@ public:
     void setDictionary(const dictionary::Snapshot &snapshot,
                        std::uint64_t generation);
     void setVerifiedDirectEnabled(bool enabled);
+    void setDeveloperRouteOverride(std::string_view value);
     void setDirectStrategy(DirectStrategy strategy);
     [[nodiscard]] DirectStrategy directStrategy() const;
     void setApplicationPolicy(const policy::Resolution &resolution,
@@ -106,6 +107,7 @@ private:
     std::uint64_t keymap_generation_{};
     std::uint64_t dictionary_generation_{};
     bool verified_direct_enabled_{true};
+    std::string developer_route_override_;
     bool direct_replacement_available_{};
     DirectStrategy direct_strategy_{DirectStrategy::fast};
     policy::ApplicationMode policy_mode_{
