@@ -636,6 +636,19 @@ void InputContextState::synchronizeAdaptive(
     current_route_ = decision;
     current_health_key_ = key;
 
+    // All preedit paths in Automatic mode commit at word boundary so the
+    // preedit does not accumulate a long underlined phrase across spaces.
+    // This applies to both client preedit (Chrome/Electron show the
+    // composition_boundary preedit as a long underlined string) and server
+    // preedit (the input panel popup would accumulate the whole phrase).
+    // Boundary backspace restore is a nice-to-have that composition_boundary
+    // provides in Qt apps, but the long-preedit UX is worse for most apps.
+    if (decision.path == platform::AdaptivePath::client_preedit ||
+        decision.path == platform::AdaptivePath::server_preedit) {
+        preedit_controller_.setCommitPolicy(
+            core::PreeditCommitPolicy::word_boundary);
+    }
+
     const platform::InputPath previous_now = mode_policy_.path();
     const platform::InputPath current = mapAdaptivePath(decision.path);
     mode_policy_.assignPath(current, requested);

@@ -244,6 +244,48 @@ void runPreeditFallbackTests(Assertions &assertions)
     submitText(option_reload, "hoas", committed = {});
     assertions.equal("option reload applies modern tone",
                      option_reload.preedit(), "hoá");
+
+    // Preedit-local backspace when the engine has no composition to undo:
+    // typing a plain consonant like "p" and pressing backspace should
+    // delete from the visible preedit, not pass the backspace to the app.
+    {
+        core::PreeditFallbackController local_bs;
+        submitText(local_bs, "p", committed = {});
+        assertions.equal("local bs setup preedit", local_bs.preedit(), "p");
+        const core::PreeditAction bs = local_bs.submit({
+            core::KeyKind::backspace, {}, false, false, false,
+        });
+        assertions.truth("local bs handles backspace", bs.handled);
+        assertions.equal("local bs clears preedit", local_bs.preedit(), "");
+        // After clearing, a further backspace should be unhandled (let
+        // the app delete the previous committed character).
+        const core::PreeditAction bs2 = local_bs.submit({
+            core::KeyKind::backspace, {}, false, false, false,
+        });
+        assertions.truth("local bs after empty is unhandled",
+                         !bs2.handled);
+    }
+
+    // Repeated backspace on a multi-character plain token: each backspace
+    // deletes one UTF-8 character locally without passing to the app.
+    {
+        core::PreeditFallbackController multi_bs;
+        submitText(multi_bs, "abc", committed = {});
+        assertions.equal("multi bs setup", multi_bs.preedit(), "abc");
+        for (int i = 0; i < 3; ++i) {
+            const core::PreeditAction bs = multi_bs.submit({
+                core::KeyKind::backspace, {}, false, false, false,
+            });
+            assertions.truth("multi bs handles", bs.handled);
+        }
+        assertions.equal("multi bs fully cleared", multi_bs.preedit(), "");
+        // 4th backspace: preedit empty → unhandled → app deletes previous.
+        const core::PreeditAction over = multi_bs.submit({
+            core::KeyKind::backspace, {}, false, false, false,
+        });
+        assertions.truth("multi bs over-delete is unhandled",
+                         !over.handled);
+    }
 }
 
 } // namespace unilume::integration::test

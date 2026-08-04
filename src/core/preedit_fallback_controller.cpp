@@ -55,10 +55,29 @@ PreeditAction PreeditFallbackController::submit(const KeyInput &input)
 
     const KeyResult result = engine_.process(input);
     if (!result.handled) {
-        if (input.kind == KeyKind::backspace &&
-            commit_policy_ == PreeditCommitPolicy::composition_boundary &&
-            restoreBeforeBoundary()) {
-            return {true, commit_, preedit_};
+        if (input.kind == KeyKind::backspace) {
+            // composition_boundary tries to restore a previous word
+            // boundary first — this replays token inputs through the
+            // engine to restore the exact composition state.
+            if (commit_policy_ == PreeditCommitPolicy::composition_boundary &&
+                restoreBeforeBoundary()) {
+                return {true, commit_, preedit_};
+            }
+            // No boundary to restore (word_boundary, or composition_boundary
+            // with no boundaries left).  If we still have visible preedit
+            // text, delete one UTF-8 character locally and consume the
+            // backspace so it does not pass through to the application
+            // and delete the character before the preedit while the
+            // preedit stays visible (making the input appear stuck).
+            if (!preedit_.empty()) {
+                preedit_.erase(
+                    previousCharacter(preedit_, preedit_.size()));
+                if (preedit_.empty()) {
+                    engine_.reset();
+                    clearEditingState();
+                }
+                return {true, commit_, preedit_};
+            }
         }
         return {};
     }
@@ -116,6 +135,14 @@ void PreeditFallbackController::reset()
 void PreeditFallbackController::lineBreak()
 {
     engine_.lineBreak();
+    preedit_.clear();
+    commit_.clear();
+    clearEditingState();
+}
+
+void PreeditFallbackController::setCommitPolicy(PreeditCommitPolicy policy)
+{
+    commit_policy_ = policy;
     preedit_.clear();
     commit_.clear();
     clearEditingState();
