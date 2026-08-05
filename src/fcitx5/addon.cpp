@@ -14,10 +14,12 @@
 #include <fcitx/statusarea.h>
 #include <fcitx/userinterface.h>
 #include <fcitx/userinterfacemanager.h>
+#include <fcitx-config/iniparser.h>
 #include <fcitx-utils/i18n.h>
 #include <fcitx-utils/log.h>
 #include <fcitx-utils/standardpath.h>
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <set>
@@ -142,12 +144,16 @@ public:
             case policy::ApplicationMode::adaptive:
                 return _("Adaptive");
             case policy::ApplicationMode::automatic:
-            case policy::ApplicationMode::direct:
             case policy::ApplicationMode::safe_preedit:
                 // Legacy modes migrated to adaptive on decode; they should
                 // never be the active override but render as Adaptive for
                 // safety if a stale override survives.
                 return _("Adaptive");
+            case policy::ApplicationMode::direct:
+                // Only shown in the menu when DeveloperRouteOverride is
+                // direct_experimental; the label makes the experimental
+                // status explicit.
+                return _("Direct (Experimental)");
             case policy::ApplicationMode::off:
                 return _("Off");
             }
@@ -264,6 +270,8 @@ UniLumeAddon::UniLumeAddon(fcitx::Instance &instance)
         *this, policy::ApplicationMode::adaptive);
     off_mode_action_ = std::make_unique<ModeAction>(
         *this, policy::ApplicationMode::off);
+    direct_experimental_mode_action_ = std::make_unique<ModeAction>(
+        *this, policy::ApplicationMode::direct);
     telex_action_ = std::make_unique<ConfigAction>(
         *this, StatusCommand::select_telex);
     vni_action_ = std::make_unique<ConfigAction>(
@@ -285,6 +293,9 @@ UniLumeAddon::UniLumeAddon(fcitx::Instance &instance)
         "unilume-mode", &instance_.userInterfaceManager());
     adaptive_mode_action_->registerAction(
         "unilume-mode-adaptive", &instance_.userInterfaceManager());
+    direct_experimental_mode_action_->registerAction(
+        "unilume-mode-direct-experimental",
+        &instance_.userInterfaceManager());
     off_mode_action_->registerAction(
         "unilume-mode-off", &instance_.userInterfaceManager());
     telex_action_->registerAction(
@@ -378,8 +389,18 @@ std::string UniLumeAddon::subModeLabelImpl(
 void UniLumeAddon::activate(const fcitx::InputMethodEntry &entry,
                             fcitx::InputContextEvent &event)
 {
+    // If the config has not been loaded yet (e.g. first activate after
+    // fcitx5 restart), load it from the per-input-method config file so
+    // DeveloperRouteOverride and other options take effect immediately.
+    if (loaded_configs_.find(entry.uniqueName()) == loaded_configs_.end()) {
+        fcitx::RawConfig config;
+        fcitx::readAsIni(config, fcitx::StandardPath::Type::PkgConfig,
+                         "conf/" + entry.uniqueName() + ".conf");
+        setConfigForInputMethod(entry, config);
+    }
     auto *state = event.inputContext()->propertyFor(&state_factory_);
     synchronizeState(entry, *event.inputContext(), *state);
+    updateExperimentalMenuVisibility(entry);
     event.inputContext()->statusArea().addAction(
         fcitx::StatusGroup::InputMethod, mode_action_.get());
     updateModeActions(event.inputContext());
@@ -457,6 +478,7 @@ void UniLumeAddon::setConfigForInputMethod(
         !loadInputMethodConfig(configFor(entry), config)) {
         return;
     }
+    loaded_configs_.insert(entry.uniqueName());
     prepared.configuration = snapshotFromConfig(configFor(entry));
     prepared.typing_options =
         typingOptionsFromConfig(configFor(entry));
@@ -469,6 +491,9 @@ void UniLumeAddon::setConfigForInputMethod(
             *configFor(entry).developer_route_override);
     prepared.emoji_enabled = *configFor(entry).emoji_enabled;
     resourcesFor(entry) = std::move(prepared);
+
+    updateExperimentalMenuVisibility(entry);
+
     instance_.inputContextManager().foreach(
         [this, &entry](fcitx::InputContext *input_context) {
             const fcitx::InputMethodEntry *active =
@@ -560,6 +585,7 @@ void UniLumeAddon::updateModeActions(fcitx::InputContext *input_context)
 {
     mode_action_->update(input_context);
     adaptive_mode_action_->update(input_context);
+    direct_experimental_mode_action_->update(input_context);
     off_mode_action_->update(input_context);
     telex_action_->update(input_context);
     vni_action_->update(input_context);
@@ -572,6 +598,31 @@ void UniLumeAddon::updateModeActions(fcitx::InputContext *input_context)
     clear_emoji_history_action_->update(input_context);
     input_context->updateUserInterface(
         fcitx::UserInterfaceComponent::StatusArea);
+}
+
+void UniLumeAddon::updateExperimentalMenuVisibility(
+    const fcitx::InputMethodEntry &entry)
+{
+    // Show the Direct (Experimental) menu entry only when the developer
+    // override is set to direct_experimental.  Without the override, the
+    // action is removed from the menu so uinput is never reachable from
+    // the UI.
+    const auto &resources = resourcesFor(entry);
+    const bool experimental_visible =
+        resources.developer_route_override ==
+        DeveloperRouteOverride::direct_experimental;
+    const auto actions = mode_menu_->actions();
+    const bool already_visible = std::find(
+        actions.begin(), actions.end(),
+        direct_experimental_mode_action_.get()) != actions.end();
+    if (experimental_visible && !already_visible) {
+        mode_menu_->insertAction(
+            off_mode_action_.get(),
+            direct_experimental_mode_action_.get());
+    } else if (!experimental_visible && already_visible) {
+        mode_menu_->removeAction(
+            direct_experimental_mode_action_.get());
+    }
 }
 
 StatusSnapshot UniLumeAddon::statusSnapshotFor(

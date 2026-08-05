@@ -23,6 +23,7 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <set>
 #include <string>
 
 namespace unilume::fcitx5 {
@@ -114,6 +115,7 @@ private:
         fcitx::InputContext *input_context,
         std::optional<policy::ApplicationMode> mode);
     void updateModeActions(fcitx::InputContext *input_context);
+    void updateExperimentalMenuVisibility(const fcitx::InputMethodEntry &entry);
     [[nodiscard]] StatusSnapshot statusSnapshotFor(
         fcitx::InputContext *input_context) const;
     void applyStatusCommand(fcitx::InputContext *input_context,
@@ -133,6 +135,7 @@ private:
     std::unique_ptr<ModeAction> mode_action_;
     std::unique_ptr<ModeAction> adaptive_mode_action_;
     std::unique_ptr<ModeAction> off_mode_action_;
+    std::unique_ptr<ModeAction> direct_experimental_mode_action_;
     std::unique_ptr<ConfigAction> telex_action_;
     std::unique_ptr<ConfigAction> vni_action_;
     std::unique_ptr<ConfigAction> viqr_action_;
@@ -147,6 +150,7 @@ private:
     std::unique_ptr<fcitx::Action> emoji_submenu_action_;
     std::unique_ptr<EmojiPicker> emoji_picker_;
     mutable std::map<std::string, InputMethodConfig> input_method_configs_;
+    std::set<std::string> loaded_configs_;
     mutable std::map<std::string, RuntimeResources> runtime_resources_;
     mutable bool legacy_policy_warning_emitted_{};
 };
