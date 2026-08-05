@@ -104,6 +104,28 @@ private:
     bool clear_history_{};
 };
 
+class UniLumeAddon::SubmenuAction final : public fcitx::Action {
+public:
+    SubmenuAction(std::string label, fcitx::Menu *menu)
+        : label_(std::move(label))
+    {
+        setMenu(menu);
+    }
+
+    std::string shortText(fcitx::InputContext *) const override
+    {
+        return _(label_.c_str());
+    }
+
+    std::string icon(fcitx::InputContext *) const override
+    {
+        return {};
+    }
+
+private:
+    std::string label_;
+};
+
 class UniLumeAddon::ModeAction final : public fcitx::Action {
 public:
     ModeAction(UniLumeAddon &addon,
@@ -234,6 +256,9 @@ UniLumeAddon::UniLumeAddon(fcitx::Instance &instance)
     instance_.inputContextManager().registerProperty(
         "unilume-input-context", &state_factory_);
     mode_menu_ = std::make_unique<fcitx::Menu>();
+    input_method_menu_ = std::make_unique<fcitx::Menu>();
+    options_menu_ = std::make_unique<fcitx::Menu>();
+    emoji_menu_ = std::make_unique<fcitx::Menu>();
     mode_action_ = std::make_unique<ModeAction>(*this, std::nullopt);
     adaptive_mode_action_ = std::make_unique<ModeAction>(
         *this, policy::ApplicationMode::adaptive);
@@ -281,17 +306,43 @@ UniLumeAddon::UniLumeAddon(fcitx::Instance &instance)
     clear_emoji_history_action_->registerAction(
         "unilume-clear-emoji-history",
         &instance_.userInterfaceManager());
+
+    // Top-level mode menu: Mode (Adaptive/Off), Input Method (flat),
+    // then Options and Emoji submenus for less-frequent toggles.
     mode_menu_->addAction(adaptive_mode_action_.get());
     mode_menu_->addAction(off_mode_action_.get());
+
+    // Input method choices live directly in the top-level menu so they
+    // are one click away (the user does not have to open a submenu to
+    // switch between Telex/VNI/VIQR/UTF-8).
     mode_menu_->addAction(telex_action_.get());
     mode_menu_->addAction(vni_action_.get());
     mode_menu_->addAction(viqr_action_.get());
     mode_menu_->addAction(utf8_action_.get());
-    mode_menu_->addAction(spell_action_.get());
-    mode_menu_->addAction(macro_action_.get());
-    mode_menu_->addAction(dictionary_action_.get());
-    mode_menu_->addAction(emoji_action_.get());
-    mode_menu_->addAction(clear_emoji_history_action_.get());
+
+    // Options submenu: Spell check / Macros / Dictionary.
+    options_menu_->addAction(spell_action_.get());
+    options_menu_->addAction(macro_action_.get());
+    options_menu_->addAction(dictionary_action_.get());
+    options_submenu_action_ =
+        std::make_unique<SubmenuAction>(
+            "Options", options_menu_.get());
+    options_submenu_action_->registerAction(
+        "unilume-options-submenu",
+        &instance_.userInterfaceManager());
+    mode_menu_->addAction(options_submenu_action_.get());
+
+    // Emoji submenu: Emoji picker / Clear history.
+    emoji_menu_->addAction(emoji_action_.get());
+    emoji_menu_->addAction(clear_emoji_history_action_.get());
+    emoji_submenu_action_ =
+        std::make_unique<SubmenuAction>(
+            "Emoji", emoji_menu_.get());
+    emoji_submenu_action_->registerAction(
+        "unilume-emoji-submenu",
+        &instance_.userInterfaceManager());
+    mode_menu_->addAction(emoji_submenu_action_.get());
+
     mode_action_->setMenu(mode_menu_.get());
 }
 

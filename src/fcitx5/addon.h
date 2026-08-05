@@ -57,6 +57,7 @@ private:
     class ModeAction;
     class ConfigAction;
     class EmojiAction;
+    class SubmenuAction;
 
     struct ModeHotkeys {
         fcitx::Key cycle{"Control+Alt+u"};
@@ -126,6 +127,9 @@ private:
     UinputBackspaceDevice uinput_device_;
     fcitx::FactoryFor<InputContextState> state_factory_;
     std::unique_ptr<fcitx::Menu> mode_menu_;
+    std::unique_ptr<fcitx::Menu> input_method_menu_;
+    std::unique_ptr<fcitx::Menu> options_menu_;
+    std::unique_ptr<fcitx::Menu> emoji_menu_;
     std::unique_ptr<ModeAction> mode_action_;
     std::unique_ptr<ModeAction> adaptive_mode_action_;
     std::unique_ptr<ModeAction> off_mode_action_;
@@ -138,6 +142,9 @@ private:
     std::unique_ptr<ConfigAction> dictionary_action_;
     std::unique_ptr<EmojiAction> emoji_action_;
     std::unique_ptr<EmojiAction> clear_emoji_history_action_;
+    std::unique_ptr<fcitx::Action> input_method_submenu_action_;
+    std::unique_ptr<fcitx::Action> options_submenu_action_;
+    std::unique_ptr<fcitx::Action> emoji_submenu_action_;
     std::unique_ptr<EmojiPicker> emoji_picker_;
     mutable std::map<std::string, InputMethodConfig> input_method_configs_;
     mutable std::map<std::string, RuntimeResources> runtime_resources_;
