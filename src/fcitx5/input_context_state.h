@@ -7,6 +7,7 @@
 #include "diagnostic_trace.h"
 #include "direct_commit_controller.h"
 #include "dictionary_contract.h"
+#include "developer_route_override.h"
 #include "fcitx_replacement_backend.h"
 #include "input_mode_policy.h"
 #include "preedit_fallback_controller.h"
@@ -48,7 +49,7 @@ public:
     void setDictionary(const dictionary::Snapshot &snapshot,
                        std::uint64_t generation);
     void setVerifiedDirectEnabled(bool enabled);
-    void setDeveloperRouteOverride(std::string_view value);
+    void setDeveloperRouteOverride(DeveloperRouteOverride override);
     void setDirectStrategy(DirectStrategy strategy);
     [[nodiscard]] DirectStrategy directStrategy() const;
     void setApplicationPolicy(const policy::Resolution &resolution,
@@ -107,7 +108,7 @@ private:
     std::uint64_t keymap_generation_{};
     std::uint64_t dictionary_generation_{};
     bool verified_direct_enabled_{true};
-    std::string developer_route_override_;
+    DeveloperRouteOverride developer_route_override_{};
     bool direct_replacement_available_{};
     DirectStrategy direct_strategy_{DirectStrategy::fast};
     policy::ApplicationMode policy_mode_{

@@ -13,6 +13,7 @@
 #include "adaptive_router.h"
 #include "application_policy.h"
 #include "capability_builder.h"
+#include "developer_route_override.h"
 #include "route_health_registry.h"
 
 #include <cstdint>
@@ -33,6 +34,8 @@ void expect(bool condition, const char *message)
 }
 
 using namespace unilume::platform;
+using unilume::fcitx5::DeveloperRouteOverride;
+using unilume::fcitx5::parseDeveloperRouteOverride;
 
 // A runtime observation as InputContextState would read it from the
 // replacement backend and the input-context capability flags.
@@ -494,10 +497,11 @@ void testStatusRouteAdaptive()
 
 bool legacyDirectAvailable(bool verified_direct_enabled,
                           bool direct_replacement_available,
-                          std::string_view developer_override)
+                          DeveloperRouteOverride override)
 {
     // Mirrors InputContextState::synchronizeLegacy after Step 6 commit 2.
-    const bool experimental = developer_override == "direct_experimental";
+    const bool experimental =
+        override == DeveloperRouteOverride::direct_experimental;
     return verified_direct_enabled && direct_replacement_available &&
            experimental;
 }
@@ -506,21 +510,68 @@ void testUinputExperimentalGate()
 {
     // Without the developer override, direct is never available even when
     // the backend reports a replacement is possible (uinput present).
-    expect(!legacyDirectAvailable(true, true, ""),
+    expect(!legacyDirectAvailable(true, true, DeveloperRouteOverride::none),
            "direct blocked without override");
-    expect(!legacyDirectAvailable(true, true, "off"),
-           "direct blocked with wrong override");
-    expect(!legacyDirectAvailable(true, true, "adaptive"),
-           "direct blocked with adaptive override");
-    // Only the exact override token unlocks the experimental direct path.
-    expect(legacyDirectAvailable(true, true, "direct_experimental"),
+    // Only the exact override enum unlocks the experimental direct path.
+    expect(legacyDirectAvailable(true, true,
+                                 DeveloperRouteOverride::direct_experimental),
            "direct allowed with direct_experimental");
     // verified_direct_enabled=false still blocks even with the override.
-    expect(!legacyDirectAvailable(false, true, "direct_experimental"),
+    expect(!legacyDirectAvailable(false, true,
+                                  DeveloperRouteOverride::direct_experimental),
            "direct blocked when verified_direct disabled");
     // No backend replacement capability still blocks.
-    expect(!legacyDirectAvailable(true, false, "direct_experimental"),
+    expect(!legacyDirectAvailable(true, false,
+                                   DeveloperRouteOverride::direct_experimental),
            "direct blocked when backend has no replacement");
+}
+
+// Strict parser tests: reject whitespace, wrong case, typos.  Only the
+// exact token "direct_experimental" is accepted.
+void testStrictOverrideParser()
+{
+    expect(parseDeveloperRouteOverride("direct_experimental") ==
+               DeveloperRouteOverride::direct_experimental,
+           "exact token accepted");
+    expect(parseDeveloperRouteOverride("") ==
+               DeveloperRouteOverride::none,
+           "empty string rejected");
+    expect(parseDeveloperRouteOverride("Direct_Experimental") ==
+               DeveloperRouteOverride::none,
+           "uppercase rejected");
+    expect(parseDeveloperRouteOverride("DIRECT_EXPERIMENTAL") ==
+               DeveloperRouteOverride::none,
+           "all-caps rejected");
+    expect(parseDeveloperRouteOverride("direct_experimental ") ==
+               DeveloperRouteOverride::none,
+           "trailing space rejected");
+    expect(parseDeveloperRouteOverride(" direct_experimental") ==
+               DeveloperRouteOverride::none,
+           "leading space rejected");
+    expect(parseDeveloperRouteOverride(" direct_experimental ") ==
+               DeveloperRouteOverride::none,
+           "surrounding spaces rejected");
+    expect(parseDeveloperRouteOverride("direct_experimental\n") ==
+               DeveloperRouteOverride::none,
+           "trailing newline rejected");
+    expect(parseDeveloperRouteOverride("direct_experimantal") ==
+               DeveloperRouteOverride::none,
+           "typo rejected");
+    expect(parseDeveloperRouteOverride("direct-experimental") ==
+               DeveloperRouteOverride::none,
+           "hyphen rejected");
+    expect(parseDeveloperRouteOverride("directexperimental") ==
+               DeveloperRouteOverride::none,
+           "missing underscore rejected");
+    expect(parseDeveloperRouteOverride("direct experimental") ==
+               DeveloperRouteOverride::none,
+           "internal space rejected");
+    expect(parseDeveloperRouteOverride("direct_experimental=true") ==
+               DeveloperRouteOverride::none,
+           "key=value rejected");
+    expect(parseDeveloperRouteOverride("off") ==
+               DeveloperRouteOverride::none,
+           "unrelated token rejected");
 }
 
 void testAdaptiveNeverReachesUinput()
@@ -584,6 +635,7 @@ int main()
     testCycleAdaptiveOff();
     testStatusRouteAdaptive();
     testUinputExperimentalGate();
+    testStrictOverrideParser();
     testAdaptiveNeverReachesUinput();
 
     if (failures != 0) {

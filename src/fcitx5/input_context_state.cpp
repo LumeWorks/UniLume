@@ -397,13 +397,14 @@ void InputContextState::setVerifiedDirectEnabled(bool enabled)
     synchronizeMode();
 }
 
-void InputContextState::setDeveloperRouteOverride(std::string_view value)
+void InputContextState::setDeveloperRouteOverride(
+    DeveloperRouteOverride override)
 {
-    if (value == developer_route_override_) {
+    if (override == developer_route_override_) {
         return;
     }
     compositionBoundary();
-    developer_route_override_.assign(value);
+    developer_route_override_ = override;
     ++application_mode_revision_;
     synchronizeMode();
 }
@@ -578,7 +579,8 @@ void InputContextState::synchronizeLegacy(
     // override, the legacy `direct` mode falls back to passthrough so
     // Adaptive can never reach uinput (Issue #127).
     const bool direct_experimental_allowed =
-        developer_route_override_ == "direct_experimental";
+        developer_route_override_ ==
+        DeveloperRouteOverride::direct_experimental;
     const bool direct_available =
         verified_direct_enabled_ && direct_replacement_available_ &&
         direct_experimental_allowed;

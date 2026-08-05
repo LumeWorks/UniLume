@@ -414,7 +414,8 @@ void UniLumeAddon::setConfigForInputMethod(
     prepared.direct_strategy = toDirectStrategy(
         *configFor(entry).direct_strategy);
     prepared.developer_route_override =
-        *configFor(entry).developer_route_override;
+        parseDeveloperRouteOverride(
+            *configFor(entry).developer_route_override);
     prepared.emoji_enabled = *configFor(entry).emoji_enabled;
     resourcesFor(entry) = std::move(prepared);
     instance_.inputContextManager().foreach(

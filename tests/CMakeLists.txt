@@ -183,10 +183,14 @@ add_test(NAME capability-builder COMMAND unilume_capability_builder_tests)
 
 add_executable(unilume_adaptive_routing_pipeline_tests
   platform/adaptive_routing_pipeline_tests.cpp
+  ../src/fcitx5/developer_route_override.cpp
 )
 target_link_libraries(unilume_adaptive_routing_pipeline_tests PRIVATE
   unilume_core
   unilume_sanitizer_options
+)
+target_include_directories(unilume_adaptive_routing_pipeline_tests PRIVATE
+  ${CMAKE_SOURCE_DIR}/src/fcitx5
 )
 set_target_properties(unilume_adaptive_routing_pipeline_tests PROPERTIES
   CXX_STANDARD 23
