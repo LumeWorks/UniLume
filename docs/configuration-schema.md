@@ -102,6 +102,10 @@ The validated runtime/file contract for custom maps now lives in
 schema migration owned by the configuration GUI/backup work; adapters may not
 invent private config keys.
 
+The equivalent bounded runtime contract for personal dictionaries is
+[dictionary-support.md](dictionary-support.md). Its Fcitx fields are adapter
+configuration; v2 application-level persistence remains unchanged.
+
 ## Fcitx5 input-method configuration
 
 The Fcitx5 addon exposes the same method choice per Fcitx input-method entry:

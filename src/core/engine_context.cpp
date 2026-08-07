@@ -196,6 +196,18 @@ void EngineContext::setKeymap(const keymap::Snapshot &snapshot)
     reset();
 }
 
+void EngineContext::setDictionary(const dictionary::Snapshot &snapshot)
+{
+    if (!dictionary::validate(snapshot).empty()) {
+        throw std::invalid_argument("invalid UniLume dictionary snapshot");
+    }
+    if (snapshot.enabled && displayed_token_.capacity() < 128) {
+        displayed_token_.reserve(128);
+    }
+    dictionary_ = snapshot;
+    reset();
+}
+
 KeyResult EngineContext::processText(const KeyInput &input,
                                      std::uint64_t sequence)
 {
