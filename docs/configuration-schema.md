@@ -97,6 +97,11 @@ They remain adapter fields and do not extend schema v2. The module, bounded
 search index, atomic recent history and privacy boundary are documented in
 [emoji-picker.md](emoji-picker.md).
 
+The validated runtime/file contract for custom maps now lives in
+[keymap-support.md](keymap-support.md). Persisting its path remains a future
+schema migration owned by the configuration GUI/backup work; adapters may not
+invent private config keys.
+
 ## Fcitx5 input-method configuration
 
 The Fcitx5 addon exposes the same method choice per Fcitx input-method entry:

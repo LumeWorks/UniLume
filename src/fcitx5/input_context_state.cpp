@@ -528,6 +528,23 @@ void InputContextState::setMacros(const macro::Snapshot &snapshot,
     macro_generation_ = generation;
 }
 
+void InputContextState::setKeymap(const keymap::Snapshot &snapshot,
+                                  std::uint64_t generation)
+{
+    if (generation == keymap_generation_) {
+        return;
+    }
+    if (mode_policy_.path() == platform::InputPath::preedit) {
+        commitPendingPreedit();
+    }
+    direct_controller_.setKeymap(snapshot);
+    preedit_controller_.setKeymap(snapshot);
+    backend_.reset();
+    clearPreedit();
+    mode_policy_.resetForCompositionEnd();
+    keymap_generation_ = generation;
+}
+
 void InputContextState::synchronizeMode()
 {
     const platform::InputPath previous = mode_policy_.path();

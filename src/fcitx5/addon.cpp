@@ -22,6 +22,9 @@
 #include <fstream>
 #include <set>
 
+#include <filesystem>
+#include <fstream>
+
 namespace unilume::fcitx5 {
 
 class UniLumeAddon::ConfigAction final : public fcitx::Action {

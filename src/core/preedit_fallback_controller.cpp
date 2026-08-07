@@ -192,6 +192,13 @@ void PreeditFallbackController::setMacros(const macro::Snapshot &snapshot)
     commit_.clear();
 }
 
+void PreeditFallbackController::setKeymap(const keymap::Snapshot &snapshot)
+{
+    engine_.setKeymap(snapshot);
+    preedit_.clear();
+    commit_.clear();
+}
+
 std::string_view PreeditFallbackController::preedit() const
 {
     return preedit_;
