@@ -141,6 +141,13 @@ void EngineContext::setDictionary(const dictionary::Snapshot &snapshot)
     reset();
 }
 
+void EngineContext::setOptions(const UlEngineOptions &options)
+{
+    if (ul_engine_set_options(context_, &options) != UL_STATUS_OK) {
+        throw std::invalid_argument("invalid UniLume engine options");
+    }
+}
+
 KeyResult EngineContext::processText(const KeyInput &input,
                                      std::uint64_t sequence)
 {
