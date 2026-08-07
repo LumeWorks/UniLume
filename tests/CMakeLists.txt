@@ -25,6 +25,10 @@ target_include_directories(unilume_engine_tests PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/engine
 )
 
+target_include_directories(unilume_engine_tests PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/engine
+)
+
 set_target_properties(unilume_engine_tests PROPERTIES
   CXX_STANDARD 23
   CXX_STANDARD_REQUIRED YES
