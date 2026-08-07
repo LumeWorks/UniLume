@@ -66,6 +66,12 @@ selects the installed Fcitx GTK IM module. This is required for a controlled
 URL to load deterministically; a missing profile can leave Firefox in profile
 or first-run UI without ever reaching the probe.
 
+For Firefox, the harness creates the disposable profile before passing it to
+`--profile`, disables first-run UI in that profile, forces native Wayland and
+selects the installed Fcitx GTK IM module. This is required for a controlled
+URL to load deterministically; a missing profile can leave Firefox in profile
+or first-run UI without ever reaching the probe.
+
 The pure decision logic has unit coverage that needs no compositor:
 
 ```sh
@@ -365,6 +371,21 @@ diagnostic path both reported `preedit`; diagnostics recorded
 `non_atomic_transport`, zero backend failures, zero stale results and zero
 uncertain outcomes. Issue #58 remains open for the remaining
 Firefox/Electron/Qt coverage and qualifying soaks.
+
+### Firefox native Wayland blocker
+
+The controlled probe now reaches Firefox ESR 140.13.0 in the isolated KWin
+6.3.6 session, but its engine-readiness gate exposes a separate transition
+defect. For input `aa`, the exact DOM value is `aa` instead of `â`. Firefox's
+IME trace and the addon's diagnostic trace agree on the sequence: the first
+`a` is handled on the direct path, Firefox then fails to return a valid
+paragraph/selection to its GTK IM context, the addon records a capability loss
+and moves to preedit, and the second `a` starts a new composition.
+
+This happens before any delete-plus-commit replacement, so it is independent
+of #90. The composition handoff and real Firefox regression are tracked by
+#92. The harness refuses to publish a corpus result when this readiness proof
+fails; raw browser passthrough is not counted as input-method evidence.
 
 ### Firefox native Wayland blocker
 

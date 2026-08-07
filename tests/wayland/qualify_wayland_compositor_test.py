@@ -196,6 +196,16 @@ class BrowserProbeStateTest(unittest.TestCase):
             self.assertIn("browser.aboutwelcome.enabled", preferences)
             self.assertIn("browser.shell.checkDefaultBrowser", preferences)
 
+    def test_firefox_profile_exists_and_skips_first_run_ui(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            profile = Path(directory) / "browser-profile"
+            HARNESS.prepare_firefox_profile(profile)
+
+            self.assertTrue(profile.is_dir())
+            preferences = (profile / "user.js").read_text(encoding="utf-8")
+            self.assertIn("browser.aboutwelcome.enabled", preferences)
+            self.assertIn("browser.shell.checkDefaultBrowser", preferences)
+
 
 class DiagnosticBundleTest(unittest.TestCase):
     def test_missing_bundle_reports_why_it_is_unavailable(self) -> None:
