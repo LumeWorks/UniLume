@@ -33,6 +33,24 @@ set_target_properties(unilume_engine_tests PROPERTIES
 
 add_test(NAME engine COMMAND unilume_engine_tests)
 
+add_executable(unilume_legacy_safety_tests
+  engine/legacy_safety_tests.cpp
+)
+target_link_libraries(unilume_legacy_safety_tests PRIVATE
+  unilume_engine
+  unilume_sanitizer_options
+)
+target_include_directories(unilume_legacy_safety_tests PRIVATE
+  ${CMAKE_SOURCE_DIR}/src/byteio
+  ${CMAKE_SOURCE_DIR}/src/vnconv
+)
+set_target_properties(unilume_legacy_safety_tests PROPERTIES
+  CXX_STANDARD 23
+  CXX_STANDARD_REQUIRED YES
+  CXX_EXTENSIONS NO
+)
+add_test(NAME legacy-safety COMMAND unilume_legacy_safety_tests)
+
 add_executable(unilume_engine_allocation_failure_tests
   engine/allocation_failure_tests.cpp
 )

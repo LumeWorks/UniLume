@@ -762,11 +762,15 @@ int VIQRCharset::nextInput(ByteInStream & is, StdVnChar & stdChar, int & bytesRe
 		m_escAll = 0;
 	
 	if (ch1 == '\\') {
-		// ecape character , try to read next
-		if (!is.getNext(ch1)) {
+		// Escape the next character when present; a trailing backslash is literal.
+		unsigned char escaped;
+		if (is.getNext(escaped)) {
+			ch1 = escaped;
 			bytesRead++;
 			stdChar = m_stdMap[ch1];
 		}
+		else
+			stdChar = ch1;
 	}
 
 	if (stdChar < 256) {

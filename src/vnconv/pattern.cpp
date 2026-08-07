@@ -39,15 +39,23 @@ void PatternState::init(char *pattern)
 	m_pos = 0;
 	m_found = 0;
 	m_pattern = pattern;
+	if (m_pattern == 0) {
+		m_border[0] = -1;
+		return;
+	}
 
 	int i=0, j=-1;
     m_border[i]=j;
-    while (m_pattern[i])
+    while (i < MAX_PATTERN_LEN && m_pattern[i])
     {
         while (j>=0 && m_pattern[i]!=m_pattern[j]) j=m_border[j];
         i++; j++;
         m_border[i]=j;
     }
+	if (m_pattern[i]) {
+		m_pattern = 0;
+		m_pos = 0;
+	}
 }
 
 //-----------------------------------------------------
@@ -55,6 +63,8 @@ void PatternState::init(char *pattern)
 //-----------------------------------------------------
 int PatternState::foundAtNextChar(char ch)
 {
+	if (m_pattern == 0)
+		return 0;
 	int ret = 0;
 	//int j = m_pos;
 	while (m_pos>=0 && ch!=m_pattern[m_pos]) m_pos=m_border[m_pos];
