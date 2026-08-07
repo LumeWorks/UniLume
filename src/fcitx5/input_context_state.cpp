@@ -473,6 +473,25 @@ void InputContextState::startPendingAcknowledgedReplacement()
     }
 }
 
+void InputContextState::setInputMethod(UlInputMethod method)
+{
+    if (method == input_method_) {
+        return;
+    }
+
+    // A mode change is a composition boundary. Commit preedit before replacing
+    // either engine so that a configuration reload never drops user text.
+    if (mode_policy_.path() == platform::InputPath::preedit) {
+        commitPendingPreedit();
+    }
+    direct_controller_.setInputMethod(method);
+    preedit_controller_.setInputMethod(method);
+    backend_.reset();
+    clearPreedit();
+    mode_policy_.resetForCompositionEnd();
+    input_method_ = method;
+}
+
 void InputContextState::synchronizeMode()
 {
     const platform::InputPath previous = mode_policy_.path();

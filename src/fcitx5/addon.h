@@ -25,6 +25,9 @@
 #include <optional>
 #include <string>
 
+#include <map>
+#include <string>
+
 namespace unilume::fcitx5 {
 
 class UniLumeAddon final : public fcitx::InputMethodEngineV2 {
