@@ -402,6 +402,32 @@ def warm_input_path(
         )
 
 
+def warm_input_path(
+    window_id: str,
+    token: str,
+    delay_milliseconds: int,
+    reset_settle_milliseconds: int,
+    timeout_seconds: float,
+) -> None:
+    """Prime the selected frontend/server before collecting timed samples."""
+    xdotool("windowactivate", "--sync", window_id)
+    xdotool("key", "--window", window_id, "--clearmodifiers", "Escape")
+    time.sleep(reset_settle_milliseconds / 1000.0)
+    xdotool("key", "--window", window_id, "--clearmodifiers", "ctrl+a")
+    xdotool("key", "--window", window_id, "--clearmodifiers", "BackSpace")
+    emit_input(window_id, "a ", delay_milliseconds)
+    xdotool("key", "--window", window_id, "--clearmodifiers", "Escape")
+    time.sleep(reset_settle_milliseconds / 1000.0)
+    xdotool("key", "--window", window_id, "--clearmodifiers", "ctrl+a")
+    xdotool("key", "--window", window_id, "--clearmodifiers", "BackSpace")
+    cleared_title = f"{token}{PROBE_MARKER}"
+    observed = wait_for_title(window_id, cleared_title, timeout_seconds)
+    if observed != cleared_title:
+        raise HarnessError(
+            f"input path did not settle after warm-up: {observed!r}"
+        )
+
+
 def process_snapshot(pid: int) -> tuple[int, int]:
     stat_fields = Path(f"/proc/{pid}/stat").read_text(encoding="utf-8").split()
     ticks = int(stat_fields[13]) + int(stat_fields[14])
