@@ -486,7 +486,6 @@ void InputContextState::setInputMethod(UlInputMethod method)
     }
     direct_controller_.setInputMethod(method);
     preedit_controller_.setInputMethod(method);
-    backend_.reset();
     clearPreedit();
     mode_policy_.resetForCompositionEnd();
     input_method_ = method;
@@ -505,7 +504,6 @@ void InputContextState::setOptions(const UlEngineOptions &options)
     }
     direct_controller_.setOptions(options);
     preedit_controller_.setOptions(options);
-    backend_.reset();
     clearPreedit();
     mode_policy_.resetForCompositionEnd();
     options_ = options;
@@ -522,7 +520,6 @@ void InputContextState::setMacros(const macro::Snapshot &snapshot,
     }
     direct_controller_.setMacros(snapshot);
     preedit_controller_.setMacros(snapshot);
-    backend_.reset();
     clearPreedit();
     mode_policy_.resetForCompositionEnd();
     macro_generation_ = generation;
@@ -539,7 +536,6 @@ void InputContextState::setKeymap(const keymap::Snapshot &snapshot,
     }
     direct_controller_.setKeymap(snapshot);
     preedit_controller_.setKeymap(snapshot);
-    backend_.reset();
     clearPreedit();
     mode_policy_.resetForCompositionEnd();
     keymap_generation_ = generation;
@@ -557,10 +553,20 @@ void InputContextState::setDictionary(
     }
     direct_controller_.setDictionary(snapshot);
     preedit_controller_.setDictionary(snapshot);
-    backend_.reset();
     clearPreedit();
     mode_policy_.resetForCompositionEnd();
     dictionary_generation_ = generation;
+}
+
+void InputContextState::setVerifiedDirectEnabled(bool enabled)
+{
+    if (enabled == verified_direct_enabled_) {
+        return;
+    }
+    compositionBoundary();
+    verified_direct_enabled_ = enabled;
+    ++application_mode_revision_;
+    synchronizeMode();
 }
 
 void InputContextState::setApplicationPolicy(
@@ -667,7 +673,6 @@ void InputContextState::compositionBoundary()
     }
     direct_controller_.resetForFocus();
     preedit_controller_.reset();
-    backend_.reset();
     clearPreedit();
     mode_policy_.reset();
 }

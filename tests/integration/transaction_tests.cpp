@@ -76,6 +76,20 @@ void runTransactionTests(Assertions &assertions)
         "no fallback commit is attempted",
         unavailable_controller.metrics().fallback_failure_count, 0);
 
+    DeterministicBackend unavailable_fallback({
+        .surrounding_text_available = false,
+        .fail_next_commit = true,
+    });
+    core::DirectCommitController unavailable_controller(
+        unavailable_fallback);
+    assertions.truth(
+        "failed raw fallback returns the event to the frontend",
+        unavailable_controller.submit({core::KeyKind::text, "a"}) ==
+            core::SubmissionStatus::unhandled);
+    assertions.equal(
+        "failed raw fallback is observable",
+        unavailable_controller.metrics().fallback_failure_count, 1);
+
     IntegrationFixture dropped{
         {.delay_events = 5, .drop_next_callback = true}};
     dropped.type("tieengs");
