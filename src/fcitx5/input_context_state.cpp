@@ -97,6 +97,7 @@ void InputContextState::keyEvent(fcitx::KeyEvent &event)
             if (backend_.consumeUncertainDispatch()) {
                 direct_controller_.timeout(
                     direct_controller_.activeSequence());
+                return;
             }
             return;
         case BackspaceReleaseAcknowledgement::consume_sentinel:
