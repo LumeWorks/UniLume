@@ -2,16 +2,24 @@
 #include "prehdr.h"
 #include "byteio.h"
 
+#include <string.h>
+
 //------------------------------------------------
 StringBIStream::StringBIStream(UKBYTE *data, int len, int elementSize)
 {
 	m_data = m_current = data;
 	m_len = m_left = len;
     if (len == -1) {
-        if (elementSize == 2)
-            m_eos = (*(UKWORD *)data == 0);
-        else if (elementSize == 4)
-            m_eos = (*(UKDWORD *)data == 4);
+        if (elementSize == 2) {
+            UKWORD value;
+            memcpy(&value, data, sizeof(value));
+            m_eos = (value == 0);
+        }
+        else if (elementSize == 4) {
+            UKDWORD value;
+            memcpy(&value, data, sizeof(value));
+            m_eos = (value == 0);
+        }
         else
             m_eos = (*data == 0);
     }
@@ -57,8 +65,11 @@ int StringBIStream::unget(UKBYTE b)
 //------------------------------------------------
 int StringBIStream::getNextW(UKWORD & w)
 {
-	if (m_eos) return 0;
-	w = *((UKWORD *)m_current);
+	if (m_eos || (m_len != -1 && m_left < (int)sizeof(w))) {
+		m_eos = 1;
+		return 0;
+	}
+	memcpy(&w, m_current, sizeof(w));
 	m_current += 2;
 	if (m_len == -1)
 		m_eos = (w == 0);
@@ -72,9 +83,12 @@ int StringBIStream::getNextW(UKWORD & w)
 //------------------------------------------------
 int StringBIStream::getNextDW(UKDWORD & dw)
 {
-	if (m_eos) return 0;
+	if (m_eos || (m_len != -1 && m_left < (int)sizeof(dw))) {
+		m_eos = 1;
+		return 0;
+	}
 
-	dw = *((UKDWORD *)m_current);
+	memcpy(&dw, m_current, sizeof(dw));
 	m_current += 4;
 	if (m_len == -1)
 		m_eos = (dw == 0);
@@ -97,9 +111,11 @@ int StringBIStream::peekNext(UKBYTE & b)
 //------------------------------------------------
 int StringBIStream::peekNextW(UKWORD & w)
 {
-	if (m_eos)
+	if (m_eos || (m_len != -1 && m_left < (int)sizeof(w))) {
+		m_eos = 1;
 		return 0;
-	w = *((UKWORD *)m_current);
+	}
+	memcpy(&w, m_current, sizeof(w));
 	return 1;
 }
 
@@ -284,11 +300,14 @@ FileBIStream::~FileBIStream()
 //----------------------------------------------------
 int FileBIStream::open(const char *fileName)
 {
-	m_file = fopen(fileName, "rb");
-	if (m_file == NULL)
+	FILE *opened = fopen(fileName, "rb");
+	if (opened == NULL)
 		return 0;
+	if (m_file != NULL && m_own)
+		fclose(m_file);
+	m_file = opened;
 	setvbuf(m_file, m_buf, _IOFBF, m_bufSize);
-	m_own = 0;
+	m_own = 1;
 	m_readAhead = 0;
 	m_lastIsAhead = 0;
 	return 1;
@@ -307,6 +326,8 @@ int FileBIStream::close()
 //----------------------------------------------------
 void FileBIStream::attach(FILE * f)
 {
+	if (m_file != NULL && m_file != f && m_own)
+		fclose(m_file);
 	m_file = f;
 	m_own = 0;
 	m_readAhead = 0;
