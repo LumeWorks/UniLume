@@ -404,6 +404,12 @@ msgstr ""
 msgid "Open the complete UniLume configuration"
 msgstr ""
 
+msgid "Enable the optional emoji picker"
+msgstr ""
+
+msgid "Open the emoji picker"
+msgstr ""
+
 msgid "Input method: Telex"
 msgstr ""
 

@@ -438,6 +438,12 @@ msgstr "Phím tắt safe-preedit cũ (ánh xạ sang Tắt)"
 msgid "Open the complete UniLume configuration"
 msgstr "Mở toàn bộ cấu hình UniLume"
 
+msgid "Enable the optional emoji picker"
+msgstr "Bật bộ chọn emoji tùy chọn"
+
+msgid "Open the emoji picker"
+msgstr "Mở bộ chọn emoji"
+
 msgid "Input method: Telex"
 msgstr "Kiểu gõ: Telex"
 

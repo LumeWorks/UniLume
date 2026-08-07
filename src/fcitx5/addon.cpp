@@ -711,6 +711,8 @@ void UniLumeAddon::updateModeActions(fcitx::InputContext *input_context)
     spell_action_->update(input_context);
     macro_action_->update(input_context);
     dictionary_action_->update(input_context);
+    emoji_action_->update(input_context);
+    clear_emoji_history_action_->update(input_context);
     input_context->updateUserInterface(
         fcitx::UserInterfaceComponent::StatusArea);
 }
@@ -753,6 +755,34 @@ void UniLumeAddon::applyStatusCommand(
     update.setValueByPath(mutation->path, mutation->value);
     setConfigForInputMethod(*entry, update);
     updateModeActions(input_context);
+}
+
+void UniLumeAddon::openEmojiPicker(
+    fcitx::InputContext *input_context)
+{
+    const fcitx::InputMethodEntry *entry =
+        input_context ? instance_.inputMethodEntry(input_context) : nullptr;
+    if (!entry || !*configFor(*entry).emoji_enabled ||
+        !emoji_picker_->available()) {
+        return;
+    }
+    if (InputContextState *state = stateFor(input_context)) {
+        state->suspendComposition();
+    }
+    const bool opened = emoji_picker_->trigger(input_context);
+    (void)opened;
+}
+
+void UniLumeAddon::clearEmojiHistory(
+    fcitx::InputContext *input_context)
+{
+    const bool cleared = emoji_picker_->clearHistory();
+    (void)cleared;
+    if (emoji_picker_->active(input_context)) {
+        emoji_picker_->reset(input_context);
+        const bool reopened = emoji_picker_->trigger(input_context);
+        (void)reopened;
+    }
 }
 
 std::string UniLumeAddon::statusIcon(

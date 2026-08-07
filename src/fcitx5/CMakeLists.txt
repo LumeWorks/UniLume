@@ -223,6 +223,32 @@ if(BUILD_TESTING)
     COMMAND unilume_fcitx5_emoji_module_tests
   )
 
+  add_executable(unilume_fcitx5_emoji_module_tests
+    emoji_module_test.cpp
+  )
+  target_link_libraries(unilume_fcitx5_emoji_module_tests PRIVATE
+    PkgConfig::FCITX5_CORE
+    PkgConfig::FCITX5_MODULE
+    unilume_core
+    unilume_emoji
+    unilume_sanitizer_options
+  )
+  target_include_directories(unilume_fcitx5_emoji_module_tests PRIVATE
+    ${PROJECT_SOURCE_DIR}/src/core
+  )
+  target_compile_definitions(unilume_fcitx5_emoji_module_tests PRIVATE
+    UNILUME_TEST_FCITX_VERSION="${FCITX5_CORE_VERSION}"
+  )
+  set_target_properties(unilume_fcitx5_emoji_module_tests PROPERTIES
+    CXX_STANDARD 23
+    CXX_STANDARD_REQUIRED YES
+    CXX_EXTENSIONS NO
+  )
+  add_test(
+    NAME fcitx5-emoji-module
+    COMMAND unilume_fcitx5_emoji_module_tests
+  )
+
   add_executable(unilume_fcitx5_backend_contract_tests
     replacement_transport_contract.cpp
     verified_surrounding_snapshot.cpp
