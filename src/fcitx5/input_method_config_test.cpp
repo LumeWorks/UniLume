@@ -27,9 +27,6 @@ int main()
     InputMethodConfig input_method_config;
     ok &= expect(*input_method_config.verified_direct_enabled,
                  "zero-preedit replacement must be enabled by default");
-    ok &= expect(*input_method_config.direct_strategy ==
-                     ConfigDirectStrategy::Fast,
-                 "Fast direct strategy must be the default");
     fcitx::RawConfig raw;
     raw["InputMethod"] = "VNI";
     raw["OutputCharset"] = "UTF8";

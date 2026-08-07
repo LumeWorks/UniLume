@@ -69,14 +69,13 @@ the backend requests the minimum surrounding-text deletion and commits the
 replacement in the same synchronous controller transaction. Cursor movement,
 focus changes, reset events, and unhandled Backspace clear composition state.
 
-`VerifiedDirectEnabled` defaults to `True`. In `automatic`, only the optional
-atomic replacement interface from the pinned Fcitx fork is eligible. Batched
-D-Bus and single-commit Wayland replace text on one protocol path without
-preedit or uinput. If the capability is absent, the original key passes through
-and the status reports the missing atomic path.
-
-Acknowledged Backspace uinput remains available only in explicit `direct`
-mode. `safe-preedit` is the only mode that intentionally creates preedit.
+`VerifiedDirectEnabled` defaults to `True`. Atomic frontends use their verified
+surrounding-text edit. Split D-Bus and Wayland transports use one shared,
+Backspace-only uinput device: each deletion is released before the next is
+emitted, and the replacement is committed only when a final filtered barrier
+returns through Fcitx. This keeps ordinary typing out of client preedit and
+therefore removes its underline. If neither backend is available, the context
+uses bounded safe preedit.
 
 ## Safety fallback
 
@@ -91,7 +90,7 @@ a fallback commit or preedit update.
 The acknowledged backend has a 128-character deletion limit and a fixed
 512-key burst queue. It does not sleep, retry indefinitely, monitor the mouse,
 or run a socket daemon. Set `VerifiedDirectEnabled=False` to disable it and
-return immediately to passthrough.
+return immediately to safe preedit.
 
 Fcitx delete/commit methods are synchronous requests on its event thread and
 do not acknowledge application-side mutation. See

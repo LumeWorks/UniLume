@@ -39,5 +39,7 @@ Automatic reports `Atomic direct` or `Atomic replacement unavailable`.
 Direct reports its Fast/Guarded strategy. Focus and policy changes fence
 pending replacement state before the next key.
 
-`VerifiedDirectEnabled=False` disables every direct backend. See
+`VerifiedDirectEnabled` defaults to `True`; setting it to `False` is the
+immediate rollback to safe preedit.
+Neither an application rule nor a mode hotkey can bypass it. See
 [verified-direct-backend.md](verified-direct-backend.md).

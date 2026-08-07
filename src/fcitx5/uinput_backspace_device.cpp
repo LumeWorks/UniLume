@@ -2,14 +2,13 @@
 
 #include "uinput_backspace_device.h"
 
+#include <cerrno>
 #include <cstring>
 #include <fcntl.h>
 #include <linux/input-event-codes.h>
 #include <linux/uinput.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
-
-#include <array>
 
 namespace unilume::fcitx5 {
 
@@ -54,34 +53,30 @@ bool UinputBackspaceDevice::available() const
     return file_descriptor_ >= 0;
 }
 
-UinputBatchWriteStatus
-UinputBackspaceDevice::emitBackspaces(std::size_t count) const
+bool UinputBackspaceDevice::emitBackspace() const
 {
-    constexpr std::size_t maximum_backspaces = 129;
-    if (!available() || count == 0 || count > maximum_backspaces) {
-        return UinputBatchWriteStatus::no_events;
+    if (!available()) {
+        return false;
     }
-    std::array<input_event, maximum_backspaces * 4> events{};
-    for (std::size_t index = 0; index < count; ++index) {
-        input_event *event = events.data() + index * 4;
-        event[0].type = EV_KEY;
-        event[0].code = KEY_BACKSPACE;
-        event[0].value = 1;
-        event[1].type = EV_SYN;
-        event[1].code = SYN_REPORT;
-        event[2].type = EV_KEY;
-        event[2].code = KEY_BACKSPACE;
-        event[2].value = 0;
-        event[3].type = EV_SYN;
-        event[3].code = SYN_REPORT;
-    }
+    input_event events[4]{};
+    events[0].type = EV_KEY;
+    events[0].code = KEY_BACKSPACE;
+    events[0].value = 1;
+    events[1].type = EV_SYN;
+    events[1].code = SYN_REPORT;
+    events[2].type = EV_KEY;
+    events[2].code = KEY_BACKSPACE;
+    events[2].value = 0;
+    events[3].type = EV_SYN;
+    events[3].code = SYN_REPORT;
 
-    const auto bytes = static_cast<ssize_t>(
-        count * 4 * sizeof(input_event));
-    const ssize_t written = write(
-        file_descriptor_, events.data(), static_cast<std::size_t>(bytes));
-    return classifyUinputBatchWrite(written,
-                                   static_cast<std::size_t>(bytes));
+    constexpr auto bytes = static_cast<ssize_t>(sizeof(events));
+    ssize_t written;
+    do {
+        written = write(file_descriptor_, events,
+                        static_cast<std::size_t>(bytes));
+    } while (written < 0 && errno == EINTR);
+    return written == bytes;
 }
 
 } // namespace unilume::fcitx5

@@ -56,92 +56,49 @@ InputContextState::~InputContextState()
 
 void InputContextState::keyEvent(fcitx::KeyEvent &event)
 {
-    const fcitx::Key raw_key = event.rawKey();
-    const fcitx::KeyStates raw_states = raw_key.states();
-    const bool has_shortcut_modifier =
-        raw_states.test(fcitx::KeyState::Shift) ||
-        raw_states.test(fcitx::KeyState::Ctrl) ||
-        raw_states.test(fcitx::KeyState::Alt) ||
-        raw_states.testAny(fcitx::KeyState::Ctrl_Alt) ||
-        raw_states.test(fcitx::KeyState::Super) ||
-        raw_states.test(fcitx::KeyState::Super2) ||
-        raw_states.test(fcitx::KeyState::Hyper) ||
-        raw_states.test(fcitx::KeyState::Hyper2) ||
-        raw_states.test(fcitx::KeyState::Meta) ||
-        raw_states.test(fcitx::KeyState::Mod5);
-    const bool is_plain_backspace =
-        (raw_key.sym() == FcitxKey_BackSpace || raw_key.sym() == 8) &&
-        !has_shortcut_modifier;
-    const bool matching_initial_release =
-        raw_key.code() != 0 && initial_release_key_.code() != 0
-            ? raw_key.code() == initial_release_key_.code()
-            : raw_key.sym() == initial_release_key_.sym();
-
-    // Transaction releases must be routed before the normal mapper, whose
-    // contract deliberately ignores releases. The triggering release may be
-    // any printable key; synthetic ACKs are only unmodified Backspace.
-    if (event.isRelease()) {
-        if (backend_.initialBackspacePending() &&
-            matching_initial_release) {
-            event.filterAndAccept();
-            startPendingAcknowledgedReplacement();
-            return;
-        }
-        if (!is_plain_backspace) {
-            return;
-        }
-        if (backend_.consumeCancelledBackspace(true)) {
-            event.filterAndAccept();
-            return;
-        }
-        if (!backend_.acknowledgedDeletionPending()) {
-            return;
-        }
-        switch (backend_.acknowledgeBackspaceRelease()) {
-        case BackspaceReleaseAcknowledgement::forward_deletion:
-            if (backend_.consumeUncertainDispatch()) {
-                direct_controller_.timeout(
-                    direct_controller_.activeSequence());
-                return;
-            }
-            return;
-        case BackspaceReleaseAcknowledgement::consume_sentinel:
-            event.filterAndAccept();
-            return;
-        case BackspaceReleaseAcknowledgement::complete_guarded: {
-            event.filterAndAccept();
-            if (!backend_.guardedBoundaryValid()) {
-                direct_controller_.timeout(
-                    direct_controller_.activeSequence());
-                return;
-            }
-            const std::uint64_t sequence =
-                backend_.finishAcknowledgedReplacement();
-            if (sequence == 0) {
-                direct_controller_.timeout(
-                    direct_controller_.activeSequence());
-                return;
-            }
-            // A guarded sentinel ACK, even with a validated surrounding
-            // snapshot, does not prove the target application applied the
-            // delete-and-insert.  A valid snapshot is not sufficient proof
-            // by itself per Issue #119, so the outcome must be uncertain.
+    if (event.isRelease() && backend_.initialBackspacePending()) {
+        event.filterAndAccept();
+        if (!backend_.startAcknowledgedReplacement()) {
             direct_controller_.complete(
-                sequence, platform::ReplacementOutcome::uncertain);
-            handleUncertainCompletion();
-            if (backend_.initialBackspacePending()) {
-                startPendingAcknowledgedReplacement();
+                direct_controller_.activeSequence(), false);
+        }
+        return;
+    }
+    const bool is_backspace =
+        event.rawKey().sym() == FcitxKey_BackSpace ||
+        event.rawKey().sym() == 8;
+    if (is_backspace) {
+        if (event.isRelease() &&
+            backend_.forwardedBackspaceReleasePending()) {
+            if (!backend_.continueAcknowledgedReplacement()) {
+                direct_controller_.timeout(
+                    direct_controller_.activeSequence());
             }
             return;
         }
-        case BackspaceReleaseAcknowledgement::unexpected:
+        if (event.isRelease() && backend_.consumeBarrierRelease()) {
             event.filterAndAccept();
-            direct_controller_.timeout(
-                direct_controller_.activeSequence());
             return;
+        }
+        if (!event.isRelease() &&
+            backend_.acknowledgedDeletionPending()) {
+            switch (backend_.acknowledgeBackspace()) {
+            case BackspaceAcknowledgement::forward_deletion:
+                backend_.expectForwardedBackspaceRelease();
+                return;
+            case BackspaceAcknowledgement::consume_barrier: {
+                backend_.expectBarrierRelease();
+                event.filterAndAccept();
+                const std::uint64_t sequence =
+                    backend_.finishAcknowledgedReplacement();
+                direct_controller_.complete(sequence, sequence != 0);
+                return;
+            }
+            case BackspaceAcknowledgement::unexpected:
+                break;
+            }
         }
     }
-
     const std::uint64_t started_at_ns = diagnostics_.beginEvent();
     const MappedKey mapped = mapKeyEvent(event);
     if (mapped.status == MappingStatus::ignored) {
@@ -258,18 +215,13 @@ void InputContextState::keyEvent(fcitx::KeyEvent &event)
 
 void InputContextState::reset()
 {
-    // Some clients reset the input context after each synthetic Backspace.
-    // A real deactivation uses focusReset(), so only those protocol-local
-    // resets are ignored while the bounded deletion sequence is returning.
+    // Some clients reset the input context after accepting each synthetic
+    // Backspace. The final barrier is the transaction boundary; resetting
+    // before it arrives would orphan the remaining deletion and commit.
     if (backend_.acknowledgedDeletionPending() &&
         !backend_.initialBackspacePending()) {
         return;
     }
-    focusReset();
-}
-
-void InputContextState::focusReset()
-{
     diagnostics_.recordReset(TraceResetReason::focus);
     direct_controller_.resetForFocus();
     preedit_controller_.reset();

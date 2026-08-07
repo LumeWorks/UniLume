@@ -83,13 +83,6 @@ FCITX_CONFIGURATION(
         this, "VerifiedDirectEnabled",
         _("Enable capability-gated verified direct replacement"),
         verified_direct_enabled_by_default};
-    fcitx::Option<ConfigDirectStrategy> direct_strategy{
-        this, "DirectStrategy", _("Split-transport direct strategy"),
-        ConfigDirectStrategy::Fast};
-    fcitx::Option<std::string> developer_route_override{
-        this, "DeveloperRouteOverride",
-        _("Developer-only route override (direct_experimental enables "
-          "uinput direct; empty keeps Adaptive/Off only)"), ""};
     fcitx::Option<bool> application_policy_enabled{
         this, "ApplicationPolicyEnabled",
         _("Enable per-application input policy"), false};

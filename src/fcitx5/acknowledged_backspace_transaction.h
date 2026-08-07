@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "direct_strategy.h"
-
 #include <cstddef>
 #include <cstdint>
 #include <string>
@@ -14,15 +12,7 @@ namespace unilume::fcitx5 {
 enum class BackspaceAcknowledgement {
     unexpected,
     forward_deletion,
-    consume_sentinel_fast,
-    consume_sentinel_guarded,
-};
-
-enum class BackspaceReleaseAcknowledgement {
-    unexpected,
-    forward_deletion,
-    consume_sentinel,
-    complete_guarded,
+    consume_barrier,
 };
 
 class AcknowledgedBackspaceTransaction {
@@ -31,30 +21,21 @@ public:
 
     bool prepare(std::uint64_t sequence_id,
                  std::size_t deletions,
-                 std::string_view commit_text,
-                 DirectStrategy strategy);
+                 std::string_view commit_text);
     [[nodiscard]] BackspaceAcknowledgement acknowledge();
-    [[nodiscard]] BackspaceReleaseAcknowledgement acknowledgeRelease();
-    void markPressDispatched();
-    void markPressesDispatched(std::size_t count);
     [[nodiscard]] bool active() const;
+    [[nodiscard]] std::size_t emittedBackspaces() const;
     [[nodiscard]] std::uint64_t sequenceId() const;
-    [[nodiscard]] std::size_t deletions() const;
     [[nodiscard]] std::string_view commitText() const;
-    [[nodiscard]] std::size_t outstandingPresses() const;
-    [[nodiscard]] bool releasePending() const;
     void clear();
 
 private:
     std::uint64_t sequence_id_{};
-    std::size_t deletions_{};
-    std::size_t acknowledged_presses_{};
-    std::size_t dispatched_presses_{};
+    std::size_t remaining_deletions_{};
+    std::size_t emitted_backspaces_{};
     std::string commit_text_;
-    DirectStrategy strategy_{DirectStrategy::fast};
     bool active_{};
-    bool press_acknowledged_{};
-    bool sentinel_press_acknowledged_{};
+    bool barrier_acknowledged_{};
 };
 
 } // namespace unilume::fcitx5

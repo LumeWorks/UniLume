@@ -1,20 +1,14 @@
 # Verified direct replacement backend
 
-Issues #48, #102, and #107 define the replacement backend. Automatic ownership
-is defined by [ADR 0006](adr/0006-atomic-fcitx-replacement.md).
-
-`automatic` accepts only `AtomicSurroundingTextInputContext`: batched D-Bus or
-single-commit Wayland from the pinned LumeWorks Fcitx fork. It never selects
-uinput or preedit. A missing capability is visible passthrough. The legacy
-split-transport behavior below applies only when the user selects `direct`.
+Issues #48 and #102 implement the two transports of the single Fcitx
+replacement backend accepted by [ADR 0001](adr/0001-composition-ownership.md).
+Both remain in-process parts of the input-method engine.
 
 ## Eligibility
 
-`VerifiedDirectEnabled` defaults to `True`. When it is false, Direct becomes
-raw passthrough. An atomic direct operation requires Fcitx surrounding text, a
-transport that applies delete plus commit indivisibly, a valid UTF-8 snapshot
-no larger than 64 KiB, a collapsed cursor/anchor, and enough text before the
-cursor. Application identity never bypasses these checks.
+`VerifiedDirectEnabled` is an adapter-level feature flag and defaults to
+`True`. Enabling it only makes a context eligible. An atomic direct operation
+still requires:
 
 Fcitx `dbus`, `wayland`, and `wayland_v2` are split transports. With the
 Backspace-only uinput device available, the backend dispatches the required
@@ -29,7 +23,13 @@ pass through immediately, fence context, and leave remnants to be consumed.
 a refreshed surrounding snapshot when the frontend has published it; neither
 strategy is a claim of transport atomicity.
 
-## Failure contract
+Fcitx's `dbus`, `wayland` and `wayland_v2` frontends do not satisfy the atomic
+transport gate. On Linux, UniLume instead uses one shared Backspace-only
+uinput device when `/dev/uinput` is available. It emits one deletion at a
+time, waits for its press/release to return through the same Fcitx input
+context, and commits only after a final filtered barrier. Deletions are capped
+at 128 characters. If the device is unavailable, these frontends use safe
+preedit.
 
 A pre-dispatch failure guarantees no direct mutation and returns the original
 key event to Fcitx. The controller never falls back to preedit or a synthetic
@@ -56,9 +56,19 @@ when Telex or convenience transforms actually modify text. Plain Enter resets li
 passes through; plain Backspace enters engine/ACK processing. Shift with printable text passes to
 the engine for capitalization.
 
-Focus, deactivation, configuration, policy, and capability boundaries clear
-the controller queue and advance the backend generation. A partial dispatched
-transaction is never replayed into a new target.
+The queue holds at most 512 inputs, each with at most 32 bytes. Focus,
+navigation, configuration, policy, capability, and frontend lifecycle
+boundaries cancel or fence the active transaction, clear the queue, reset the
+engine, and advance the backend generation. A new Fcitx input context starts
+with a fresh state object.
+
+Fcitx delete/commit calls are synchronous requests on its event thread, but
+synchronous calls are not necessarily one frontend transaction. The
+production backend does not block the event loop, sleep, or maintain an
+asynchronous worker. Split transports use the acknowledged path above rather
+than issuing a non-atomic surrounding-text edit.
+The delayed simulator exists only to exercise cancellation, stale, duplicate,
+reordered, dropped, and uncertain outcomes deterministically.
 
 ## Rollback
 

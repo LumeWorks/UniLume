@@ -112,12 +112,6 @@ If `/dev/uinput` is unavailable, UniLume remains usable and falls back to
 client preedit. Set `VerifiedDirectEnabled=False` in the input-method config to
 force that rollback explicitly.
 
-4. If the package includes the optional configuration application, open it
-   from the UniLume entry in Fcitx configuration or run:
-   ```sh
-   unilume-config
-   ```
-
 ## Verification
 
 Verify package integrity and authenticity:

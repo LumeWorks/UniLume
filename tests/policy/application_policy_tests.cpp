@@ -54,17 +54,9 @@ int main()
                     ApplicationMode::adaptive,
                 "automatic default was migrated to adaptive");
         const Resolution missing = resolve(decoded.snapshot, "");
-        require(missing.mode == ApplicationMode::adaptive &&
+        require(missing.mode == ApplicationMode::automatic &&
                     missing.source == ResolutionSource::missing_identity,
-                "missing identity did not select adaptive mode");
-        // encode must emit only adaptive/off, never the legacy names.
-        const std::string encoded = encode(decoded.snapshot);
-        require(encoded.find("automatic") == std::string::npos &&
-                    encoded.find("direct") == std::string::npos &&
-                    encoded.find("safe-preedit") == std::string::npos,
-                "legacy modes were not purged from the encoded output");
-        require(encoded.find("adaptive") != std::string::npos,
-                "adaptive mode was not serialized");
+                "missing identity did not retain automatic mode");
 
         require(!decode(
                     "unilume_app_policy_version=1\n"

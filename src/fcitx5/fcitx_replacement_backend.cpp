@@ -57,22 +57,10 @@ bool FcitxReplacementBackend::supportsDirectReplacement() const
     observation_.surrounding_available =
         input_context_.capabilityFlags().test(
             fcitx::CapabilityFlag::SurroundingText);
-    observation_.atomic_transport = atomicReplacementAvailable();
+    observation_.atomic_transport = replacementTransportIsAtomic(
+        input_context_.frontendName());
     observation_.acknowledged_uinput =
         !observation_.atomic_transport && uinput_device_.available();
-    if (poisoned_) {
-        verified_ticket_.clear();
-        return false;
-    }
-    if (observation_.atomic_transport &&
-        !observation_.surrounding_available) {
-        observation_.surrounding_bytes = 0;
-        observation_.cursor_valid = true;
-        observation_.within_resource_limit = true;
-        observation_.utf8_valid = true;
-        verified_ticket_.clear();
-        return true;
-    }
     if (observation_.acknowledged_uinput) {
         observation_.surrounding_bytes = 0;
         observation_.cursor_valid = true;
@@ -116,31 +104,20 @@ bool FcitxReplacementBackend::canReplace(
     observation_.surrounding_available =
         input_context_.capabilityFlags().test(
             fcitx::CapabilityFlag::SurroundingText);
-    observation_.atomic_transport = atomicReplacementAvailable();
+    observation_.atomic_transport = replacementTransportIsAtomic(
+        input_context_.frontendName());
     observation_.acknowledged_uinput =
         !observation_.atomic_transport && uinput_device_.available();
     observation_.cursor_valid = false;
     observation_.utf8_valid = false;
     observation_.within_resource_limit = false;
     if (delete_before_cursor < 0 ||
-        (!observation_.atomic_transport &&
-         !observation_.acknowledged_uinput &&
+        (!observation_.acknowledged_uinput &&
          !observation_.surrounding_available)) {
         verified_ticket_.clear();
         return false;
     }
     if (observation_.acknowledged_uinput) {
-        observation_.surrounding_bytes = 0;
-        observation_.cursor_valid = true;
-        observation_.within_resource_limit =
-            delete_before_cursor <= static_cast<std::int32_t>(
-                AcknowledgedBackspaceTransaction::maximum_deletions);
-        observation_.utf8_valid = true;
-        verified_ticket_.clear();
-        return observation_.within_resource_limit;
-    }
-    if (observation_.atomic_transport &&
-        !observation_.surrounding_available) {
         observation_.surrounding_bytes = 0;
         observation_.cursor_valid = true;
         observation_.within_resource_limit =
@@ -191,21 +168,18 @@ FcitxReplacementBackend::requestReplacement(
 
     const auto delete_count = static_cast<std::size_t>(delete_before_cursor);
     if (observation_.acknowledged_uinput && delete_count != 0) {
-        guarded_snapshot_ready_ = false;
-        if (strategy_ == DirectStrategy::guarded &&
-            observation_.surrounding_available) {
-            guarded_snapshot_ready_ = true;
-        }
         if (!acknowledged_transaction_.prepare(
-                sequence_id, delete_count, commit_text, strategy_)) {
+                sequence_id, delete_count, commit_text)) {
             acknowledged_transaction_.clear();
             return platform::ReplacementStatus::failed;
         }
-        // The physical triggering press is still being processed by the
-        // client. Start the synthetic sequence only when its release returns,
-        // otherwise Chromium/Electron can observe the deletion out of order.
         initial_backspace_pending_ = true;
         return platform::ReplacementStatus::pending;
+    }
+    if (delete_count != 0) {
+        input_context_.deleteSurroundingText(
+            -delete_before_cursor,
+            static_cast<unsigned int>(delete_count));
     }
     if (!requestAtomicReplacement(delete_before_cursor, commit_text)) {
         return platform::ReplacementStatus::failed;
@@ -239,19 +213,12 @@ bool FcitxReplacementBackend::cancel(std::uint64_t sequence_id)
 {
     if (acknowledged_transaction_.active() &&
         acknowledged_transaction_.sequenceId() == sequence_id) {
-        if (initial_backspace_pending_) {
-            acknowledged_transaction_.clear();
-            initial_backspace_pending_ = false;
-            return true;
-        }
-        cancelled_backspace_presses_ +=
-            acknowledged_transaction_.outstandingPresses();
-        cancelled_backspace_release_pending_ =
-            cancelled_backspace_release_pending_ ||
-            acknowledged_transaction_.releasePending();
+        const bool known_unapplied = initial_backspace_pending_;
         acknowledged_transaction_.clear();
-        poisoned_ = true;
-        return false;
+        initial_backspace_pending_ = false;
+        forwarded_backspace_release_pending_ = false;
+        barrier_release_pending_ = false;
+        return known_unapplied;
     }
     // Fcitx commit/delete calls are synchronous requests on the event thread.
     return false;
@@ -284,24 +251,8 @@ void FcitxReplacementBackend::reset()
     verified_ticket_.clear();
     acknowledged_transaction_.clear();
     initial_backspace_pending_ = false;
-    guarded_snapshot_ready_ = false;
-    uncertain_dispatch_ = false;
-}
-
-void FcitxReplacementBackend::setDirectStrategy(DirectStrategy strategy)
-{
-    if (strategy_ == strategy) {
-        return;
-    }
-    reset();
-    strategy_ = strategy;
-    poisoned_ = false;
-}
-
-void FcitxReplacementBackend::clearFailure()
-{
-    poisoned_ = false;
-    uncertain_dispatch_ = false;
+    forwarded_backspace_release_pending_ = false;
+    barrier_release_pending_ = false;
 }
 
 const ReplacementObservation &
@@ -327,15 +278,8 @@ bool FcitxReplacementBackend::startAcknowledgedReplacement()
         return false;
     }
     initial_backspace_pending_ = false;
-    const UinputBatchWriteStatus write_status =
-        uinput_device_.emitBackspaces(1);
-    if (write_status == UinputBatchWriteStatus::complete) {
-        acknowledged_transaction_.markPressDispatched();
+    if (uinput_device_.emitBackspace()) {
         return true;
-    }
-    if (write_status == UinputBatchWriteStatus::partial) {
-        uncertain_dispatch_ = true;
-        poisoned_ = true;
     }
     acknowledged_transaction_.clear();
     return false;
@@ -346,93 +290,42 @@ BackspaceAcknowledgement FcitxReplacementBackend::acknowledgeBackspace()
     return acknowledged_transaction_.acknowledge();
 }
 
-BackspaceReleaseAcknowledgement
-FcitxReplacementBackend::acknowledgeBackspaceRelease()
+void FcitxReplacementBackend::expectForwardedBackspaceRelease()
 {
-    const BackspaceReleaseAcknowledgement acknowledgement =
-        acknowledged_transaction_.acknowledgeRelease();
-    if (acknowledgement != BackspaceReleaseAcknowledgement::forward_deletion) {
-        return acknowledgement;
-    }
-    const UinputBatchWriteStatus write_status =
-        uinput_device_.emitBackspaces(1);
-    if (write_status == UinputBatchWriteStatus::complete) {
-        acknowledged_transaction_.markPressDispatched();
-    } else {
-        uncertain_dispatch_ = true;
-        poisoned_ = true;
-    }
-    return acknowledgement;
+    forwarded_backspace_release_pending_ = true;
 }
 
-bool FcitxReplacementBackend::consumeCancelledBackspace(bool release)
+bool FcitxReplacementBackend::forwardedBackspaceReleasePending() const
 {
-    if (release) {
-        if (!cancelled_backspace_release_pending_) {
-            return false;
-        }
-        cancelled_backspace_release_pending_ = false;
-        return true;
-    }
-    if (cancelled_backspace_release_pending_) {
-        // A duplicate or reordered press still belongs to the fenced batch.
-        return true;
-    }
-    if (cancelled_backspace_presses_ == 0) {
+    return forwarded_backspace_release_pending_;
+}
+
+bool FcitxReplacementBackend::continueAcknowledgedReplacement()
+{
+    if (!forwarded_backspace_release_pending_ ||
+        !acknowledged_transaction_.active()) {
         return false;
     }
-    --cancelled_backspace_presses_;
-    cancelled_backspace_release_pending_ = true;
+    forwarded_backspace_release_pending_ = false;
+    if (uinput_device_.emitBackspace()) {
+        return true;
+    }
+    acknowledged_transaction_.clear();
+    return false;
+}
+
+void FcitxReplacementBackend::expectBarrierRelease()
+{
+    barrier_release_pending_ = true;
+}
+
+bool FcitxReplacementBackend::consumeBarrierRelease()
+{
+    if (!barrier_release_pending_) {
+        return false;
+    }
+    barrier_release_pending_ = false;
     return true;
-}
-
-bool FcitxReplacementBackend::consumeFastSentinelRelease()
-{
-    const bool pending = fast_sentinel_release_pending_;
-    fast_sentinel_release_pending_ = false;
-    return pending;
-}
-
-bool FcitxReplacementBackend::fastSentinelReleasePending() const
-{
-    return fast_sentinel_release_pending_;
-}
-
-bool FcitxReplacementBackend::consumeUncertainDispatch()
-{
-    const bool uncertain = uncertain_dispatch_;
-    uncertain_dispatch_ = false;
-    return uncertain;
-}
-
-bool FcitxReplacementBackend::poisoned() const
-{
-    return poisoned_;
-}
-
-bool FcitxReplacementBackend::guardedBoundaryValid() const
-{
-    if (!guarded_snapshot_ready_) {
-        return true;
-    }
-    const fcitx::SurroundingText &surrounding =
-        input_context_.surroundingText();
-    const SurroundingSnapshotValidation validation =
-        validateSurroundingSnapshot(true, surrounding, 0);
-    if (!validation.allowsReplacement()) {
-        return false;
-    }
-    // Split frontends publish surrounding snapshots asynchronously, so an
-    // older byte offset cannot be compared to the just-dispatched deletion.
-    // Guarded still requires a live, bounded UTF-8 snapshot with a collapsed
-    // valid cursor at the release boundary. Navigation is fenced before this
-    // point by the key classifier.
-    return validation.allowsReplacement();
-}
-
-bool FcitxReplacementBackend::guardedSnapshotReady() const
-{
-    return guarded_snapshot_ready_;
 }
 
 std::uint64_t FcitxReplacementBackend::finishAcknowledgedReplacement()
@@ -444,8 +337,6 @@ std::uint64_t FcitxReplacementBackend::finishAcknowledgedReplacement()
         acknowledged_transaction_.sequenceId();
     const std::string commit_text(
         acknowledged_transaction_.commitText());
-    fast_sentinel_release_pending_ =
-        strategy_ == DirectStrategy::fast;
     acknowledged_transaction_.clear();
     if (!commit_text.empty()) {
         input_context_.commitString(commit_text);

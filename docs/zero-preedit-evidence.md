@@ -105,9 +105,8 @@ followed by `fcitx5-diagnose`. Exact temporary paths are intentionally omitted.
 
 Issue #102 does not use the blind helper prototype in this table. Its
 in-process device exposes only Backspace, emits one event pair at a time, and
-waits for each pair to return through Fcitx and commits on the final deletion
-release ACK. The remaining bounded focus window and rollback are recorded in
-ADR 0001.
+waits for each pair to return through Fcitx before a final commit barrier. The
+remaining bounded focus window and rollback are recorded in ADR 0001.
 
 The burst matrix runs virtual scheduler intervals of 1, 2, and 5 ms with 1,000
 and 10,000 events. Every profile compares the faulted output with the
