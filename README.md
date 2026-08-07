@@ -1,13 +1,17 @@
 # UniLume
 
-> Kho lưu trữ (repository) này đã được **di dời**.
+> Kho lưu trữ (repository) này đã được **di dời**. Vui lòng không tiếp tục phát
+> triển tại đây.
 
 ## Thông báo di dời
 
-Dự án UniLume đã được chuyển sang địa điểm mới. Mọi phát triển tiếp theo sẽ
-diễn ra tại địa chỉ mới:
+Chúng tôi đã chuyển và di dời dự án để xây dựng bộ gõ tiếng Việt mới tại
+**<https://github.com/LumeWorks/CanType>** và engine gõ (IME) mới tại
+**<https://github.com/LumeWorks/Cadence>**. Mọi phát triển tiếp theo sẽ diễn ra
+tại hai repository trên.
 
-**Địa chỉ mới:** _<!-- TODO: điền địa chỉ repo mới -->_
+- **CanType** — bộ gõ tiếng Việt mới: <https://github.com/LumeWorks/CanType>
+- **Cadence** — engine gõ (IME) mới: <https://github.com/LumeWorks/Cadence>
 
 ## Mã nguồn cũ
 
@@ -24,8 +28,11 @@ git checkout legacy
 
 Nhánh `legacy` là bản gộp (merge) của tất cả các nhánh phát triển cũ, được giữ lại
 nhằm tham khảo và truy vết. Vui lòng KHÔNG tiếp tục phát triển trên nhánh
-`legacy`; mọi đóng góp mới hãy gửi tại địa chỉ mới ở trên.
+`legacy`; mọi đóng góp mới hãy gửi tại CanType hoặc Cadence ở trên.
 
 ## Liên hệ
 
-<!-- TODO: điền thông tin liên hệ / issue tracker mới -->
+Vui lòng mở issue tại repository tương ứng:
+
+- Issue CanType: <https://github.com/LumeWorks/CanType/issues>
+- Issue Cadence: <https://github.com/LumeWorks/Cadence/issues>
