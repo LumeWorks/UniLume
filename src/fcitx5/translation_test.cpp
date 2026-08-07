@@ -34,5 +34,12 @@ int main()
                   << gui_translated << '\n';
         return 0;
     }
+    const std::string gui_translated =
+        _("Open the complete UniLume configuration");
+    if (gui_translated != "Mở toàn bộ cấu hình UniLume") {
+        std::cerr << "Vietnamese GUI catalog was not loaded: "
+                  << gui_translated << '\n';
+        return 1;
+    }
     return 0;
 }
