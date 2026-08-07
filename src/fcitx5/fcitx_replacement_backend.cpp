@@ -102,6 +102,12 @@ bool FcitxReplacementBackend::supportsDirectReplacement() const
            validated.allowsReplacement();
 }
 
+bool FcitxReplacementBackend::supportsDirectReplacement() const
+{
+    return input_context_.capabilityFlags().test(
+        fcitx::CapabilityFlag::SurroundingText);
+}
+
 bool FcitxReplacementBackend::canReplace(
     std::int32_t delete_before_cursor) const
 {

@@ -49,6 +49,11 @@ InputContextState::~InputContextState()
     diagnostics_.flush();
 }
 
+InputContextState::~InputContextState()
+{
+    diagnostics_.flush();
+}
+
 void InputContextState::keyEvent(fcitx::KeyEvent &event)
 {
     const fcitx::Key raw_key = event.rawKey();
