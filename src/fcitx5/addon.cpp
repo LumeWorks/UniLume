@@ -704,8 +704,71 @@ void UniLumeAddon::updateModeActions(fcitx::InputContext *input_context)
     direct_mode_action_->update(input_context);
     safe_preedit_mode_action_->update(input_context);
     off_mode_action_->update(input_context);
+    telex_action_->update(input_context);
+    vni_action_->update(input_context);
+    viqr_action_->update(input_context);
+    utf8_action_->update(input_context);
+    spell_action_->update(input_context);
+    macro_action_->update(input_context);
+    dictionary_action_->update(input_context);
     input_context->updateUserInterface(
         fcitx::UserInterfaceComponent::StatusArea);
+}
+
+StatusSnapshot UniLumeAddon::statusSnapshotFor(
+    fcitx::InputContext *input_context) const
+{
+    const fcitx::InputMethodEntry *entry =
+        input_context ? instance_.inputMethodEntry(input_context) : nullptr;
+    if (!entry) {
+        return {};
+    }
+    const InputMethodConfig &config = configFor(*entry);
+    return {
+        *config.input_method,
+        *config.spell_check,
+        *config.macro_enabled,
+        *config.dictionary_enabled,
+        !config.macro_file->empty(),
+        !config.dictionary_file->empty(),
+    };
+}
+
+void UniLumeAddon::applyStatusCommand(
+    fcitx::InputContext *input_context,
+    StatusCommand command)
+{
+    const fcitx::InputMethodEntry *entry =
+        input_context ? instance_.inputMethodEntry(input_context) : nullptr;
+    if (!entry) {
+        return;
+    }
+    const std::optional<StatusMutation> mutation =
+        statusMutation(command, statusSnapshotFor(input_context));
+    if (!mutation) {
+        updateModeActions(input_context);
+        return;
+    }
+    fcitx::RawConfig update;
+    update.setValueByPath(mutation->path, mutation->value);
+    setConfigForInputMethod(*entry, update);
+    updateModeActions(input_context);
+}
+
+std::string UniLumeAddon::statusIcon(
+    fcitx::InputContext *input_context) const
+{
+    const InputContextState *state = stateFor(input_context);
+    if (state &&
+        state->requestedApplicationMode() ==
+            policy::ApplicationMode::off) {
+        return "unilume-off";
+    }
+    if (state &&
+        state->effectiveInputPath() == platform::InputPath::preedit) {
+        return "unilume-fallback";
+    }
+    return "unilume";
 }
 
 bool UniLumeAddon::prepareKeymapUpdate(

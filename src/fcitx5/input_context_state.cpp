@@ -648,22 +648,19 @@ std::uint64_t InputContextState::applicationModeRevision() const
     return application_mode_revision_;
 }
 
-std::string InputContextState::applicationModeReason() const
+bool InputContextState::hasApplicationModeOverride() const
 {
-    if (application_mode_override_) {
-        return "selected for this input context";
-    }
-    switch (policy_source_) {
-    case policy::ResolutionSource::missing_identity:
-        return "safe preedit: application identity unavailable";
-    case policy::ResolutionSource::exact_rule:
-        return "matched exact rule " + policy_pattern_;
-    case policy::ResolutionSource::prefix_rule:
-        return "matched prefix rule " + policy_pattern_ + '*';
-    case policy::ResolutionSource::default_rule:
-        return "application policy default";
-    }
-    return {};
+    return application_mode_override_.has_value();
+}
+
+policy::ResolutionSource InputContextState::applicationPolicySource() const
+{
+    return policy_source_;
+}
+
+std::string_view InputContextState::applicationPolicyPattern() const
+{
+    return policy_pattern_;
 }
 
 void InputContextState::compositionBoundary()
