@@ -631,6 +631,7 @@ void UniLumeAddon::synchronizeState(
     const config::Snapshot &snapshot = resources.configuration;
     state.setInputMethod(toUlInputMethod(snapshot.input_method));
     state.setOptions(core::engineOptionsFromSnapshot(snapshot));
+    state.setTypingOptions(resources.typing_options);
     state.setMacros(resources.snapshot, resources.generation);
     state.setKeymap(resources.keymap_snapshot, resources.keymap_generation);
     state.setDictionary(resources.dictionary_snapshot,

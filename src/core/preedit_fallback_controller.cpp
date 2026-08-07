@@ -171,6 +171,13 @@ void PreeditFallbackController::setDictionary(
     clearEditingState();
 }
 
+void PreeditFallbackController::lineBreak()
+{
+    engine_.lineBreak();
+    preedit_.clear();
+    commit_.clear();
+}
+
 void PreeditFallbackController::setInputMethod(UlInputMethod method)
 {
     engine_.setInputMethod(method);
@@ -181,6 +188,14 @@ void PreeditFallbackController::setInputMethod(UlInputMethod method)
 void PreeditFallbackController::setOptions(const UlEngineOptions &options)
 {
     engine_.setOptions(options);
+    preedit_.clear();
+    commit_.clear();
+}
+
+void PreeditFallbackController::setTypingOptions(
+    const TypingConvenienceOptions &options)
+{
+    engine_.setTypingOptions(options);
     preedit_.clear();
     commit_.clear();
 }

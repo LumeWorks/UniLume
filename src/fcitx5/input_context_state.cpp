@@ -509,6 +509,22 @@ void InputContextState::setOptions(const UlEngineOptions &options)
     options_ = options;
 }
 
+void InputContextState::setTypingOptions(
+    const core::TypingConvenienceOptions &options)
+{
+    if (options == typing_options_) {
+        return;
+    }
+    if (mode_policy_.path() == platform::InputPath::preedit) {
+        commitPendingPreedit();
+    }
+    direct_controller_.setTypingOptions(options);
+    preedit_controller_.setTypingOptions(options);
+    clearPreedit();
+    mode_policy_.resetForCompositionEnd();
+    typing_options_ = options;
+}
+
 void InputContextState::setMacros(const macro::Snapshot &snapshot,
                                   std::uint64_t generation)
 {
