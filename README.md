@@ -81,6 +81,10 @@ Addon Fcitx5 vẫn chỉ được bật với
 GUI cấu hình được bật thêm với `-DUNILUME_BUILD_CONFIG_GUI=ON`; xem
 [docs/configuration-gui.md](docs/configuration-gui.md).
 
+Addon Fcitx5 vẫn chỉ được bật với
+`-DUNILUME_BUILD_FCITX5_ADDON=ON`; xem
+[docs/fcitx5-addon.md](docs/fcitx5-addon.md).
+
 Benchmark core được tắt mặc định. Cách build Release, chạy corpus, xuất JSON
 và chạy soak được mô tả trong
 [docs/benchmarks.md](docs/benchmarks.md). Các số core-only không phải phép so
