@@ -40,6 +40,7 @@ bool hasOnlyKnownOptions(const fcitx::RawConfig &source)
             name != "DictionaryEnabled" && name != "DictionaryFile" &&
             name != "VerifiedDirectEnabled" &&
             name != "DirectStrategy" &&
+            name != "DeveloperRouteOverride" &&
             name != "ApplicationPolicyEnabled" &&
             name != "ApplicationPolicyFile" &&
             name != "CycleModeHotkey" &&

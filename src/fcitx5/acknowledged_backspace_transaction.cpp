@@ -33,8 +33,14 @@ BackspaceAcknowledgement AcknowledgedBackspaceTransaction::acknowledge()
         return BackspaceAcknowledgement::unexpected;
     }
     press_acknowledged_ = true;
+    sentinel_press_acknowledged_ = acknowledged_presses_ == deletions_;
     ++acknowledged_presses_;
-    return BackspaceAcknowledgement::forward_deletion;
+    if (!sentinel_press_acknowledged_) {
+        return BackspaceAcknowledgement::forward_deletion;
+    }
+    return strategy_ == DirectStrategy::fast
+               ? BackspaceAcknowledgement::consume_sentinel_fast
+               : BackspaceAcknowledgement::consume_sentinel_guarded;
 }
 
 BackspaceReleaseAcknowledgement
@@ -44,18 +50,28 @@ AcknowledgedBackspaceTransaction::acknowledgeRelease()
         return BackspaceReleaseAcknowledgement::unexpected;
     }
     press_acknowledged_ = false;
-    if (acknowledged_presses_ < deletions_) {
-        return BackspaceReleaseAcknowledgement::emit_next;
+    if (!sentinel_press_acknowledged_) {
+        return BackspaceReleaseAcknowledgement::forward_deletion;
     }
+    sentinel_press_acknowledged_ = false;
     return strategy_ == DirectStrategy::guarded
                ? BackspaceReleaseAcknowledgement::complete_guarded
-               : BackspaceReleaseAcknowledgement::complete_fast;
+               : BackspaceReleaseAcknowledgement::consume_sentinel;
 }
 
 void AcknowledgedBackspaceTransaction::markPressDispatched()
 {
-    if (active_ && dispatched_presses_ < deletions_) {
+    const std::size_t total_presses = deletions_ + 1;
+    if (active_ && dispatched_presses_ < total_presses) {
         ++dispatched_presses_;
+    }
+}
+
+void AcknowledgedBackspaceTransaction::markPressesDispatched(std::size_t count)
+{
+    const std::size_t total_presses = deletions_ + 1;
+    if (active_) {
+        dispatched_presses_ = std::min(count, total_presses);
     }
 }
 
@@ -67,6 +83,11 @@ bool AcknowledgedBackspaceTransaction::active() const
 std::uint64_t AcknowledgedBackspaceTransaction::sequenceId() const
 {
     return active_ ? sequence_id_ : 0;
+}
+
+std::size_t AcknowledgedBackspaceTransaction::deletions() const
+{
+    return active_ ? deletions_ : 0;
 }
 
 std::string_view AcknowledgedBackspaceTransaction::commitText() const
@@ -96,6 +117,7 @@ void AcknowledgedBackspaceTransaction::clear()
     commit_text_.clear();
     active_ = false;
     press_acknowledged_ = false;
+    sentinel_press_acknowledged_ = false;
 }
 
 } // namespace unilume::fcitx5

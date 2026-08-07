@@ -14,12 +14,14 @@ namespace unilume::fcitx5 {
 enum class BackspaceAcknowledgement {
     unexpected,
     forward_deletion,
+    consume_sentinel_fast,
+    consume_sentinel_guarded,
 };
 
 enum class BackspaceReleaseAcknowledgement {
     unexpected,
-    emit_next,
-    complete_fast,
+    forward_deletion,
+    consume_sentinel,
     complete_guarded,
 };
 
@@ -34,8 +36,10 @@ public:
     [[nodiscard]] BackspaceAcknowledgement acknowledge();
     [[nodiscard]] BackspaceReleaseAcknowledgement acknowledgeRelease();
     void markPressDispatched();
+    void markPressesDispatched(std::size_t count);
     [[nodiscard]] bool active() const;
     [[nodiscard]] std::uint64_t sequenceId() const;
+    [[nodiscard]] std::size_t deletions() const;
     [[nodiscard]] std::string_view commitText() const;
     [[nodiscard]] std::size_t outstandingPresses() const;
     [[nodiscard]] bool releasePending() const;
@@ -50,6 +54,7 @@ private:
     DirectStrategy strategy_{DirectStrategy::fast};
     bool active_{};
     bool press_acknowledged_{};
+    bool sentinel_press_acknowledged_{};
 };
 
 } // namespace unilume::fcitx5

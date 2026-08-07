@@ -124,8 +124,11 @@ private:
             }
             if (backend_.hasPending()) {
                 for (const BackendCompletion &completion : backend_.advance()) {
-                    direct_.complete(completion.sequence_id,
-                                     completion.success);
+                    direct_.complete(
+                        completion.sequence_id,
+                        completion.success
+                            ? platform::ReplacementOutcome::applied
+                            : platform::ReplacementOutcome::not_applied);
                 }
             } else if (direct_.activeSequence() != 0) {
                 direct_.timeout(direct_.activeSequence());

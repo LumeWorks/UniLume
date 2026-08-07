@@ -23,5 +23,6 @@ void runSoakSmokeTests(Assertions &assertions);
 void runStabilityRecoveryTests(Assertions &assertions);
 void runZeroPreeditArchitectureTests(Assertions &assertions);
 void runZeroPreeditSoakTests(Assertions &assertions);
+void runOutcomeContainmentTests(Assertions &assertions);
 
 } // namespace unilume::integration::test

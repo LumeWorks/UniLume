@@ -14,10 +14,12 @@
 #include <fcitx/statusarea.h>
 #include <fcitx/userinterface.h>
 #include <fcitx/userinterfacemanager.h>
+#include <fcitx-config/iniparser.h>
 #include <fcitx-utils/i18n.h>
 #include <fcitx-utils/log.h>
 #include <fcitx-utils/standardpath.h>
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <set>
@@ -108,6 +110,28 @@ private:
     bool clear_history_{};
 };
 
+class UniLumeAddon::SubmenuAction final : public fcitx::Action {
+public:
+    SubmenuAction(std::string label, fcitx::Menu *menu)
+        : label_(std::move(label))
+    {
+        setMenu(menu);
+    }
+
+    std::string shortText(fcitx::InputContext *) const override
+    {
+        return _(label_.c_str());
+    }
+
+    std::string icon(fcitx::InputContext *) const override
+    {
+        return {};
+    }
+
+private:
+    std::string label_;
+};
+
 class UniLumeAddon::ModeAction final : public fcitx::Action {
 public:
     ModeAction(UniLumeAddon &addon,
@@ -121,12 +145,19 @@ public:
     {
         if (mode_) {
             switch (*mode_) {
+            case policy::ApplicationMode::adaptive:
+                return _("Adaptive");
             case policy::ApplicationMode::automatic:
-                return _("Automatic");
-            case policy::ApplicationMode::direct:
-                return _("Direct");
             case policy::ApplicationMode::safe_preedit:
-                return _("Safe preedit");
+                // Legacy modes migrated to adaptive on decode; they should
+                // never be the active override but render as Adaptive for
+                // safety if a stale override survives.
+                return _("Adaptive");
+            case policy::ApplicationMode::direct:
+                // Only shown in the menu when DeveloperRouteOverride is
+                // direct_experimental; the label makes the experimental
+                // status explicit.
+                return _("Direct (Experimental)");
             case policy::ApplicationMode::off:
                 return _("Off");
             }
@@ -136,10 +167,11 @@ public:
             return _("UniLume mode");
         }
         switch (state->requestedApplicationMode()) {
+        case policy::ApplicationMode::adaptive:
         case policy::ApplicationMode::automatic:
             return state->effectiveInputPath() == platform::InputPath::direct
-                       ? _("Automatic - Atomic direct")
-                       : _("Automatic - Atomic replacement unavailable");
+                       ? _("Adaptive - Atomic direct")
+                       : _("Adaptive - Preedit fallback");
         case policy::ApplicationMode::direct:
             if (state->effectiveInputPath() != platform::InputPath::direct) {
                 return _("Direct unavailable - Passthrough");
@@ -234,15 +266,16 @@ UniLumeAddon::UniLumeAddon(fcitx::Instance &instance)
     instance_.inputContextManager().registerProperty(
         "unilume-input-context", &state_factory_);
     mode_menu_ = std::make_unique<fcitx::Menu>();
+    input_method_menu_ = std::make_unique<fcitx::Menu>();
+    options_menu_ = std::make_unique<fcitx::Menu>();
+    emoji_menu_ = std::make_unique<fcitx::Menu>();
     mode_action_ = std::make_unique<ModeAction>(*this, std::nullopt);
-    automatic_mode_action_ = std::make_unique<ModeAction>(
-        *this, policy::ApplicationMode::automatic);
-    direct_mode_action_ = std::make_unique<ModeAction>(
-        *this, policy::ApplicationMode::direct);
-    safe_preedit_mode_action_ = std::make_unique<ModeAction>(
-        *this, policy::ApplicationMode::safe_preedit);
+    adaptive_mode_action_ = std::make_unique<ModeAction>(
+        *this, policy::ApplicationMode::adaptive);
     off_mode_action_ = std::make_unique<ModeAction>(
         *this, policy::ApplicationMode::off);
+    direct_experimental_mode_action_ = std::make_unique<ModeAction>(
+        *this, policy::ApplicationMode::direct);
     telex_action_ = std::make_unique<ConfigAction>(
         *this, StatusCommand::select_telex);
     vni_action_ = std::make_unique<ConfigAction>(
@@ -262,12 +295,11 @@ UniLumeAddon::UniLumeAddon(fcitx::Instance &instance)
         std::make_unique<EmojiAction>(*this, true);
     mode_action_->registerAction(
         "unilume-mode", &instance_.userInterfaceManager());
-    automatic_mode_action_->registerAction(
-        "unilume-mode-automatic", &instance_.userInterfaceManager());
-    direct_mode_action_->registerAction(
-        "unilume-mode-direct", &instance_.userInterfaceManager());
-    safe_preedit_mode_action_->registerAction(
-        "unilume-mode-safe-preedit", &instance_.userInterfaceManager());
+    adaptive_mode_action_->registerAction(
+        "unilume-mode-adaptive", &instance_.userInterfaceManager());
+    direct_experimental_mode_action_->registerAction(
+        "unilume-mode-direct-experimental",
+        &instance_.userInterfaceManager());
     off_mode_action_->registerAction(
         "unilume-mode-off", &instance_.userInterfaceManager());
     telex_action_->registerAction(
@@ -289,19 +321,43 @@ UniLumeAddon::UniLumeAddon(fcitx::Instance &instance)
     clear_emoji_history_action_->registerAction(
         "unilume-clear-emoji-history",
         &instance_.userInterfaceManager());
-    mode_menu_->addAction(automatic_mode_action_.get());
-    mode_menu_->addAction(direct_mode_action_.get());
-    mode_menu_->addAction(safe_preedit_mode_action_.get());
+
+    // Top-level mode menu: Mode (Adaptive/Off), Input Method (flat),
+    // then Options and Emoji submenus for less-frequent toggles.
+    mode_menu_->addAction(adaptive_mode_action_.get());
     mode_menu_->addAction(off_mode_action_.get());
+
+    // Input method choices live directly in the top-level menu so they
+    // are one click away (the user does not have to open a submenu to
+    // switch between Telex/VNI/VIQR/UTF-8).
     mode_menu_->addAction(telex_action_.get());
     mode_menu_->addAction(vni_action_.get());
     mode_menu_->addAction(viqr_action_.get());
     mode_menu_->addAction(utf8_action_.get());
-    mode_menu_->addAction(spell_action_.get());
-    mode_menu_->addAction(macro_action_.get());
-    mode_menu_->addAction(dictionary_action_.get());
-    mode_menu_->addAction(emoji_action_.get());
-    mode_menu_->addAction(clear_emoji_history_action_.get());
+
+    // Options submenu: Spell check / Macros / Dictionary.
+    options_menu_->addAction(spell_action_.get());
+    options_menu_->addAction(macro_action_.get());
+    options_menu_->addAction(dictionary_action_.get());
+    options_submenu_action_ =
+        std::make_unique<SubmenuAction>(
+            "Options", options_menu_.get());
+    options_submenu_action_->registerAction(
+        "unilume-options-submenu",
+        &instance_.userInterfaceManager());
+    mode_menu_->addAction(options_submenu_action_.get());
+
+    // Emoji submenu: Emoji picker / Clear history.
+    emoji_menu_->addAction(emoji_action_.get());
+    emoji_menu_->addAction(clear_emoji_history_action_.get());
+    emoji_submenu_action_ =
+        std::make_unique<SubmenuAction>(
+            "Emoji", emoji_menu_.get());
+    emoji_submenu_action_->registerAction(
+        "unilume-emoji-submenu",
+        &instance_.userInterfaceManager());
+    mode_menu_->addAction(emoji_submenu_action_.get());
+
     mode_action_->setMenu(mode_menu_.get());
 }
 
@@ -337,8 +393,18 @@ std::string UniLumeAddon::subModeLabelImpl(
 void UniLumeAddon::activate(const fcitx::InputMethodEntry &entry,
                             fcitx::InputContextEvent &event)
 {
+    // If the config has not been loaded yet (e.g. first activate after
+    // fcitx5 restart), load it from the per-input-method config file so
+    // DeveloperRouteOverride and other options take effect immediately.
+    if (loaded_configs_.find(entry.uniqueName()) == loaded_configs_.end()) {
+        fcitx::RawConfig config;
+        fcitx::readAsIni(config, fcitx::StandardPath::Type::PkgConfig,
+                         "conf/" + entry.uniqueName() + ".conf");
+        setConfigForInputMethod(entry, config);
+    }
     auto *state = event.inputContext()->propertyFor(&state_factory_);
     synchronizeState(entry, *event.inputContext(), *state);
+    updateExperimentalMenuVisibility(entry);
     event.inputContext()->statusArea().addAction(
         fcitx::StatusGroup::InputMethod, mode_action_.get());
     updateModeActions(event.inputContext());
@@ -416,6 +482,7 @@ void UniLumeAddon::setConfigForInputMethod(
         !loadInputMethodConfig(configFor(entry), config)) {
         return;
     }
+    loaded_configs_.insert(entry.uniqueName());
     prepared.configuration = snapshotFromConfig(configFor(entry));
     prepared.typing_options =
         typingOptionsFromConfig(configFor(entry));
@@ -423,8 +490,14 @@ void UniLumeAddon::setConfigForInputMethod(
         *configFor(entry).verified_direct_enabled;
     prepared.direct_strategy = toDirectStrategy(
         *configFor(entry).direct_strategy);
+    prepared.developer_route_override =
+        parseDeveloperRouteOverride(
+            *configFor(entry).developer_route_override);
     prepared.emoji_enabled = *configFor(entry).emoji_enabled;
     resourcesFor(entry) = std::move(prepared);
+
+    updateExperimentalMenuVisibility(entry);
+
     instance_.inputContextManager().foreach(
         [this, &entry](fcitx::InputContext *input_context) {
             const fcitx::InputMethodEntry *active =
@@ -458,6 +531,7 @@ void UniLumeAddon::synchronizeState(
                         resources.dictionary_generation);
     state.setVerifiedDirectEnabled(resources.verified_direct_enabled);
     state.setDirectStrategy(resources.direct_strategy);
+    state.setDeveloperRouteOverride(resources.developer_route_override);
     const std::string &identity = input_context.program();
     if (!state.applicationPolicyIsCurrent(
             resources.application_policy_generation, identity)) {
@@ -477,14 +551,6 @@ bool UniLumeAddon::handleModeHotkey(const ModeHotkeys &hotkeys,
     const fcitx::Key key = event.key();
     if (hotkeys.cycle.isValid() && key.check(hotkeys.cycle)) {
         state.cycleApplicationMode();
-    } else if (hotkeys.automatic.isValid() &&
-               key.check(hotkeys.automatic)) {
-        state.selectApplicationMode(policy::ApplicationMode::automatic);
-    } else if (hotkeys.direct.isValid() && key.check(hotkeys.direct)) {
-        state.selectApplicationMode(policy::ApplicationMode::direct);
-    } else if (hotkeys.safe_preedit.isValid() &&
-               key.check(hotkeys.safe_preedit)) {
-        state.selectApplicationMode(policy::ApplicationMode::safe_preedit);
     } else if (hotkeys.off.isValid() && key.check(hotkeys.off)) {
         state.selectApplicationMode(policy::ApplicationMode::off);
     } else {
@@ -522,9 +588,8 @@ void UniLumeAddon::selectModeFromAction(
 void UniLumeAddon::updateModeActions(fcitx::InputContext *input_context)
 {
     mode_action_->update(input_context);
-    automatic_mode_action_->update(input_context);
-    direct_mode_action_->update(input_context);
-    safe_preedit_mode_action_->update(input_context);
+    adaptive_mode_action_->update(input_context);
+    direct_experimental_mode_action_->update(input_context);
     off_mode_action_->update(input_context);
     telex_action_->update(input_context);
     vni_action_->update(input_context);
@@ -537,6 +602,31 @@ void UniLumeAddon::updateModeActions(fcitx::InputContext *input_context)
     clear_emoji_history_action_->update(input_context);
     input_context->updateUserInterface(
         fcitx::UserInterfaceComponent::StatusArea);
+}
+
+void UniLumeAddon::updateExperimentalMenuVisibility(
+    const fcitx::InputMethodEntry &entry)
+{
+    // Show the Direct (Experimental) menu entry only when the developer
+    // override is set to direct_experimental.  Without the override, the
+    // action is removed from the menu so uinput is never reachable from
+    // the UI.
+    const auto &resources = resourcesFor(entry);
+    const bool experimental_visible =
+        resources.developer_route_override ==
+        DeveloperRouteOverride::direct_experimental;
+    const auto actions = mode_menu_->actions();
+    const bool already_visible = std::find(
+        actions.begin(), actions.end(),
+        direct_experimental_mode_action_.get()) != actions.end();
+    if (experimental_visible && !already_visible) {
+        mode_menu_->insertAction(
+            off_mode_action_.get(),
+            direct_experimental_mode_action_.get());
+    } else if (!experimental_visible && already_visible) {
+        mode_menu_->removeAction(
+            direct_experimental_mode_action_.get());
+    }
 }
 
 StatusSnapshot UniLumeAddon::statusSnapshotFor(
@@ -902,7 +992,9 @@ bool UniLumeAddon::prepareApplicationPolicyUpdate(
         if (decoded.legacy_modes && !legacy_policy_warning_emitted_) {
             FCITX_WARN()
                 << "UniLume application policy uses legacy modes; "
-                   "automatic maps to direct and safe-preedit maps to off";
+                   "automatic/direct/safe-preedit have been migrated to "
+                   "adaptive per Issue #127. The original file was backed "
+                   "up with a .legacy.bak suffix.";
             legacy_policy_warning_emitted_ = true;
         }
         snapshot = std::move(decoded.snapshot);
@@ -928,9 +1020,6 @@ bool UniLumeAddon::prepareModeHotkeyUpdate(
     };
     const bool has_update =
         source.valueByPath("CycleModeHotkey") ||
-        source.valueByPath("AutomaticModeHotkey") ||
-        source.valueByPath("DirectModeHotkey") ||
-        source.valueByPath("SafePreeditModeHotkey") ||
         source.valueByPath("OffModeHotkey") ||
         source.valueByPath("EmojiHotkey");
     if (!has_update) {
@@ -938,28 +1027,18 @@ bool UniLumeAddon::prepareModeHotkeyUpdate(
     }
     const std::string cycle = effective(
         "CycleModeHotkey", *current.cycle_mode_hotkey);
-    const std::string automatic = effective(
-        "AutomaticModeHotkey", *current.automatic_mode_hotkey);
-    const std::string direct = effective(
-        "DirectModeHotkey", *current.direct_mode_hotkey);
-    const std::string safe_preedit = effective(
-        "SafePreeditModeHotkey", *current.safe_preedit_mode_hotkey);
     const std::string off = effective(
         "OffModeHotkey", *current.off_mode_hotkey);
     const std::string emoji = effective(
         "EmojiHotkey", *current.emoji_hotkey);
     ModeHotkeys parsed{
         cycle.empty() ? fcitx::Key() : fcitx::Key(cycle),
-        automatic.empty() ? fcitx::Key() : fcitx::Key(automatic),
-        direct.empty() ? fcitx::Key() : fcitx::Key(direct),
-        safe_preedit.empty() ? fcitx::Key() : fcitx::Key(safe_preedit),
         off.empty() ? fcitx::Key() : fcitx::Key(off),
         emoji.empty() ? fcitx::Key() : fcitx::Key(emoji),
     };
     std::set<std::string> seen;
     for (const fcitx::Key *key :
-         {&parsed.cycle, &parsed.automatic, &parsed.direct,
-          &parsed.safe_preedit, &parsed.off, &parsed.emoji}) {
+         {&parsed.cycle, &parsed.off, &parsed.emoji}) {
         if (!key->isValid()) {
             continue;
         }

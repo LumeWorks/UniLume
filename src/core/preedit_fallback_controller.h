@@ -32,6 +32,7 @@ public:
     PreeditAction submit(const KeyInput &input);
     void reset();
     void lineBreak();
+    void setCommitPolicy(PreeditCommitPolicy policy);
     void setInputMethod(UlInputMethod method);
     void setOptions(const UlEngineOptions &options);
     void setTypingOptions(const TypingConvenienceOptions &options);

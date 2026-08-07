@@ -206,9 +206,30 @@ StageResult GenerationStore::stage(const Settings &source) const
         const std::filesystem::path path =
             result.generation / "applications.conf";
         std::string error;
-        if (!decoded.ok() ||
-            !atomicWrite(path, policy::encode(decoded.snapshot), error)) {
-            fail(decoded.ok() ? std::move(error) : decoded.error);
+        if (!decoded.ok()) {
+            fail(decoded.error);
+            return result;
+        }
+        // Issue #127 migration: the first time a legacy policy (using
+        // automatic/direct/safe-preedit modes) is rewritten to the new
+        // adaptive/off vocabulary, back up the existing file so the user
+        // can recover the original rules if the migration misbehaves.
+        if (decoded.legacy_modes) {
+            std::error_code ec;
+            if (std::filesystem::exists(path, ec) && !ec) {
+                const std::filesystem::path backup =
+                    path.string() + ".legacy.bak";
+                std::filesystem::copy_file(
+                    path, backup,
+                    std::filesystem::copy_options::overwrite_existing, ec);
+                if (ec) {
+                    fail("backup legacy application policy: " + ec.message());
+                    return result;
+                }
+            }
+        }
+        if (!atomicWrite(path, policy::encode(decoded.snapshot), error)) {
+            fail(std::move(error));
             return result;
         }
         result.settings.values["ApplicationPolicyFile"] = path.string();

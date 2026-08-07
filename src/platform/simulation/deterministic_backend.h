@@ -59,7 +59,10 @@ public:
         std::uint64_t sequence_id,
         std::string_view commit_text) override;
     bool cancel(std::uint64_t sequence_id) override;
+    void markUncertainOutcome() override;
     void reset() override;
+
+    [[nodiscard]] bool poisoned() const;
 
     std::vector<BackendCompletion> advance(std::size_t events = 1);
     void injectCompletion(std::uint64_t sequence_id, bool success);
@@ -96,6 +99,7 @@ private:
     std::size_t event_clock_{};
     std::size_t applied_events_{};
     std::size_t text_character_count_{};
+    bool poisoned_{};
 };
 
 } // namespace unilume::integration::test

@@ -23,6 +23,7 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <set>
 #include <string>
 
 #include <map>
@@ -63,12 +64,10 @@ private:
     class ModeAction;
     class ConfigAction;
     class EmojiAction;
+    class SubmenuAction;
 
     struct ModeHotkeys {
         fcitx::Key cycle{"Control+Alt+u"};
-        fcitx::Key automatic;
-        fcitx::Key direct;
-        fcitx::Key safe_preedit;
         fcitx::Key off;
         fcitx::Key emoji{"Control+Alt+period"};
     };
@@ -85,6 +84,7 @@ private:
         bool verified_direct_enabled{
             verified_direct_enabled_by_default};
         DirectStrategy direct_strategy{DirectStrategy::fast};
+        DeveloperRouteOverride developer_route_override{};
         bool emoji_enabled{};
         policy::Snapshot application_policy_snapshot;
         std::uint64_t application_policy_generation{};
@@ -121,6 +121,7 @@ private:
         fcitx::InputContext *input_context,
         std::optional<policy::ApplicationMode> mode);
     void updateModeActions(fcitx::InputContext *input_context);
+    void updateExperimentalMenuVisibility(const fcitx::InputMethodEntry &entry);
     [[nodiscard]] StatusSnapshot statusSnapshotFor(
         fcitx::InputContext *input_context) const;
     void applyStatusCommand(fcitx::InputContext *input_context,
@@ -134,11 +135,13 @@ private:
     UinputBackspaceDevice uinput_device_;
     fcitx::FactoryFor<InputContextState> state_factory_;
     std::unique_ptr<fcitx::Menu> mode_menu_;
+    std::unique_ptr<fcitx::Menu> input_method_menu_;
+    std::unique_ptr<fcitx::Menu> options_menu_;
+    std::unique_ptr<fcitx::Menu> emoji_menu_;
     std::unique_ptr<ModeAction> mode_action_;
-    std::unique_ptr<ModeAction> automatic_mode_action_;
-    std::unique_ptr<ModeAction> direct_mode_action_;
-    std::unique_ptr<ModeAction> safe_preedit_mode_action_;
+    std::unique_ptr<ModeAction> adaptive_mode_action_;
     std::unique_ptr<ModeAction> off_mode_action_;
+    std::unique_ptr<ModeAction> direct_experimental_mode_action_;
     std::unique_ptr<ConfigAction> telex_action_;
     std::unique_ptr<ConfigAction> vni_action_;
     std::unique_ptr<ConfigAction> viqr_action_;
@@ -148,8 +151,12 @@ private:
     std::unique_ptr<ConfigAction> dictionary_action_;
     std::unique_ptr<EmojiAction> emoji_action_;
     std::unique_ptr<EmojiAction> clear_emoji_history_action_;
+    std::unique_ptr<fcitx::Action> input_method_submenu_action_;
+    std::unique_ptr<fcitx::Action> options_submenu_action_;
+    std::unique_ptr<fcitx::Action> emoji_submenu_action_;
     std::unique_ptr<EmojiPicker> emoji_picker_;
     mutable std::map<std::string, InputMethodConfig> input_method_configs_;
+    std::set<std::string> loaded_configs_;
     mutable std::map<std::string, RuntimeResources> runtime_resources_;
     mutable bool legacy_policy_warning_emitted_{};
 };

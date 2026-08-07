@@ -20,6 +20,7 @@ unset(CMAKE_REQUIRED_INCLUDES)
 add_library(unilume_fcitx5 MODULE
   acknowledged_backspace_transaction.cpp
   addon.cpp
+  developer_route_override.cpp
   diagnostic_trace.cpp
   emoji_picker.cpp
   fcitx_key_mapper.cpp

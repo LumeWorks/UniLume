@@ -31,7 +31,9 @@ bool validPattern(std::string_view pattern)
 
 bool parseMode(std::string_view text, ApplicationMode &mode)
 {
-    if (text == "automatic") {
+    if (text == "adaptive") {
+        mode = ApplicationMode::adaptive;
+    } else if (text == "automatic") {
         mode = ApplicationMode::automatic;
     } else if (text == "direct") {
         mode = ApplicationMode::direct;
@@ -63,6 +65,8 @@ bool prefixLess(const Rule &left, const Rule &right)
 std::string_view modeName(ApplicationMode mode)
 {
     switch (mode) {
+    case ApplicationMode::adaptive:
+        return "adaptive";
     case ApplicationMode::automatic:
         return "automatic";
     case ApplicationMode::direct:
@@ -154,8 +158,10 @@ DecodeResult decode(std::string_view text)
                 return {.line = line_number, .field = "default",
                         .error = "invalid or duplicate default mode"};
             }
-            legacy_modes = legacy_modes || fields[1] == "automatic" ||
-                           fields[1] == "safe-preedit";
+            if (isLegacyMode(table->default_mode)) {
+                legacy_modes = true;
+                table->default_mode = migrateMode(table->default_mode);
+            }
             has_default = true;
             continue;
         }
@@ -184,8 +190,10 @@ DecodeResult decode(std::string_view text)
             return {.line = line_number, .field = "mode",
                     .error = "unknown application mode"};
         }
-        legacy_modes = legacy_modes || fields[2] == "automatic" ||
-                       fields[2] == "safe-preedit";
+        if (isLegacyMode(mode)) {
+            legacy_modes = true;
+            mode = migrateMode(mode);
+        }
         if (!seen.emplace(kind, std::string(pattern)).second) {
             return {.line = line_number, .field = "pattern",
                     .error = "duplicate or conflicting rule"};
@@ -240,7 +248,7 @@ Resolution resolve(const Snapshot &snapshot,
                    std::string_view application_identity)
 {
     if (!snapshot.table || application_identity.empty()) {
-        return {ApplicationMode::automatic,
+        return {ApplicationMode::adaptive,
                 ResolutionSource::missing_identity, {}};
     }
     const Table &table = *snapshot.table;

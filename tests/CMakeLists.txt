@@ -153,6 +153,53 @@ set_target_properties(unilume_application_policy_tests PROPERTIES
 )
 add_test(NAME application-policy COMMAND unilume_application_policy_tests)
 
+add_executable(unilume_adaptive_router_tests
+  platform/adaptive_router_tests.cpp
+)
+target_link_libraries(unilume_adaptive_router_tests PRIVATE
+  unilume_core
+  unilume_sanitizer_options
+)
+set_target_properties(unilume_adaptive_router_tests PROPERTIES
+  CXX_STANDARD 23
+  CXX_STANDARD_REQUIRED YES
+  CXX_EXTENSIONS NO
+)
+add_test(NAME adaptive-router COMMAND unilume_adaptive_router_tests)
+
+add_executable(unilume_capability_builder_tests
+  platform/capability_builder_tests.cpp
+)
+target_link_libraries(unilume_capability_builder_tests PRIVATE
+  unilume_core
+  unilume_sanitizer_options
+)
+set_target_properties(unilume_capability_builder_tests PROPERTIES
+  CXX_STANDARD 23
+  CXX_STANDARD_REQUIRED YES
+  CXX_EXTENSIONS NO
+)
+add_test(NAME capability-builder COMMAND unilume_capability_builder_tests)
+
+add_executable(unilume_adaptive_routing_pipeline_tests
+  platform/adaptive_routing_pipeline_tests.cpp
+  ../src/fcitx5/developer_route_override.cpp
+)
+target_link_libraries(unilume_adaptive_routing_pipeline_tests PRIVATE
+  unilume_core
+  unilume_sanitizer_options
+)
+target_include_directories(unilume_adaptive_routing_pipeline_tests PRIVATE
+  ${CMAKE_SOURCE_DIR}/src/fcitx5
+)
+set_target_properties(unilume_adaptive_routing_pipeline_tests PROPERTIES
+  CXX_STANDARD 23
+  CXX_STANDARD_REQUIRED YES
+  CXX_EXTENSIONS NO
+)
+add_test(NAME adaptive-routing-pipeline
+         COMMAND unilume_adaptive_routing_pipeline_tests)
+
 add_executable(unilume_property_tests
   ../fuzz/property_test_main.cpp
   ../fuzz/support/fuzz_harness.cpp
@@ -216,6 +263,8 @@ add_executable(unilume_integration_tests
   integration/options_tests.cpp
   integration/integration_test_main.cpp
   integration/preedit_fallback_tests.cpp
+  integration/split_transport_backend.cpp
+  integration/split_transport_tests.cpp
   integration/stability_recovery_tests.cpp
   integration/transaction_tests.cpp
   integration/typing_pipeline_tests.cpp
@@ -251,6 +300,7 @@ foreach(suite IN ITEMS
     stability-recovery
     zero-preedit-architecture
     zero-preedit-soak
+    outcome-containment
 )
   add_test(
     NAME "integration-${suite}"

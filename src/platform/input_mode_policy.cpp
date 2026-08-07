@@ -6,7 +6,7 @@ namespace unilume::platform {
 
 InputPath InputModePolicy::observe(bool direct_available)
 {
-    return observe(policy::ApplicationMode::automatic, direct_available);
+    return observe(policy::ApplicationMode::adaptive, direct_available);
 }
 
 InputPath InputModePolicy::observe(policy::ApplicationMode requested,
@@ -43,6 +43,13 @@ InputPath InputModePolicy::observe(policy::ApplicationMode requested,
     return path_;
 }
 
+void InputModePolicy::assignPath(InputPath path,
+                                 policy::ApplicationMode requested)
+{
+    requested_ = requested;
+    path_ = path;
+}
+
 void InputModePolicy::resetForCompositionEnd()
 {
     // Between compositions, reset to unknown so the next composition
@@ -53,7 +60,7 @@ void InputModePolicy::resetForCompositionEnd()
 void InputModePolicy::reset()
 {
     path_ = InputPath::unknown;
-    requested_ = policy::ApplicationMode::automatic;
+    requested_ = policy::ApplicationMode::adaptive;
 }
 
 InputPath InputModePolicy::path() const

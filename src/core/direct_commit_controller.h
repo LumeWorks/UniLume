@@ -33,7 +33,8 @@ public:
         UlInputMethod method = UL_INPUT_METHOD_TELEX);
 
     SubmissionStatus submit(const KeyInput &input);
-    void complete(std::uint64_t sequence_id, bool success);
+    void complete(std::uint64_t sequence_id,
+                  platform::ReplacementOutcome outcome);
     void timeout(std::uint64_t sequence_id);
     void resetForFocus();
     void lineBreak();
@@ -68,7 +69,9 @@ private:
     bool enqueue(const KeyInput &input);
     QueuedInput dequeue();
     static KeyInput view(const QueuedInput &input);
-    bool finishActive(bool success, bool fallback_allowed = false);
+    bool finishActive(platform::ReplacementOutcome outcome,
+                      bool fallback_allowed = false);
+    std::size_t releaseQueuedAsLiteral(std::uint64_t sequence);
     void drainQueue();
     void updateQueueMetrics();
 

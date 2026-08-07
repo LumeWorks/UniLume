@@ -55,7 +55,10 @@ void deliver(core::DirectCommitController &controller,
              const std::vector<BackendCompletion> &completions)
 {
     for (const auto &completion : completions) {
-        controller.complete(completion.sequence_id, completion.success);
+        controller.complete(
+            completion.sequence_id,
+            completion.success ? platform::ReplacementOutcome::applied
+                               : platform::ReplacementOutcome::not_applied);
     }
 }
 
@@ -228,12 +231,14 @@ Outcome runTransactions(std::span<const std::uint8_t> input)
             trace << 'A';
             break;
         case 6:
-            controller.complete(controller.activeSequence() + 1, true);
+            controller.complete(controller.activeSequence() + 1,
+                                platform::ReplacementOutcome::applied);
             trace << 'S';
             break;
         case 7:
             backend.cancel(controller.activeSequence());
-            controller.complete(controller.activeSequence(), false);
+            controller.complete(controller.activeSequence(),
+                                platform::ReplacementOutcome::not_applied);
             trace << 'X';
             break;
         case 8:
@@ -319,8 +324,8 @@ bool knownTransactionFaultsDetected()
         backend.forwardRaw(0, "s");
     }
     const std::uint64_t active = controller.activeSequence();
-    controller.complete(active + 1, true);
-    controller.complete(active + 1, true);
+    controller.complete(active + 1, platform::ReplacementOutcome::applied);
+    controller.complete(active + 1, platform::ReplacementOutcome::applied);
     const auto &metrics = controller.metrics();
     return metrics.stale_result_count == 2 &&
            metrics.duplicate_prevention_count == 2 &&
