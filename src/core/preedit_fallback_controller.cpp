@@ -185,6 +185,13 @@ void PreeditFallbackController::setOptions(const UlEngineOptions &options)
     commit_.clear();
 }
 
+void PreeditFallbackController::setMacros(const macro::Snapshot &snapshot)
+{
+    engine_.setMacros(snapshot);
+    preedit_.clear();
+    commit_.clear();
+}
+
 std::string_view PreeditFallbackController::preedit() const
 {
     return preedit_;

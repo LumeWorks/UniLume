@@ -26,6 +26,7 @@
 #include <string>
 
 #include <map>
+#include <cstdint>
 #include <string>
 
 namespace unilume::fcitx5 {
