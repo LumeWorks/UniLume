@@ -1,0 +1,5 @@
+usr/lib/*/fcitx5/unilume.so            usr/lib/*/fcitx5/
+usr/share/fcitx5/addon/unilume.conf     usr/share/fcitx5/addon/
+usr/share/fcitx5/inputmethod/unilume.conf usr/share/fcitx5/inputmethod/
+usr/share/doc/unilume/                  usr/share/doc/
+usr/share/licenses/unilume/copyright    usr/share/licenses/unilume/
