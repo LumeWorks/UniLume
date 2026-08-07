@@ -126,6 +126,21 @@ Xác thực Wayland, harness qualification tự động cho họ wlroots và che
 kiểm tra thủ công cho KWin/Mutter trong
 [docs/wayland-validation.md](docs/wayland-validation.md).
 
+Để chạy ASan và UBSan cục bộ:
+
+```sh
+cmake -S . -B build/sanitizers \
+  -DCMAKE_BUILD_TYPE=Debug \
+  -DUNILUME_ENABLE_ASAN=ON \
+  -DUNILUME_ENABLE_UBSAN=ON
+cmake --build build/sanitizers
+ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 \
+UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1 \
+ctest --test-dir build/sanitizers --output-on-failure
+```
+
+Các option sanitizer mặc định tắt và không thay thế test build thông thường.
+
 ## Nguồn gốc và giấy phép
 
 Phần lớn code trong `src/` và tài liệu trong `docs/legacy/` đến từ x-unikey
