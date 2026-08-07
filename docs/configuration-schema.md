@@ -106,6 +106,10 @@ The equivalent bounded runtime contract for personal dictionaries is
 [dictionary-support.md](dictionary-support.md). Its Fcitx fields are adapter
 configuration; v2 application-level persistence remains unchanged.
 
+The per-application rule table and mode hotkeys follow
+[application-policy.md](application-policy.md). Their Fcitx fields are also
+adapter configuration and do not extend the v2 engine snapshot.
+
 ## Fcitx5 input-method configuration
 
 The Fcitx5 addon exposes the same method choice per Fcitx input-method entry:

@@ -27,6 +27,8 @@
 
 #include <map>
 #include <cstdint>
+#include <memory>
+#include <optional>
 #include <string>
 
 namespace unilume::fcitx5 {

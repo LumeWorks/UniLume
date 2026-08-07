@@ -563,6 +563,115 @@ void InputContextState::setDictionary(
     dictionary_generation_ = generation;
 }
 
+void InputContextState::setApplicationPolicy(
+    const policy::Resolution &resolution,
+    std::uint64_t generation,
+    std::string_view application_identity)
+{
+    if (policy_initialized_ &&
+        generation == policy_generation_ &&
+        application_identity == application_identity_ &&
+        resolution.mode == policy_mode_ &&
+        resolution.source == policy_source_ &&
+        resolution.pattern == policy_pattern_) {
+        return;
+    }
+    compositionBoundary();
+    policy_mode_ = resolution.mode;
+    policy_source_ = resolution.source;
+    application_identity_.assign(application_identity);
+    policy_pattern_.assign(resolution.pattern);
+    policy_generation_ = generation;
+    policy_initialized_ = true;
+    application_mode_override_.reset();
+    ++application_mode_revision_;
+    synchronizeMode();
+}
+
+bool InputContextState::applicationPolicyIsCurrent(
+    std::uint64_t generation,
+    std::string_view application_identity) const
+{
+    return policy_initialized_ &&
+           generation == policy_generation_ &&
+           application_identity == application_identity_;
+}
+
+void InputContextState::selectApplicationMode(policy::ApplicationMode mode)
+{
+    if (application_mode_override_ &&
+        *application_mode_override_ == mode) {
+        return;
+    }
+    compositionBoundary();
+    application_mode_override_ = mode;
+    ++application_mode_revision_;
+    synchronizeMode();
+}
+
+void InputContextState::cycleApplicationMode()
+{
+    switch (requestedApplicationMode()) {
+    case policy::ApplicationMode::automatic:
+        selectApplicationMode(policy::ApplicationMode::direct);
+        break;
+    case policy::ApplicationMode::direct:
+        selectApplicationMode(policy::ApplicationMode::safe_preedit);
+        break;
+    case policy::ApplicationMode::safe_preedit:
+        selectApplicationMode(policy::ApplicationMode::off);
+        break;
+    case policy::ApplicationMode::off:
+        selectApplicationMode(policy::ApplicationMode::automatic);
+        break;
+    }
+}
+
+policy::ApplicationMode InputContextState::requestedApplicationMode() const
+{
+    return application_mode_override_.value_or(policy_mode_);
+}
+
+platform::InputPath InputContextState::effectiveInputPath() const
+{
+    return mode_policy_.path();
+}
+
+std::uint64_t InputContextState::applicationModeRevision() const
+{
+    return application_mode_revision_;
+}
+
+std::string InputContextState::applicationModeReason() const
+{
+    if (application_mode_override_) {
+        return "selected for this input context";
+    }
+    switch (policy_source_) {
+    case policy::ResolutionSource::missing_identity:
+        return "safe preedit: application identity unavailable";
+    case policy::ResolutionSource::exact_rule:
+        return "matched exact rule " + policy_pattern_;
+    case policy::ResolutionSource::prefix_rule:
+        return "matched prefix rule " + policy_pattern_ + '*';
+    case policy::ResolutionSource::default_rule:
+        return "application policy default";
+    }
+    return {};
+}
+
+void InputContextState::compositionBoundary()
+{
+    if (mode_policy_.path() == platform::InputPath::preedit) {
+        commitPendingPreedit();
+    }
+    direct_controller_.resetForFocus();
+    preedit_controller_.reset();
+    backend_.reset();
+    clearPreedit();
+    mode_policy_.reset();
+}
+
 void InputContextState::synchronizeMode()
 {
     const platform::InputPath previous = mode_policy_.path();

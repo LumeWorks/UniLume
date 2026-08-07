@@ -24,6 +24,7 @@
 
 #include <filesystem>
 #include <fstream>
+#include <set>
 
 namespace unilume::fcitx5 {
 
@@ -619,6 +620,91 @@ std::string UniLumeAddon::statusIcon(
         return "unilume-fallback";
     }
     return "unilume";
+}
+
+void UniLumeAddon::synchronizeState(
+    const fcitx::InputMethodEntry &entry,
+    fcitx::InputContext &input_context,
+    InputContextState &state) const
+{
+    const RuntimeResources &resources = resourcesFor(entry);
+    const config::Snapshot &snapshot = resources.configuration;
+    state.setInputMethod(toUlInputMethod(snapshot.input_method));
+    state.setOptions(core::engineOptionsFromSnapshot(snapshot));
+    state.setMacros(resources.snapshot, resources.generation);
+    state.setKeymap(resources.keymap_snapshot, resources.keymap_generation);
+    state.setDictionary(resources.dictionary_snapshot,
+                        resources.dictionary_generation);
+    const std::string &identity = input_context.program();
+    if (!state.applicationPolicyIsCurrent(
+            resources.application_policy_generation, identity)) {
+        state.setApplicationPolicy(
+            policy::resolve(resources.application_policy_snapshot, identity),
+            resources.application_policy_generation, identity);
+    }
+}
+
+bool UniLumeAddon::handleModeHotkey(const ModeHotkeys &hotkeys,
+                                    fcitx::KeyEvent &event,
+                                    InputContextState &state)
+{
+    if (event.isRelease()) {
+        return false;
+    }
+    const fcitx::Key key = event.key();
+    if (hotkeys.cycle.isValid() && key.check(hotkeys.cycle)) {
+        state.cycleApplicationMode();
+    } else if (hotkeys.automatic.isValid() &&
+               key.check(hotkeys.automatic)) {
+        state.selectApplicationMode(policy::ApplicationMode::automatic);
+    } else if (hotkeys.direct.isValid() && key.check(hotkeys.direct)) {
+        state.selectApplicationMode(policy::ApplicationMode::direct);
+    } else if (hotkeys.safe_preedit.isValid() &&
+               key.check(hotkeys.safe_preedit)) {
+        state.selectApplicationMode(policy::ApplicationMode::safe_preedit);
+    } else if (hotkeys.off.isValid() && key.check(hotkeys.off)) {
+        state.selectApplicationMode(policy::ApplicationMode::off);
+    } else {
+        return false;
+    }
+    updateModeActions(event.inputContext());
+    event.filterAndAccept();
+    return true;
+}
+
+InputContextState *UniLumeAddon::stateFor(
+    fcitx::InputContext *input_context) const
+{
+    return input_context
+               ? input_context->propertyFor(&state_factory_)
+               : nullptr;
+}
+
+void UniLumeAddon::selectModeFromAction(
+    fcitx::InputContext *input_context,
+    std::optional<policy::ApplicationMode> mode)
+{
+    InputContextState *state = stateFor(input_context);
+    if (!state) {
+        return;
+    }
+    if (mode) {
+        state->selectApplicationMode(*mode);
+    } else {
+        state->cycleApplicationMode();
+    }
+    updateModeActions(input_context);
+}
+
+void UniLumeAddon::updateModeActions(fcitx::InputContext *input_context)
+{
+    mode_action_->update(input_context);
+    automatic_mode_action_->update(input_context);
+    direct_mode_action_->update(input_context);
+    safe_preedit_mode_action_->update(input_context);
+    off_mode_action_->update(input_context);
+    input_context->updateUserInterface(
+        fcitx::UserInterfaceComponent::StatusArea);
 }
 
 bool UniLumeAddon::prepareKeymapUpdate(
