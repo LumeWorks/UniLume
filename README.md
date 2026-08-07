@@ -141,6 +141,11 @@ ctest --test-dir build/sanitizers --output-on-failure
 
 Các option sanitizer mặc định tắt và không thay thế test build thông thường.
 
+Benchmark core được tắt mặc định. Cách build Release, chạy corpus, xuất JSON
+và chạy soak được mô tả trong
+[docs/benchmarks.md](docs/benchmarks.md). Các số core-only không phải phép so
+sánh với Lotus, fcitx5-unikey hoặc một integration desktop hoàn chỉnh.
+
 ## Nguồn gốc và giấy phép
 
 Phần lớn code trong `src/` và tài liệu trong `docs/legacy/` đến từ x-unikey
