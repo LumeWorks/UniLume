@@ -203,6 +203,7 @@ void PreeditFallbackController::lineBreak()
     engine_.lineBreak();
     preedit_.clear();
     commit_.clear();
+    clearEditingState();
 }
 
 void PreeditFallbackController::setInputMethod(UlInputMethod method)
@@ -210,6 +211,7 @@ void PreeditFallbackController::setInputMethod(UlInputMethod method)
     engine_.setInputMethod(method);
     preedit_.clear();
     commit_.clear();
+    clearEditingState();
 }
 
 void PreeditFallbackController::setOptions(const UlEngineOptions &options)
@@ -217,6 +219,7 @@ void PreeditFallbackController::setOptions(const UlEngineOptions &options)
     engine_.setOptions(options);
     preedit_.clear();
     commit_.clear();
+    clearEditingState();
 }
 
 void PreeditFallbackController::setTypingOptions(
@@ -225,6 +228,7 @@ void PreeditFallbackController::setTypingOptions(
     engine_.setTypingOptions(options);
     preedit_.clear();
     commit_.clear();
+    clearEditingState();
 }
 
 void PreeditFallbackController::setMacros(const macro::Snapshot &snapshot)
@@ -232,6 +236,7 @@ void PreeditFallbackController::setMacros(const macro::Snapshot &snapshot)
     engine_.setMacros(snapshot);
     preedit_.clear();
     commit_.clear();
+    clearEditingState();
 }
 
 void PreeditFallbackController::setKeymap(const keymap::Snapshot &snapshot)
@@ -239,6 +244,7 @@ void PreeditFallbackController::setKeymap(const keymap::Snapshot &snapshot)
     engine_.setKeymap(snapshot);
     preedit_.clear();
     commit_.clear();
+    clearEditingState();
 }
 
 void PreeditFallbackController::setDictionary(
@@ -247,6 +253,7 @@ void PreeditFallbackController::setDictionary(
     engine_.setDictionary(snapshot);
     preedit_.clear();
     commit_.clear();
+    clearEditingState();
 }
 
 std::string_view PreeditFallbackController::preedit() const
